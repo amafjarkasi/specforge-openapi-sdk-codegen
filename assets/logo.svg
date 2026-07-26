@@ -1,37 +1,93 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="specforge">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="specforge mascot">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="55%" stop-color="#818cf8"/>
-      <stop offset="100%" stop-color="#c084fc"/>
+    <linearGradient id="forge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="50%" stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#dc2626"/>
     </linearGradient>
-    <linearGradient id="g2" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#a78bfa"/>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f97316"/>
     </linearGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="2.2" result="b"/>
+    <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <filter id="ember" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
       <feMerge>
         <feMergeNode in="b"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
-  <!-- rounded plate -->
-  <rect x="8" y="8" width="112" height="112" rx="28" fill="#0b1220"/>
-  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#g)" opacity="0.12"/>
-  <rect x="10.5" y="10.5" width="107" height="107" rx="26" fill="none" stroke="url(#g)" stroke-opacity="0.45" stroke-width="1.5"/>
 
-  <!-- anvil base -->
-  <path d="M34 86h60c2 0 3.5 1.4 3.5 3.2V94c0 1.8-1.5 3.2-3.5 3.2H34c-2 0-3.5-1.4-3.5-3.2v-4.8c0-1.8 1.5-3.2 3.5-3.2z" fill="url(#g)" opacity="0.9"/>
-  <path d="M40 78h48c1.4 0 2.5 1 2.5 2.3V86H37.5v-5.7c0-1.3 1.1-2.3 2.5-2.3z" fill="url(#g2)"/>
+  <!-- background plate -->
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="#1a0f0a"/>
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#forge)" opacity="0.08"/>
+  <rect x="6.5" y="6.5" width="115" height="115" rx="22" fill="none" stroke="url(#forge)" stroke-opacity="0.3" stroke-width="1.5"/>
 
-  <!-- document / spec sheet -->
-  <path d="M42 30h28l12 12v34c0 2.2-1.8 4-4 4H42c-2.2 0-4-1.8-4-4V34c0-2.2 1.8-4 4-4z" fill="#0f172a" stroke="url(#g)" stroke-width="2" filter="url(#glow)"/>
-  <path d="M70 30v10c0 1.1.9 2 2 2h10" fill="none" stroke="url(#g)" stroke-width="2"/>
-  <path d="M48 52h28M48 60h22M48 68h18" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+  <!-- === MASCOT: blacksmith fox === -->
 
-  <!-- spark / forge mark -->
-  <circle cx="86" cy="44" r="10" fill="url(#g)" opacity="0.95" filter="url(#glow)"/>
-  <path d="M86 36v16M78 44h16M80.5 38.5l11 11M80.5 49.5l11-11" stroke="#0b1220" stroke-width="2" stroke-linecap="round"/>
+  <!-- body -->
+  <ellipse cx="64" cy="82" rx="22" ry="18" fill="#b45309"/>
+  <ellipse cx="64" cy="82" rx="22" ry="18" fill="#d97706" opacity="0.4"/>
+
+  <!-- apron -->
+  <path d="M48 74c0-4 7-7 16-7s16 3 16 7v14c0 3-7 6-16 6s-16-3-16-6z" fill="#1e293b"/>
+  <path d="M52 74v13c0 2 5.3 4.5 12 4.5s12-2.5 12-4.5V74" fill="none" stroke="#334155" stroke-width="1.2"/>
+
+  <!-- head -->
+  <ellipse cx="64" cy="48" rx="18" ry="16" fill="#d97706"/>
+
+  <!-- ears -->
+  <path d="M46 38l-6-14 10 8z" fill="#d97706"/>
+  <path d="M47 36l-4-10 7 6z" fill="#fbbf24" opacity="0.6"/>
+  <path d="M82 38l6-14-10 8z" fill="#d97706"/>
+  <path d="M81 36l4-10-7 6z" fill="#fbbf24" opacity="0.6"/>
+
+  <!-- face -->
+  <ellipse cx="56" cy="46" rx="3.5" ry="4" fill="#1e293b"/>
+  <ellipse cx="72" cy="46" rx="3.5" ry="4" fill="#1e293b"/>
+  <circle cx="57" cy="44.5" r="1.2" fill="white"/>
+  <circle cx="73" cy="44.5" r="1.2" fill="white"/>
+
+  <!-- nose -->
+  <ellipse cx="64" cy="52" rx="3" ry="2" fill="#1e293b"/>
+
+  <!-- mouth / grin -->
+  <path d="M59 55c2 2 8 2 10 0" fill="none" stroke="#1e293b" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- goggles on forehead -->
+  <path d="M48 40c0-3 4-5 8-5h16c4 0 8 2 8 5" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="54" cy="39" r="5" fill="none" stroke="#94a3b8" stroke-width="2"/>
+  <circle cx="74" cy="39" r="5" fill="none" stroke="#94a3b8" stroke-width="2"/>
+  <circle cx="54" cy="39" r="3" fill="#38bdf8" opacity="0.3"/>
+  <circle cx="74" cy="39" r="3" fill="#38bdf8" opacity="0.3"/>
+
+  <!-- left arm holding hammer -->
+  <path d="M42 78l-10 12" stroke="#b45309" stroke-width="6" stroke-linecap="round"/>
+  <!-- hammer handle -->
+  <rect x="24" y="84" width="16" height="4" rx="2" fill="#92400e" transform="rotate(-25 32 86)"/>
+  <!-- hammer head -->
+  <rect x="18" y="78" width="12" height="8" rx="2" fill="url(#metal)" transform="rotate(-25 24 82)"/>
+
+  <!-- right arm holding document -->
+  <path d="M86 78l8 10" stroke="#b45309" stroke-width="6" stroke-linecap="round"/>
+  <!-- document -->
+  <rect x="88" y="84" width="16" height="20" rx="2" fill="#f8fafc" transform="rotate(10 96 94)"/>
+  <rect x="88" y="84" width="16" height="20" rx="2" fill="none" stroke="url(#forge)" stroke-width="1" transform="rotate(10 96 94)"/>
+  <!-- doc lines -->
+  <line x1="92" y1="90" x2="100" y2="90" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" transform="rotate(10 96 95)"/>
+  <line x1="92" y1="94" x2="98" y2="94" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" transform="rotate(10 96 95)"/>
+  <line x1="92" y1="98" x2="96" y2="98" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" transform="rotate(10 96 95)"/>
+
+  <!-- sparks / embers around hammer -->
+  <circle cx="28" cy="74" r="2" fill="#fbbf24" filter="url(#ember)" opacity="0.9"/>
+  <circle cx="34" cy="70" r="1.5" fill="#f97316" filter="url(#ember)" opacity="0.8"/>
+  <circle cx="22" cy="78" r="1" fill="#fde68a" filter="url(#ember)" opacity="0.7"/>
+  <circle cx="36" cy="76" r="1.2" fill="#fbbf24" filter="url(#ember)" opacity="0.6"/>
+
+  <!-- anvil base hint -->
+  <path d="M50 100h28c1.5 0 2.5 1 2.5 2.2v3.6c0 1.2-1 2.2-2.5 2.2H50c-1.5 0-2.5-1-2.5-2.2v-3.6c0-1.2 1-2.2 2.5-2.2z" fill="#475569" opacity="0.5"/>
 </svg>
