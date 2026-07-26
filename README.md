@@ -11,7 +11,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.2.1-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.2.2-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
