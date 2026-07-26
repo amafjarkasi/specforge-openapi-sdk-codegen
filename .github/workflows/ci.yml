@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Keep generated SDK cargo checks offline-friendly after the first fetch.
+  CARGO_NET_RETRY: 3
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.x"
+          cache: false
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: false
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Cache OpenAPI fixtures
+        uses: actions/cache@v4
+        with:
+          path: target/spec-cache
+          key: ${{ runner.os }}-spec-cache-v1
+          restore-keys: |
+            ${{ runner.os }}-spec-cache-
+
+      - name: Show toolchains
+        run: |
+          rustc --version
+          cargo --version
+          go version
+          node --version
+          npm --version
+
+      - name: Build workspace
+        run: cargo build --workspace
+
+      - name: Unit tests (core + emitters)
+        run: |
+          cargo test -p specforge-core --all-targets
+          cargo test -p specforge-ts --lib
+          # Go/Rust emitter crates are integration-tested via CLI regression/e2e.
+          cargo test -p specforge-go --lib
+          cargo test -p specforge-rust --lib
+
+      - name: CLI regression (resolve + generate + compile gates)
+        # Includes petstore TS/Go/Rust generate, GitHub/Stripe resolve,
+        # and Go/Rust generate+compile against cached large specs.
+        run: cargo test -p specforge-cli --test regression -- --nocapture
+        timeout-minutes: 30
+
+      - name: E2E smoke (mock server × TS/Go/Rust clients)
+        run: cargo test -p specforge-cli --test e2e_smoke -- --nocapture
+        timeout-minutes: 15
+
+      - name: E2E advanced (concurrency · dedupe · middleware · idempotency · SSE)
+        run: cargo test -p specforge-cli --test e2e_advanced -- --nocapture
+        timeout-minutes: 15
+
+      - name: Clean previous output
+        shell: bash
+        run: rm -rf ${{ runner.temp }}/ci-petstore-ts
+
+      - name: Petstore typecheck (TypeScript)
+        run: |
+          cargo run -p specforge-cli --quiet -- generate fixtures/petstore.yaml -o ${{ runner.temp }}/ci-petstore-ts -l ts -n @ci/petstore
+          cd ${{ runner.temp }}/ci-petstore-ts
+          npm install --silent
+          npx tsc --noEmit
+
+  # Fast PR signal: no large-spec downloads, no multi-lang compile of GitHub/Stripe.
+  # Full job above still runs on every PR; this is a named quick check you can
+  # require while the full job is optional.
+  quick:
+    name: quick
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-quick-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-quick-
+            ${{ runner.os }}-cargo-
+      - name: Build + unit + petstore generate
+        run: |
+          cargo build --workspace
+          cargo test -p specforge-core --all-targets
+          cargo test -p specforge-ts --lib
+          cargo test -p specforge-cli --test regression petstore_ -- --nocapture

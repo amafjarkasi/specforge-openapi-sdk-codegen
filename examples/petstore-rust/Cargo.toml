@@ -1,0 +1,13 @@
+[package]
+name = "petstore-example-consumer"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "petstore-example"
+path = "src/main.rs"
+
+[dependencies]
+petstore_example_sdk = { path = "./sdk" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

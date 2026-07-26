@@ -1,0 +1,63 @@
+name: Publish to crates.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (skip actual publish)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    name: Publish specforge-cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ubuntu-latest-cargo-publish-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Verify workspace builds
+        run: cargo build --workspace
+
+      - name: Publish (dry run)
+        if: inputs.dry_run == 'true'
+        run: |
+          cargo publish -p specforge-core --dry-run
+          cargo publish -p specforge-ts --dry-run
+          cargo publish -p specforge-go --dry-run
+          cargo publish -p specforge-rust --dry-run
+          cargo publish -p specforge-cli --dry-run
+
+      - name: Publish to crates.io
+        if: inputs.dry_run == 'false'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          # Publish in dependency order with a delay for crates.io indexing.
+          cargo publish -p specforge-core
+          sleep 30
+          cargo publish -p specforge-ts
+          cargo publish -p specforge-go
+          cargo publish -p specforge-rust
+          sleep 30
+          cargo publish -p specforge-cli

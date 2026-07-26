@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" role="img" aria-label="specforge">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="50%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="text" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#c7d2fe"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#1e293b" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="960" height="220" rx="24" fill="url(#bg)"/>
+  <rect width="960" height="220" rx="24" fill="url(#grid)" opacity="0.45"/>
+  <circle cx="820" cy="40" r="120" fill="url(#accent)" opacity="0.10"/>
+  <circle cx="120" cy="200" r="90" fill="url(#accent)" opacity="0.08"/>
+
+  <!-- mark -->
+  <g transform="translate(48,46) scale(1.0)">
+    <rect x="0" y="0" width="128" height="128" rx="28" fill="#0b1220"/>
+    <rect x="0" y="0" width="128" height="128" rx="28" fill="url(#accent)" opacity="0.14"/>
+    <rect x="2.5" y="2.5" width="123" height="123" rx="26" fill="none" stroke="url(#accent)" stroke-opacity="0.5" stroke-width="1.5"/>
+    <path d="M34 86h60c2 0 3.5 1.4 3.5 3.2V94c0 1.8-1.5 3.2-3.5 3.2H34c-2 0-3.5-1.4-3.5-3.2v-4.8c0-1.8 1.5-3.2 3.5-3.2z" fill="url(#accent)" opacity="0.95"/>
+    <path d="M40 78h48c1.4 0 2.5 1 2.5 2.3V86H37.5v-5.7c0-1.3 1.1-2.3 2.5-2.3z" fill="#22d3ee"/>
+    <path d="M42 30h28l12 12v34c0 2.2-1.8 4-4 4H42c-2.2 0-4-1.8-4-4V34c0-2.2 1.8-4 4-4z" fill="#0f172a" stroke="url(#accent)" stroke-width="2"/>
+    <path d="M70 30v10c0 1.1.9 2 2 2h10" fill="none" stroke="url(#accent)" stroke-width="2"/>
+    <path d="M48 52h28M48 60h22M48 68h18" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round" opacity="0.9"/>
+    <circle cx="86" cy="44" r="10" fill="url(#accent)"/>
+    <path d="M86 36v16M78 44h16M80.5 38.5l11 11M80.5 49.5l11-11" stroke="#0b1220" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="210" y="108" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="64" font-weight="750" fill="url(#text)" letter-spacing="-1.5">specforge</text>
+  <text x="214" y="148" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial" font-size="22" font-weight="500" fill="#94a3b8">OpenAPI → typed SDKs for TypeScript, Go &amp; Rust</text>
+
+  <!-- pills -->
+  <g font-family="ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial" font-size="14" font-weight="600">
+    <rect x="214" y="168" width="92" height="28" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="260" y="187" text-anchor="middle" fill="#7dd3fc">TypeScript</text>
+    <rect x="316" y="168" width="56" height="28" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="344" y="187" text-anchor="middle" fill="#86efac">Go</text>
+    <rect x="382" y="168" width="68" height="28" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="416" y="187" text-anchor="middle" fill="#c4b5fd">Rust</text>
+    <rect x="460" y="168" width="120" height="28" rx="14" fill="#0f172a" stroke="#334155"/>
+    <text x="520" y="187" text-anchor="middle" fill="#fde68a">IR pipeline</text>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+[package]
+name = "specforge-cli"
+description = "CLI: generate typed SDKs from OpenAPI YAML/JSON specs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "specforge"
+path = "src/main.rs"
+
+[dependencies]
+specforge-core.workspace = true
+specforge-ts.workspace = true
+specforge-go.workspace = true
+specforge-rust.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+specforge-core.workspace = true
+specforge-ts.workspace = true
+specforge-go.workspace = true
+specforge-rust.workspace = true

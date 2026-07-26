@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/specforge-core",
+    "crates/specforge-ts",
+    "crates/specforge-go",
+    "crates/specforge-rust",
+    "crates/specforge-cli",
+]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+repository = "https://github.com/example/specforge"
+
+[workspace.dependencies]
+# Spec parsing
+openapiv3 = "2.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+# Indexing/refs
+indexmap = { version = "2", features = ["serde"] }
+# Error ergonomics
+thiserror = "1"
+anyhow = "1"
+# CLI
+clap = { version = "4", features = ["derive"] }
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Internal crates
+specforge-core = { path = "crates/specforge-core", version = "0.2.0" }
+specforge-ts = { path = "crates/specforge-ts", version = "0.2.0" }
+specforge-go = { path = "crates/specforge-go", version = "0.2.0" }
+specforge-rust = { path = "crates/specforge-rust", version = "0.2.0" }
+
+[profile.release]
+codegen-units = 1
+lto = true
