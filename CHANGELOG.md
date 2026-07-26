@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-07-26
+
+### Added
+
+#### Core
+- **OpenAPI 3.1 support** — Transparent preprocessing layer that converts 3.1 specs to 3.0 before parsing. Handles `type: ["string", "null"]` → `nullable: true`, numeric `exclusiveMinimum`/`exclusiveMaximum` → boolean, and missing `paths` → empty object.
+- **IR serialization** — All IR types now derive `serde::Serialize` for JSON emission.
+
+#### CLI
+- **`specforge emit`** — New subcommand that dumps the resolved IR as JSON to stdout. Enables external emitters and plugins to consume the IR without embedding specforge.
+
+#### Branding
+- **Fox blacksmith mascot** — New logo with a fox character wearing goggles, holding a hammer and document.
+- **Forge color scheme** — Warm orange/amber/red palette replacing the previous blue/purple.
+
 ## [0.2.1] — 2026-07-26
 
 ### Added
@@ -97,6 +112,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.2.2]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.2
 [0.2.1]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.1.0

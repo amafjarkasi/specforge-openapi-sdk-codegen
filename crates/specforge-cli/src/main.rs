@@ -50,6 +50,8 @@ enum Commands {
     Check(CheckArgs),
     /// Compare two OpenAPI specs and report breaking changes.
     Diff(DiffArgs),
+    /// Emit the resolved IR as JSON (for external emitters / plugins).
+    Emit(EmitArgs),
 }
 
 #[derive(Args, Debug)]
@@ -105,6 +107,16 @@ struct DiffArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct EmitArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Warn)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -112,6 +124,7 @@ fn main() -> ExitCode {
         Commands::Generate(args) => args.log_level,
         Commands::Check(args) => args.log_level,
         Commands::Diff(args) => args.log_level,
+        Commands::Emit(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -162,6 +175,14 @@ fn main() -> ExitCode {
                     ExitCode::SUCCESS
                 }
             }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Emit(args) => match run_emit(&args) {
+            Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
                 let _ = warn!("{e:#}");
@@ -316,4 +337,18 @@ fn run_diff(cli: &DiffArgs) -> Result<bool> {
     }
 
     Ok(has_breaking)
+}
+
+fn run_emit(cli: &EmitArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    let json = serde_json::to_string_pretty(&doc)
+        .context("failed to serialize IR to JSON")?;
+    println!("{json}");
+    Ok(())
 }

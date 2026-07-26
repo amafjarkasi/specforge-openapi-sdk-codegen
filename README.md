@@ -208,6 +208,7 @@ Commands:
   generate  Generate an SDK from an OpenAPI spec
   check     Lint and validate an OpenAPI spec without generating
   diff      Compare two OpenAPI specs and report breaking changes
+  emit      Emit the resolved IR as JSON (for external emitters / plugins)
   help      Print this message or the help of the given subcommand
 ```
 
@@ -262,6 +263,24 @@ Options:
 ```
 
 Exit code 1 if breaking changes are found — use in CI to gate releases.
+
+### `specforge emit`
+
+```text
+specforge emit [OPTIONS] <SPEC>
+
+Arguments:
+  <SPEC>   Path to OpenAPI YAML or JSON
+
+Options:
+  -v, --log-level <LEVEL>    error|warn|info|debug|trace [default: warn]
+```
+
+Outputs the resolved IR as pretty-printed JSON to stdout. Use this to build external emitters:
+
+```bash
+specforge emit openapi.yaml | my-custom-emitter --input - --output ./sdk
+```
 
 ---
 
@@ -565,6 +584,12 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.2.2** — OpenAPI 3.1, plugin system, mascot:
+
+- [x] OpenAPI 3.1 support — transparent `type` array → nullable conversion, numeric `exclusiveMinimum` → boolean  
+- [x] `specforge emit` — dump resolved IR as JSON for external emitters / plugins  
+- [x] Fox blacksmith mascot + forge color scheme  
+
 **v0.2.1** — allOf composition, spec diff, and benchmarks:
 
 - [x] AllOf type aliases — Go embed, Rust `#[serde(flatten)]`  
@@ -586,8 +611,8 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] OpenAPI 3.1 support (`type` arrays, `$ref` siblings)  
-- [ ] Plugin system for custom emitters  
+- [ ] WASM-based plugin emitters  
+- [ ] Web UI for previewing generated SDKs  
 
 ---
 

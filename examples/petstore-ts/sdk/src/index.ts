@@ -7,9 +7,9 @@ export * from "./auth";
 export * from "./retry";
 export * from "./paginate";
 
+export * from "./models/Error";
 export * from "./models/Pet";
 export * from "./models/Pets";
-export * from "./models/Error";
 
 import { PetsApi } from "./api/Pets";
 

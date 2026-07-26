@@ -2,6 +2,11 @@
 
 package sdk
 
+type Error struct {
+	Code int `json:"code"`
+	Message string `json:"message"`
+}
+
 type Pet struct {
 	Id int `json:"id"`
 	Name string `json:"name"`
@@ -9,9 +14,4 @@ type Pet struct {
 }
 
 type Pets = []Pet
-
-type Error struct {
-	Code int `json:"code"`
-	Message string `json:"message"`
-}
 

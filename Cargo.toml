@@ -9,7 +9,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT"
@@ -32,10 +32,10 @@ clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Internal crates
-specforge-core = { path = "crates/specforge-core", version = "0.2.1" }
-specforge-ts = { path = "crates/specforge-ts", version = "0.2.1" }
-specforge-go = { path = "crates/specforge-go", version = "0.2.1" }
-specforge-rust = { path = "crates/specforge-rust", version = "0.2.1" }
+specforge-core = { path = "crates/specforge-core", version = "0.2.2" }
+specforge-ts = { path = "crates/specforge-ts", version = "0.2.2" }
+specforge-go = { path = "crates/specforge-go", version = "0.2.2" }
+specforge-rust = { path = "crates/specforge-rust", version = "0.2.2" }
 
 [profile.release]
 codegen-units = 1

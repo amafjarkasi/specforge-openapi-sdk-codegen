@@ -3,6 +3,12 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Error {
+    pub code: i32,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Pet {
     pub id: i32,
     pub name: String,
@@ -11,10 +17,4 @@ pub struct Pet {
 }
 
 pub type Pets = Vec<Pet>;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Error {
-    pub code: i32,
-    pub message: String,
-}
 

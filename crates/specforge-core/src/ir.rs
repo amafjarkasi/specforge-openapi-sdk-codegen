@@ -17,7 +17,7 @@ use indexmap::IndexMap;
 
 /// A resolved schema, ready for emission. `Reference` is the only place a
 /// named model is mentioned — everything else is structural.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum Type {
     /// A primitive scalar.
     Scalar(Scalar),
@@ -50,7 +50,7 @@ pub enum Type {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Scalar {
     String,
     /// `format: date` or `format: date-time`. Emits to the target's date type.
@@ -66,7 +66,7 @@ pub enum Scalar {
 
 /// OpenAPI `discriminator` metadata for a `oneOf`/`anyOf` composition.
 /// Emitters use this to generate runtime type guards that narrow union arms.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Discriminator {
     /// Property name used to distinguish variants (e.g. `"type"`).
     pub property_name: String,
@@ -79,7 +79,7 @@ pub struct Discriminator {
 }
 
 /// A composition: `allOf` → intersection, `oneOf`/`anyOf` → union.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Composition {
     pub kind: CompositionKind,
     pub members: Vec<Type>,
@@ -87,7 +87,7 @@ pub struct Composition {
     pub discriminator: Option<Discriminator>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum CompositionKind {
     /// `allOf` — emitted as an intersection.
     AllOf,
@@ -102,7 +102,7 @@ pub enum CompositionKind {
 /// composition (`oneOf`/`allOf`/`anyOf`) or a scalar alias. In those cases
 /// `properties` is empty and `shape_type` carries the underlying type, so an
 /// emitter can render a `type` alias instead of an `interface`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ObjectModel {
     pub name: String,
     pub description: Option<String>,
@@ -117,7 +117,7 @@ pub struct ObjectModel {
     pub base_type: Option<Type>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Property {
     pub name: String,
     pub ty: Type,
@@ -126,14 +126,14 @@ pub struct Property {
 }
 
 /// A string enum (the only enum shape OpenAPI commonly uses for models).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumModel {
     pub name: String,
     pub description: Option<String>,
     pub variants: Vec<EnumVariant>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumVariant {
     /// The raw enum value from the spec.
     pub value: String,
@@ -141,7 +141,7 @@ pub struct EnumVariant {
 }
 
 /// Anything that can be referenced by name and emitted as its own unit.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum Model {
     Object(ObjectModel),
     Enum(EnumModel),
@@ -158,7 +158,7 @@ impl Model {
 
 /// Ordered collection of named models. Ordering is preserved from the spec so
 /// generated output is deterministic across runs.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct SchemaRegistry {
     pub models: IndexMap<String, Model>,
 }
@@ -175,7 +175,7 @@ impl SchemaRegistry {
 
 // ─── Operation IR ───────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum HttpMethod {
     Get,
     Post,
@@ -214,14 +214,14 @@ impl HttpMethod {
 }
 
 /// Where a parameter lives in the request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ParamLocation {
     Path,
     Query,
     Header,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Parameter {
     pub name: String,
     pub location: ParamLocation,
@@ -231,7 +231,7 @@ pub struct Parameter {
 }
 
 /// A single response variant for an operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Response {
     /// Status code, or `*` for a default response. Kept as a string so ranges
     /// (e.g. `"2XX"`) survive without extra modeling for v1.
@@ -241,7 +241,7 @@ pub struct Response {
 }
 
 /// The resolved body schema for a request or response, if any.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct RequestBody {
     pub ty: Type,
     pub required: bool,
@@ -249,7 +249,7 @@ pub struct RequestBody {
 }
 
 /// A fully-resolved operation ready for emission.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Operation {
     pub operation_id: String,
     pub method: HttpMethod,
@@ -265,7 +265,7 @@ pub struct Operation {
 // ─── Security IR ────────────────────────────────────────────────────────────
 
 /// Authentication schemes the SDK's runtime needs to support.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum SecurityScheme {
     HttpBearer,
     ApiKey { header: String },
@@ -274,7 +274,7 @@ pub enum SecurityScheme {
 // ─── Top-level IR ───────────────────────────────────────────────────────────
 
 /// The complete, resolved IR for a document. This is what emitters consume.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Document {
     pub title: String,
     pub version: String,
