@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://specforge.dev/schemas/ir.json",
+  "title": "SpecForge Document IR",
+  "description": "The language-neutral intermediate representation emitted by `specforge emit`. Describes a fully-resolved OpenAPI document ready for SDK code generation.",
+  "type": "object",
+  "required": ["title", "version", "security", "schemas", "operations"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "API title from the OpenAPI spec info block."
+    },
+    "version": {
+      "type": "string",
+      "description": "API version from the OpenAPI spec info block."
+    },
+    "base_url": {
+      "type": ["string", "null"],
+      "description": "Base URL extracted from the first server entry, or null if absent."
+    },
+    "security": {
+      "type": "array",
+      "description": "Resolved security schemes the SDK runtime must support.",
+      "items": { "$ref": "#/$defs/SecurityScheme" }
+    },
+    "schemas": { "$ref": "#/$defs/SchemaRegistry" },
+    "operations": {
+      "type": "array",
+      "description": "All resolved API operations in spec order.",
+      "items": { "$ref": "#/$defs/Operation" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "SchemaRegistry": {
+      "type": "object",
+      "description": "Ordered collection of named models.",
+      "required": ["models"],
+      "properties": {
+        "models": {
+          "type": "object",
+          "description": "Map from schema name to its resolved Model.",
+          "additionalProperties": { "$ref": "#/$defs/Model" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Model": {
+      "description": "Anything that can be referenced by name and emitted as its own unit.",
+      "oneOf": [
+        { "$ref": "#/$defs/ObjectModel" },
+        { "$ref": "#/$defs/EnumModel" }
+      ]
+    },
+    "ObjectModel": {
+      "type": "object",
+      "description": "A named schema. For plain objects properties is populated; for compositions/scalars shape_type carries the actual shape.",
+      "required": ["name", "properties"],
+      "properties": {
+        "Object": {
+          "type": "object",
+          "required": ["name", "properties"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": ["string", "null"] },
+            "properties": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/Property" }
+            },
+            "additional_properties": {
+              "oneOf": [
+                { "$ref": "#/$defs/Type" },
+                { "type": "null" }
+              ]
+            },
+            "shape_type": {
+              "oneOf": [
+                { "$ref": "#/$defs/Type" },
+                { "type": "null" }
+              ]
+            },
+            "base_type": {
+              "oneOf": [
+                { "$ref": "#/$defs/Type" },
+                { "type": "null" }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "EnumModel": {
+      "type": "object",
+      "description": "A string enum model.",
+      "properties": {
+        "Enum": {
+          "type": "object",
+          "required": ["name", "variants"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": ["string", "null"] },
+            "variants": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/EnumVariant" }
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "EnumVariant": {
+      "type": "object",
+      "required": ["value"],
+      "properties": {
+        "value": { "type": "string", "description": "The raw enum value from the spec." },
+        "description": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Property": {
+      "type": "object",
+      "required": ["name", "ty", "required"],
+      "properties": {
+        "name": { "type": "string" },
+        "ty": { "$ref": "#/$defs/Type" },
+        "required": { "type": "boolean" },
+        "description": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Type": {
+      "description": "A resolved schema type node.",
+      "oneOf": [
+        { "$ref": "#/$defs/ScalarType" },
+        { "$ref": "#/$defs/StringEnumType" },
+        { "$ref": "#/$defs/ArrayType" },
+        { "$ref": "#/$defs/MapType" },
+        { "$ref": "#/$defs/ReferenceType" },
+        { "$ref": "#/$defs/CompositionType" },
+        { "$ref": "#/$defs/AnyType" },
+        { "$ref": "#/$defs/UnknownType" }
+      ]
+    },
+    "ScalarType": {
+      "type": "object",
+      "required": ["Scalar"],
+      "properties": {
+        "Scalar": { "$ref": "#/$defs/Scalar" }
+      },
+      "additionalProperties": false
+    },
+    "StringEnumType": {
+      "type": "object",
+      "required": ["StringEnum"],
+      "properties": {
+        "StringEnum": {
+          "type": "object",
+          "required": ["variants", "nullable"],
+          "properties": {
+            "variants": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "nullable": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ArrayType": {
+      "type": "object",
+      "required": ["Array"],
+      "properties": {
+        "Array": {
+          "type": "object",
+          "required": ["item", "nullable"],
+          "properties": {
+            "item": { "$ref": "#/$defs/Type" },
+            "nullable": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "MapType": {
+      "type": "object",
+      "required": ["Map"],
+      "properties": {
+        "Map": {
+          "type": "object",
+          "required": ["value"],
+          "properties": {
+            "value": { "$ref": "#/$defs/Type" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReferenceType": {
+      "type": "object",
+      "required": ["Reference"],
+      "properties": {
+        "Reference": {
+          "type": "object",
+          "required": ["name", "nullable"],
+          "properties": {
+            "name": { "type": "string", "description": "Name of the referenced model in the SchemaRegistry." },
+            "nullable": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "CompositionType": {
+      "type": "object",
+      "required": ["Composition"],
+      "properties": {
+        "Composition": { "$ref": "#/$defs/Composition" }
+      },
+      "additionalProperties": false
+    },
+    "AnyType": {
+      "description": "Untyped / empty schema. Emits to the target's 'any' equivalent.",
+      "type": "string",
+      "const": "Any"
+    },
+    "UnknownType": {
+      "description": "Fallback for malformed schemas. Emits to 'unknown'.",
+      "type": "string",
+      "const": "Unknown"
+    },
+    "Scalar": {
+      "description": "A primitive scalar type.",
+      "type": "string",
+      "enum": ["String", "DateTime", "Uuid", "Integer", "Integer64", "Float", "Boolean"]
+    },
+    "Composition": {
+      "type": "object",
+      "required": ["kind", "members"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/CompositionKind" },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Type" }
+        },
+        "discriminator": {
+          "oneOf": [
+            { "$ref": "#/$defs/Discriminator" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "CompositionKind": {
+      "type": "string",
+      "enum": ["AllOf", "OneOf", "AnyOf"],
+      "description": "allOf = intersection, oneOf/anyOf = union."
+    },
+    "Discriminator": {
+      "type": "object",
+      "required": ["property_name"],
+      "properties": {
+        "property_name": {
+          "type": "string",
+          "description": "Property name used to distinguish variants (e.g. 'type')."
+        },
+        "mapping": {
+          "oneOf": [
+            {
+              "type": "object",
+              "description": "Explicit mapping from discriminator values to schema names.",
+              "additionalProperties": { "type": "string" }
+            },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Operation": {
+      "type": "object",
+      "required": ["operation_id", "method", "path", "parameters", "responses"],
+      "properties": {
+        "operation_id": { "type": "string" },
+        "method": { "$ref": "#/$defs/HttpMethod" },
+        "path": { "type": "string" },
+        "tag": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "parameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Parameter" }
+        },
+        "request_body": {
+          "oneOf": [
+            { "$ref": "#/$defs/RequestBody" },
+            { "type": "null" }
+          ]
+        },
+        "responses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Response" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "HttpMethod": {
+      "type": "string",
+      "enum": ["Get", "Post", "Put", "Patch", "Delete", "Head", "Options"]
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["name", "location", "ty", "required"],
+      "properties": {
+        "name": { "type": "string" },
+        "location": { "$ref": "#/$defs/ParamLocation" },
+        "ty": { "$ref": "#/$defs/Type" },
+        "required": { "type": "boolean" },
+        "description": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "ParamLocation": {
+      "type": "string",
+      "enum": ["Path", "Query", "Header"]
+    },
+    "RequestBody": {
+      "type": "object",
+      "required": ["ty", "required"],
+      "properties": {
+        "ty": { "$ref": "#/$defs/Type" },
+        "required": { "type": "boolean" },
+        "description": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Response": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Status code or '*' for default. May be a range like '2XX'."
+        },
+        "description": { "type": ["string", "null"] },
+        "body": {
+          "oneOf": [
+            { "$ref": "#/$defs/Type" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "SecurityScheme": {
+      "description": "Authentication scheme for the SDK runtime.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["HttpBearer"],
+          "properties": {
+            "HttpBearer": { "type": "null" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["ApiKey"],
+          "properties": {
+            "ApiKey": {
+              "type": "object",
+              "required": ["header"],
+              "properties": {
+                "header": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

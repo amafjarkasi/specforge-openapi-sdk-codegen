@@ -3,7 +3,7 @@
 //! response to the declared success-body type, and throws typed `ApiError`s.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use specforge_core::{Composition, Document, Operation, ParamLocation, Type};
 
@@ -13,8 +13,21 @@ use crate::util::{file_header, path_str};
 
 /// Emit all per-tag operation files plus a barrel. Returns relative paths.
 pub fn emit(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
+    let items = collect(doc, out_dir)?;
+    let mut written = Vec::new();
+    for (rel, abs, content) in &items {
+        if let Some(parent) = abs.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(abs, content)?;
+        written.push(rel.clone());
+    }
+    Ok(written)
+}
+
+/// Collect all per-tag operation files (relative path, absolute path, content) for parallel writing.
+pub fn collect(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let api_dir = out_dir.join("src").join("api");
-    std::fs::create_dir_all(&api_dir)?;
 
     // Group operations by tag (default "Default" when none).
     let mut by_tag: BTreeMap<String, Vec<&Operation>> = BTreeMap::new();
@@ -23,14 +36,15 @@ pub fn emit(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
         by_tag.entry(tag).or_default().push(op);
     }
 
-    let mut written = Vec::new();
+    let mut files = Vec::new();
     for (tag, ops) in &by_tag {
         let stem = pascal(tag);
         let file = api_dir.join(format!("{stem}.ts"));
-        std::fs::write(&file, emit_tag_file(tag, ops))?;
-        written.push(path_str(&file, out_dir));
+        let rel = path_str(&file, out_dir);
+        let content = emit_tag_file(tag, ops);
+        files.push((rel, file, content));
     }
-    Ok(written)
+    Ok(files)
 }
 
 fn emit_tag_file(tag: &str, ops: &[&Operation]) -> String {

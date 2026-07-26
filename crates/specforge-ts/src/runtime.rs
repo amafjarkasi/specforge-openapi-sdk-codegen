@@ -4,7 +4,7 @@
 //! regardless of the spec (they're parameterized by config at runtime, not at
 //! codegen time).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use specforge_core::Document;
 
@@ -12,52 +12,35 @@ use crate::util::path_str;
 
 /// Emit all runtime files under `src/`. Returns the relative paths written.
 pub fn emit(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
-    let src = out_dir.join("src");
-    std::fs::create_dir_all(&src)?;
-
+    let items = collect(doc, out_dir)?;
     let mut written = Vec::new();
-
-    let errors = src.join("errors.ts");
-    std::fs::write(&errors, errors_source())?;
-    written.push(path_str(&errors, out_dir));
-
-    let auth = src.join("auth.ts");
-    std::fs::write(&auth, auth_source(doc))?;
-    written.push(path_str(&auth, out_dir));
-
-    let retry = src.join("retry.ts");
-    std::fs::write(&retry, retry_source())?;
-    written.push(path_str(&retry, out_dir));
-
-    let paginate = src.join("paginate.ts");
-    std::fs::write(&paginate, paginate_source())?;
-    written.push(path_str(&paginate, out_dir));
-
-    let concurrency = src.join("concurrency.ts");
-    std::fs::write(&concurrency, concurrency_source())?;
-    written.push(path_str(&concurrency, out_dir));
-
-    let dedup = src.join("dedup.ts");
-    std::fs::write(&dedup, dedup_source())?;
-    written.push(path_str(&dedup, out_dir));
-
-    let idempotency = src.join("idempotency.ts");
-    std::fs::write(&idempotency, idempotency_source())?;
-    written.push(path_str(&idempotency, out_dir));
-
-    let middleware = src.join("middleware.ts");
-    std::fs::write(&middleware, middleware_source())?;
-    written.push(path_str(&middleware, out_dir));
-
-    let streaming = src.join("streaming.ts");
-    std::fs::write(&streaming, streaming_source())?;
-    written.push(path_str(&streaming, out_dir));
-
-    let client = src.join("client.ts");
-    std::fs::write(&client, client_source(doc))?;
-    written.push(path_str(&client, out_dir));
-
+    for (rel, abs, content) in &items {
+        if let Some(parent) = abs.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(abs, content)?;
+        written.push(rel.clone());
+    }
     Ok(written)
+}
+
+/// Collect all runtime files (relative path, absolute path, content) for parallel writing.
+pub fn collect(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+    let src = out_dir.join("src");
+    let mut files = Vec::new();
+
+    files.push((path_str(&src.join("errors.ts"), out_dir), src.join("errors.ts"), errors_source()));
+    files.push((path_str(&src.join("auth.ts"), out_dir), src.join("auth.ts"), auth_source(doc)));
+    files.push((path_str(&src.join("retry.ts"), out_dir), src.join("retry.ts"), retry_source()));
+    files.push((path_str(&src.join("paginate.ts"), out_dir), src.join("paginate.ts"), paginate_source()));
+    files.push((path_str(&src.join("concurrency.ts"), out_dir), src.join("concurrency.ts"), concurrency_source()));
+    files.push((path_str(&src.join("dedup.ts"), out_dir), src.join("dedup.ts"), dedup_source()));
+    files.push((path_str(&src.join("idempotency.ts"), out_dir), src.join("idempotency.ts"), idempotency_source()));
+    files.push((path_str(&src.join("middleware.ts"), out_dir), src.join("middleware.ts"), middleware_source()));
+    files.push((path_str(&src.join("streaming.ts"), out_dir), src.join("streaming.ts"), streaming_source()));
+    files.push((path_str(&src.join("client.ts"), out_dir), src.join("client.ts"), client_source(doc)));
+
+    Ok(files)
 }
 
 /// `errors.ts` — typed errors as a discriminated union (the 2026 best practice

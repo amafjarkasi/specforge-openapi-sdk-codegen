@@ -5,6 +5,25 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-07-26
+
+### Added
+
+#### Core
+- **JSON Schema for IR** — `assets/ir-schema.json` (draft 2020-12) describes the full IR output. `specforge emit --schema` prints it.
+- **Streaming IR emission** — `specforge emit --stream` outputs newline-delimited JSON (NDJSON) for processing large specs without loading everything into memory.
+- **Parallel file generation** — All three emitters now write files in parallel using rayon.
+
+#### CLI
+- **`specforge init`** — Scaffold a new OpenAPI spec with a `/health` endpoint and README.
+- **`specforge convert`** — Convert between OpenAPI 3.0 and 3.1 (`--to 3.0` or `--to 3.1`). Operates on raw YAML/JSON to preserve full spec structure.
+
+#### Ecosystem
+- **GitHub Action** — `action.yml` composite action for CI: `generate`, `check`, `diff`, `emit` commands. Auto-detects platform and installs the correct binary.
+- **VS Code extension** — `vscode-extension/` scaffolding with Generate SDK, Check Spec, and Preview IR commands.
+- **Stability policy** — `STABILITY.md` documents semver guarantees for the IR schema, CLI, and generated output.
+- **Incremental generation guide** — `INCREMENTAL.md` documents CI caching strategies.
+
 ## [0.2.2] — 2026-07-26
 
 ### Added
@@ -112,6 +131,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.3.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.3.0
 [0.2.2]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.2
 [0.2.1]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.0

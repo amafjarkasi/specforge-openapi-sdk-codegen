@@ -18,8 +18,9 @@ pub mod runtime;
 pub mod types;
 pub mod util;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use rayon::prelude::*;
 use specforge_core::Document;
 
 use crate::util::path_str;
@@ -32,21 +33,20 @@ pub struct GeneratorOptions {
     pub package_name: Option<String>,
 }
 
-use std::path::PathBuf;
-
 /// Generate the full SDK into `opts.out_dir`. Returns the list of files written
-/// (relative paths), in deterministic order.
+/// (relative paths), in deterministic order. Files are written in parallel using rayon.
 pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<String>> {
-    let mut written: Vec<String> = Vec::new();
-
     // Ensure the output root exists before any sub-emitter writes into it.
     std::fs::create_dir_all(&opts.out_dir)?;
 
+    // Collect all (relative_path, absolute_path, content) triples.
+    let mut files: Vec<(String, PathBuf, String)> = Vec::new();
+
     // Scaffolding (package.json, tsconfig, tsup, README).
-    written.extend(package::emit(doc, opts, &opts.out_dir)?);
+    files.extend(package::collect(doc, opts, &opts.out_dir)?);
 
     // Runtime (client, errors, auth, retry, paginate) — static files.
-    written.extend(runtime::emit(doc, &opts.out_dir)?);
+    files.extend(runtime::collect(doc, &opts.out_dir)?);
 
     // Models — one file per schema. Pass the registry so oneOf unions can emit
     // runtime type-guard helpers that inspect sibling model shapes.
@@ -55,26 +55,36 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     for (_, model) in doc.schemas.iter() {
         let name = name::pascal(model.name());
         let path = models_dir.join(format!("{name}.ts"));
-        std::fs::write(
-            &path,
-            models::emit_model_file_with_registry(model, Some(&doc.schemas)),
-        )?;
-        written.push(path_str(&path, &opts.out_dir));
+        let rel = path_str(&path, &opts.out_dir);
+        let content = models::emit_model_file_with_registry(model, Some(&doc.schemas));
+        files.push((rel, path, content));
     }
 
     // Operations — one file per tag.
-    written.extend(operations::emit(doc, &opts.out_dir)?);
+    files.extend(operations::collect(doc, &opts.out_dir)?);
 
     // Barrel index.
-    written.extend(emit_index(doc, &opts.out_dir)?);
+    files.extend(collect_index(doc, &opts.out_dir)?);
 
+    // Write all files in parallel.
+    let written: Vec<String> = files
+        .par_iter()
+        .map(|(rel, abs, content)| {
+            if let Some(parent) = abs.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(abs, content);
+            rel.clone()
+        })
+        .collect();
+
+    let mut written = written;
     written.sort();
     Ok(written)
 }
 
-/// Emit `src/index.ts` re-exporting the public surface, plus a `createClient`
-/// factory that returns an object with one namespaced client per tag.
-fn emit_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
+/// Collect `src/index.ts` content for parallel writing.
+fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
     let mut body = String::from("/* eslint-disable */\n// Generated barrel. DO NOT EDIT.\n\n");
 
@@ -147,6 +157,6 @@ fn emit_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
     ));
 
     let path = src.join("index.ts");
-    std::fs::write(&path, body)?;
-    Ok(vec![path_str(&path, out_dir)])
+    let rel = path_str(&path, out_dir);
+    Ok(vec![(rel, path, body)])
 }

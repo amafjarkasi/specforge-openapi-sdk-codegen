@@ -13,6 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use rayon::prelude::*;
 use specforge_core::{
     CompositionKind, Discriminator, Document, EnumModel, HttpMethod, Model, ObjectModel,
     Operation, ParamLocation, Scalar, Type,
@@ -29,52 +30,45 @@ pub struct GeneratorOptions {
 }
 
 /// Generate a Go SDK into `opts.out_dir`. Returns relative paths written.
+/// Files are written in parallel using rayon.
 pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<String>> {
-    let mut written = Vec::new();
     std::fs::create_dir_all(&opts.out_dir)?;
 
     let pkg = package_name(opts);
     let module = module_path(doc, opts);
 
+    // Collect all (relative_path, absolute_path, content) triples.
+    let mut files: Vec<(String, PathBuf, String)> = Vec::new();
+
     let go_mod = opts.out_dir.join("go.mod");
-    std::fs::write(&go_mod, format!("module {module}\n\ngo 1.22\n"))?;
-    written.push(rel(&go_mod, &opts.out_dir));
+    files.push((rel(&go_mod, &opts.out_dir), go_mod, format!("module {module}\n\ngo 1.22\n")));
 
     let client = opts.out_dir.join("client.go");
-    std::fs::write(&client, emit_client(&pkg, doc))?;
-    written.push(rel(&client, &opts.out_dir));
+    files.push((rel(&client, &opts.out_dir), client, emit_client(&pkg, doc)));
 
     let retry = opts.out_dir.join("retry.go");
-    std::fs::write(&retry, emit_retry(&pkg))?;
-    written.push(rel(&retry, &opts.out_dir));
+    files.push((rel(&retry, &opts.out_dir), retry, emit_retry(&pkg)));
 
     let paginate = opts.out_dir.join("paginate.go");
-    std::fs::write(&paginate, emit_paginate(&pkg))?;
-    written.push(rel(&paginate, &opts.out_dir));
+    files.push((rel(&paginate, &opts.out_dir), paginate, emit_paginate(&pkg)));
 
     let concurrency = opts.out_dir.join("concurrency.go");
-    std::fs::write(&concurrency, emit_concurrency(&pkg))?;
-    written.push(rel(&concurrency, &opts.out_dir));
+    files.push((rel(&concurrency, &opts.out_dir), concurrency, emit_concurrency(&pkg)));
 
     let dedup = opts.out_dir.join("dedup.go");
-    std::fs::write(&dedup, emit_dedup(&pkg))?;
-    written.push(rel(&dedup, &opts.out_dir));
+    files.push((rel(&dedup, &opts.out_dir), dedup, emit_dedup(&pkg)));
 
     let middleware = opts.out_dir.join("middleware.go");
-    std::fs::write(&middleware, emit_middleware(&pkg))?;
-    written.push(rel(&middleware, &opts.out_dir));
+    files.push((rel(&middleware, &opts.out_dir), middleware, emit_middleware(&pkg)));
 
     let idempotency = opts.out_dir.join("idempotency.go");
-    std::fs::write(&idempotency, emit_idempotency(&pkg))?;
-    written.push(rel(&idempotency, &opts.out_dir));
+    files.push((rel(&idempotency, &opts.out_dir), idempotency, emit_idempotency(&pkg)));
 
     let streaming = opts.out_dir.join("streaming.go");
-    std::fs::write(&streaming, emit_streaming(&pkg))?;
-    written.push(rel(&streaming, &opts.out_dir));
+    files.push((rel(&streaming, &opts.out_dir), streaming, emit_streaming(&pkg)));
 
     let models = opts.out_dir.join("models.go");
-    std::fs::write(&models, emit_models(&pkg, doc))?;
-    written.push(rel(&models, &opts.out_dir));
+    files.push((rel(&models, &opts.out_dir), models, emit_models(&pkg, doc)));
 
     // Group ops by tag.
     let mut by_tag: BTreeMap<String, Vec<&Operation>> = BTreeMap::new();
@@ -85,14 +79,23 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     for (tag, ops) in &by_tag {
         let stem = format!("api_{}.go", snake(&pascal(tag)));
         let path = opts.out_dir.join(&stem);
-        std::fs::write(&path, emit_tag_file(&pkg, tag, ops))?;
-        written.push(rel(&path, &opts.out_dir));
+        let content = emit_tag_file(&pkg, tag, ops);
+        files.push((rel(&path, &opts.out_dir), path, content));
     }
 
     let readme = opts.out_dir.join("README.md");
-    std::fs::write(&readme, emit_readme(doc, &module))?;
-    written.push(rel(&readme, &opts.out_dir));
+    files.push((rel(&readme, &opts.out_dir), readme, emit_readme(doc, &module)));
 
+    // Write all files in parallel.
+    let written: Vec<String> = files
+        .par_iter()
+        .map(|(rel, abs, content)| {
+            let _ = std::fs::write(abs, content);
+            rel.clone()
+        })
+        .collect();
+
+    let mut written = written;
     written.sort();
     Ok(written)
 }

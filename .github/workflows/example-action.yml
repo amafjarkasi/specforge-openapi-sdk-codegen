@@ -1,0 +1,39 @@
+name: 'Example: specforge action'
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/specforge
+        with:
+          command: generate
+          spec: fixtures/petstore.yaml
+          output: ./sdk-ts
+          lang: ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-ts
+          path: sdk-ts/
+
+  check-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/specforge
+        with:
+          command: check
+          spec: fixtures/petstore.yaml
+          strict: 'false'
+
+  diff-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/specforge
+        with:
+          command: diff
+          spec: fixtures/petstore.yaml
+          old-spec: fixtures/petstore.yaml

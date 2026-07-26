@@ -1,0 +1,51 @@
+{
+  "name": "specforge-vscode",
+  "displayName": "specforge",
+  "description": "Preview generated SDKs from OpenAPI specs in VS Code",
+  "version": "0.1.0",
+  "publisher": "specforge",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onLanguage:yaml", "onLanguage:json"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "specforge.generate",
+        "title": "specforge: Generate SDK"
+      },
+      {
+        "command": "specforge.check",
+        "title": "specforge: Check Spec"
+      },
+      {
+        "command": "specforge.preview",
+        "title": "specforge: Preview IR"
+      }
+    ],
+    "configuration": {
+      "title": "specforge",
+      "properties": {
+        "specforge.defaultLang": {
+          "type": "string",
+          "default": "ts",
+          "enum": ["ts", "go", "rust"],
+          "description": "Default target language for SDK generation"
+        },
+        "specforge.outputDir": {
+          "type": "string",
+          "default": "./generated",
+          "description": "Default output directory"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/vscode": "^1.80.0"
+  }
+}

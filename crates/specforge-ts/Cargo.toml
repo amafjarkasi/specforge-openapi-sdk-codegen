@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 specforge-core.workspace = true
+rayon.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

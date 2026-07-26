@@ -1,0 +1,101 @@
+name: 'specforge'
+description: 'Generate typed SDKs from OpenAPI specs, lint, and detect breaking changes'
+branding:
+  icon: 'hammer'
+  color: 'orange'
+
+inputs:
+  command:
+    description: 'Command to run: generate, check, diff, emit'
+    required: true
+    default: 'generate'
+  spec:
+    description: 'Path to OpenAPI spec file'
+    required: true
+  output:
+    description: 'Output directory (for generate)'
+    required: false
+    default: './generated'
+  lang:
+    description: 'Target language: ts, go, rust'
+    required: false
+    default: 'ts'
+  name:
+    description: 'Package/module/crate name'
+    required: false
+  old-spec:
+    description: 'Old spec path (for diff command)'
+    required: false
+  strict:
+    description: 'Treat warnings as errors (for check command)'
+    required: false
+    default: 'false'
+  version:
+    description: 'specforge version to use'
+    required: false
+    default: '0.2.2'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install specforge
+      shell: bash
+      run: |
+        VERSION="${{ inputs.version }}"
+        ARCH=$(uname -m)
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        if [ "$OS" = "darwin" ]; then
+          if [ "$ARCH" = "arm64" ]; then
+            TARGET="aarch64-apple-darwin"
+          else
+            TARGET="x86_64-apple-darwin"
+          fi
+        elif [ "$OS" = "linux" ]; then
+          if [ "$ARCH" = "aarch64" ]; then
+            TARGET="aarch64-unknown-linux-gnu"
+          else
+            TARGET="x86_64-unknown-linux-gnu"
+          fi
+        else
+          TARGET="x86_64-pc-windows-msvc"
+        fi
+        URL="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/download/v${VERSION}/specforge-v${VERSION}-${TARGET}.tar.gz"
+        echo "Downloading specforge v${VERSION} for ${TARGET}..."
+        curl -sL "$URL" | tar xz
+        sudo mv specforge /usr/local/bin/ 2>/dev/null || mv specforge /usr/local/bin/ || true
+        specforge --version
+
+    - name: Run specforge generate
+      if: inputs.command == 'generate'
+      shell: bash
+      run: |
+        ARGS="generate ${{ inputs.spec }} -o ${{ inputs.output }} -l ${{ inputs.lang }}"
+        if [ -n "${{ inputs.name }}" ]; then
+          ARGS="$ARGS -n ${{ inputs.name }}"
+        fi
+        specforge $ARGS
+
+    - name: Run specforge check
+      if: inputs.command == 'check'
+      shell: bash
+      run: |
+        ARGS="check ${{ inputs.spec }}"
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          ARGS="$ARGS --strict"
+        fi
+        specforge $ARGS
+
+    - name: Run specforge diff
+      if: inputs.command == 'diff'
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.old-spec }}" ]; then
+          echo "Error: old-spec input is required for diff command"
+          exit 1
+        fi
+        specforge diff ${{ inputs.old-spec }} ${{ inputs.spec }}
+
+    - name: Run specforge emit
+      if: inputs.command == 'emit'
+      shell: bash
+      run: specforge emit ${{ inputs.spec }}

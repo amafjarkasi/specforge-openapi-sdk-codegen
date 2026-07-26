@@ -9,35 +9,47 @@ use specforge_core::Document;
 use crate::util::path_str;
 use crate::GeneratorOptions;
 
+use std::path::PathBuf;
+
 /// Emit all package-level files at the output root.
 pub fn emit(
     doc: &Document,
     opts: &GeneratorOptions,
     out_dir: &Path,
 ) -> std::io::Result<Vec<String>> {
+    let items = collect(doc, opts, out_dir)?;
     let mut written = Vec::new();
+    for (rel, abs, content) in &items {
+        std::fs::write(abs, content)?;
+        written.push(rel.clone());
+    }
+    Ok(written)
+}
+
+/// Collect all package-level files (relative path, absolute path, content) for parallel writing.
+pub fn collect(
+    doc: &Document,
+    opts: &GeneratorOptions,
+    out_dir: &Path,
+) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+    let mut files = Vec::new();
 
     let pkg = out_dir.join("package.json");
-    std::fs::write(&pkg, package_json(doc, opts))?;
-    written.push(path_str(&pkg, out_dir));
+    files.push((path_str(&pkg, out_dir), pkg, package_json(doc, opts)));
 
     let tsconfig = out_dir.join("tsconfig.json");
-    std::fs::write(&tsconfig, tsconfig_json())?;
-    written.push(path_str(&tsconfig, out_dir));
+    files.push((path_str(&tsconfig, out_dir), tsconfig, tsconfig_json()));
 
     let tsup = out_dir.join("tsup.config.ts");
-    std::fs::write(&tsup, tsup_config())?;
-    written.push(path_str(&tsup, out_dir));
+    files.push((path_str(&tsup, out_dir), tsup, tsup_config()));
 
     let readme = out_dir.join("README.md");
-    std::fs::write(&readme, readme_md(doc, opts))?;
-    written.push(path_str(&readme, out_dir));
+    files.push((path_str(&readme, out_dir), readme, readme_md(doc, opts)));
 
     let gitignore = out_dir.join(".gitignore");
-    std::fs::write(&gitignore, "dist/\nnode_modules/\n*.tsbuildinfo\n")?;
-    written.push(path_str(&gitignore, out_dir));
+    files.push((path_str(&gitignore, out_dir), gitignore, "dist/\nnode_modules/\n*.tsbuildinfo\n".into()));
 
-    Ok(written)
+    Ok(files)
 }
 
 fn slug(s: &str) -> String {

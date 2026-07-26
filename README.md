@@ -11,7 +11,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.2.2-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.3.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -584,6 +584,18 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.3.0** — ecosystem, DX, and stability:
+
+- [x] JSON Schema for IR (`assets/ir-schema.json`, `emit --schema`)  
+- [x] Streaming IR emission (`emit --stream` — NDJSON for large specs)  
+- [x] Parallel file generation (rayon)  
+- [x] `specforge init` — scaffold new OpenAPI specs  
+- [x] `specforge convert` — 3.0 ↔ 3.1 conversion  
+- [x] GitHub Action (`action.yml` — generate/check/diff/emit)  
+- [x] VS Code extension scaffolding  
+- [x] Stability policy (`STABILITY.md`)  
+- [x] Incremental generation guide (`INCREMENTAL.md`)  
+
 **v0.2.2** — OpenAPI 3.1, plugin system, mascot:
 
 - [x] OpenAPI 3.1 support — transparent `type` array → nullable conversion, numeric `exclusiveMinimum` → boolean  
@@ -613,6 +625,58 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 - [ ] WASM-based plugin emitters  
 - [ ] Web UI for previewing generated SDKs  
+- [ ] Spec validation middleware  
+
+---
+
+## Ecosystem
+
+### GitHub Action
+
+Use specforge in CI with the official GitHub Action:
+
+```yaml
+- uses: amafjarkasi/specforge-openapi-sdk-codegen@v0.2.2
+  with:
+    command: generate
+    spec: openapi.yaml
+    lang: ts
+    output: ./sdk
+```
+
+Commands: `generate`, `check`, `diff`, `emit`
+
+### VS Code Extension
+
+Install the [specforge VS Code extension](vscode-extension/) for:
+- One-click SDK generation
+- Spec validation
+- IR preview
+
+### External Emitters
+
+Build custom emitters using `specforge emit`:
+
+```bash
+# Pipe the IR to your custom emitter
+specforge emit openapi.yaml | my-emitter --lang kotlin --output ./sdk
+
+# Stream mode for large specs
+specforge emit openapi.yaml --stream | while read -r line; do
+  echo "$line" | process-schema
+done
+```
+
+See [assets/ir-schema.json](assets/ir-schema.json) for the IR JSON Schema.
+
+### Deterministic Output
+
+specforge guarantees deterministic output — the same spec + version always produces identical files. Use this for:
+- CI caching (hash spec + version as cache key)
+- Reproducible builds
+- Diff-friendly generated code
+
+See [INCREMENTAL.md](INCREMENTAL.md) for CI caching strategies.
 
 ---
 
