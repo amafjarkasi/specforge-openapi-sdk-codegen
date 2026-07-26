@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-07-26
+
+### Added
+
+#### Core
+- **AllOf type aliases** — When `allOf` has exactly one `$ref` member, emitters use Go struct embedding and Rust `#[serde(flatten)]` instead of merging all properties into a flat struct.
+- **Spec diff** — New `specforge diff <old> <new>` subcommand that compares two OpenAPI specs and reports breaking changes (removed operations, new required parameters/properties, type changes). Exits non-zero on breaking changes for CI gates.
+- **Generation benchmarks** — `scripts/bench.sh` times generation on GitHub and Stripe specs across all 3 languages.
+
 ## [0.2.0] — 2026-07-26
 
 ### Added
@@ -88,5 +97,6 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.2.1]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.1.0

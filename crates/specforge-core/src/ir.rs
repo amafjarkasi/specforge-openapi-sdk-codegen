@@ -111,6 +111,10 @@ pub struct ObjectModel {
     /// The full underlying type of this schema. For plain objects this mirrors
     /// the properties; for compositions/scalars it holds the actual shape.
     pub shape_type: Option<Type>,
+    /// When `allOf` has exactly one `$ref` member, this records that base type
+    /// so emitters can use embedding (Go) or flatten (Rust) instead of merging
+    /// all properties into a flat struct.
+    pub base_type: Option<Type>,
 }
 
 #[derive(Debug, Clone)]

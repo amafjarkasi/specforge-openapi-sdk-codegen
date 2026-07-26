@@ -1729,8 +1729,23 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
     if !o.properties.is_empty() {
         out.push_str("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]\n");
         out.push_str(&format!("pub struct {name} {{\n"));
+        // Flatten the base type if allOf has a single $ref member.
+        if let Some(Type::Reference { name: base, .. }) = &o.base_type {
+            let base_ty = pascal(base);
+            let base_field = snake(base);
+            out.push_str("    #[serde(flatten)]\n");
+            out.push_str(&format!("    pub {base_field}: {base_ty},\n"));
+        }
         let mut used = BTreeSet::new();
         for p in &o.properties {
+            // Skip properties that come from the flattened base type.
+            if let Some(Type::Reference { name: base, .. }) = &o.base_type {
+                if let Some(Model::Object(base_obj)) = registry.get(base) {
+                    if base_obj.properties.iter().any(|bp| bp.name == p.name) {
+                        continue;
+                    }
+                }
+            }
             let field = unique_field_name(&snake(&p.name), &mut used);
             let mut ty = render_type(&p.ty);
             if !p.required && !ty.starts_with("Option<") {

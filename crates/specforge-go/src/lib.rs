@@ -364,8 +364,20 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
 
     if is_struct_model(o) && !o.properties.is_empty() {
         out.push_str(&format!("type {name} struct {{\n"));
+        // Embed the base type if allOf has a single $ref member.
+        if let Some(Type::Reference { name: base, .. }) = &o.base_type {
+            out.push_str(&format!("\t{}\n", export_ident(base)));
+        }
         let mut used_fields = BTreeSet::new();
         for p in &o.properties {
+            // Skip properties that come from the embedded base type.
+            if let Some(Type::Reference { name: base, .. }) = &o.base_type {
+                if let Some(Model::Object(base_obj)) = doc.schemas.get(base) {
+                    if base_obj.properties.iter().any(|bp| bp.name == p.name) {
+                        continue;
+                    }
+                }
+            }
             let field = unique_field_name(&field_name(&p.name), &mut used_fields);
             let ty = render_type(&p.ty);
             let omit = if p.required { "" } else { ",omitempty" };

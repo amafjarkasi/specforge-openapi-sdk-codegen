@@ -406,6 +406,7 @@ mod tests {
             ],
             additional_properties: None,
             shape_type: None,
+            base_type: None,
         };
         let file = emit_model_file(&Model::Object(o));
         assert!(file.contains("export interface Pet {"));
@@ -459,6 +460,7 @@ mod tests {
                     mapping: None,
                 }),
             })),
+            base_type: None,
         };
         let file = emit_model_file(&Model::Object(o));
         assert!(file.contains("export type PetEvent = PetCreated | PetUpdated;"));
@@ -490,6 +492,7 @@ mod tests {
                 }],
                 additional_properties: None,
                 shape_type: None,
+                base_type: None,
             }),
         );
         registry.models.insert(
@@ -508,6 +511,7 @@ mod tests {
                 }],
                 additional_properties: None,
                 shape_type: None,
+                base_type: None,
             }),
         );
 
@@ -533,6 +537,7 @@ mod tests {
                     mapping: None,
                 }),
             })),
+            base_type: None,
         };
         let file = emit_model_file_with_registry(&Model::Object(o), Some(&registry));
         assert!(file.contains("=== \"pet.created\""));
@@ -563,6 +568,7 @@ mod tests {
                 }],
                 additional_properties: None,
                 shape_type: None,
+                base_type: None,
             }),
         );
         registry.models.insert(
@@ -578,6 +584,7 @@ mod tests {
                 }],
                 additional_properties: None,
                 shape_type: None,
+                base_type: None,
             }),
         );
 
@@ -607,6 +614,7 @@ mod tests {
                     mapping: Some(mapping),
                 }),
             })),
+            base_type: None,
         };
         let file = emit_model_file_with_registry(&Model::Object(o), Some(&registry));
         assert!(file.contains("=== \"dog\""), "should use mapping value 'dog'");
@@ -629,6 +637,7 @@ mod tests {
             }],
             additional_properties: Some(Box::new(Type::Any)),
             shape_type: None,
+            base_type: None,
         };
         let file = emit_model_file(&Model::Object(o));
         assert!(file.contains("[key: string]: unknown;"));

@@ -340,7 +340,7 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "specforge-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "indexmap",
  "openapiv3",
@@ -367,7 +367,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-go"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "specforge-core",
  "thiserror",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-rust"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "specforge-core",
  "thiserror",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-ts"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "indexmap",
  "specforge-core",

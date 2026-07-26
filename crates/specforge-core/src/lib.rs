@@ -7,12 +7,14 @@
 //! The IR is the only thing downstream emitters are allowed to see. They never
 //! import `openapiv3`, so swapping the parser later won't ripple into emitters.
 
+pub mod diff;
 pub mod error;
 pub mod ir;
 pub mod lint;
 pub mod resolve;
 pub mod spec;
 
+pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
 pub use ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,

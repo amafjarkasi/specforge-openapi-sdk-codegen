@@ -207,6 +207,7 @@ specforge <COMMAND>
 Commands:
   generate  Generate an SDK from an OpenAPI spec
   check     Lint and validate an OpenAPI spec without generating
+  diff      Compare two OpenAPI specs and report breaking changes
   help      Print this message or the help of the given subcommand
 ```
 
@@ -245,6 +246,22 @@ Options:
   --strict                   Treat warnings as errors
   -v, --log-level <LEVEL>    error|warn|info|debug|trace [default: info]
 ```
+
+### `specforge diff`
+
+```text
+specforge diff [OPTIONS] <OLD> <NEW>
+
+Arguments:
+  <OLD>   Path to the old (baseline) OpenAPI spec
+  <NEW>   Path to the new OpenAPI spec
+
+Options:
+  --breaking-only              Show only breaking changes
+  -v, --log-level <LEVEL>      error|warn|info|debug|trace [default: info]
+```
+
+Exit code 1 if breaking changes are found — use in CI to gate releases.
 
 ---
 
@@ -548,6 +565,12 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.2.1** — allOf composition, spec diff, and benchmarks:
+
+- [x] AllOf type aliases — Go embed, Rust `#[serde(flatten)]`  
+- [x] `specforge diff <old> <new>` — breaking-change detection for CI  
+- [x] Generation benchmarks (`scripts/bench.sh`) — GitHub/Stripe specs  
+
 **v0.2.0** — composition, ergonomics, and release infrastructure:
 
 - [x] Discriminator `mapping` support (all 3 emitters)  
@@ -563,10 +586,8 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] AllOf type aliases (embed base struct + extra fields)  
 - [ ] OpenAPI 3.1 support (`type` arrays, `$ref` siblings)  
-- [ ] Spec diff / breaking-change detection  
-- [ ] Generation benchmarks on large specs  
+- [ ] Plugin system for custom emitters  
 
 ---
 

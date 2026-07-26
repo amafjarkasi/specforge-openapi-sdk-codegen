@@ -11,7 +11,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{lint, parse_file, resolve, Severity};
+use specforge_core::{diff, lint, parse_file, resolve, DiffSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -48,6 +48,8 @@ enum Commands {
     Generate(GenerateArgs),
     /// Lint and validate an OpenAPI spec without generating.
     Check(CheckArgs),
+    /// Compare two OpenAPI specs and report breaking changes.
+    Diff(DiffArgs),
 }
 
 #[derive(Args, Debug)]
@@ -86,12 +88,30 @@ struct CheckArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct DiffArgs {
+    /// Path to the old (baseline) OpenAPI spec.
+    old: PathBuf,
+
+    /// Path to the new OpenAPI spec.
+    new: PathBuf,
+
+    /// Show only breaking changes.
+    #[arg(long)]
+    breaking_only: bool,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
     let level = match &cli.command {
         Commands::Generate(args) => args.log_level,
         Commands::Check(args) => args.log_level,
+        Commands::Diff(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -123,6 +143,20 @@ fn main() -> ExitCode {
         Commands::Check(args) => match run_check(&args) {
             Ok(has_errors) => {
                 if has_errors {
+                    ExitCode::FAILURE
+                } else {
+                    ExitCode::SUCCESS
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Diff(args) => match run_diff(&args) {
+            Ok(has_breaking) => {
+                if has_breaking {
                     ExitCode::FAILURE
                 } else {
                     ExitCode::SUCCESS
@@ -238,4 +272,48 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
     }
 
     Ok(has_errors)
+}
+
+fn run_diff(cli: &DiffArgs) -> Result<bool> {
+    info!("reading old spec: {}", cli.old.display());
+    let old_spec = parse_file(&cli.old)
+        .with_context(|| format!("failed to parse old spec at {}", cli.old.display()))?;
+    let old_doc = resolve(&old_spec).context("failed to resolve old spec")?;
+
+    info!("reading new spec: {}", cli.new.display());
+    let new_spec = parse_file(&cli.new)
+        .with_context(|| format!("failed to parse new spec at {}", cli.new.display()))?;
+    let new_doc = resolve(&new_spec).context("failed to resolve new spec")?;
+
+    let findings = diff::diff(&old_doc, &new_doc);
+
+    let mut has_breaking = false;
+    for finding in &findings {
+        if cli.breaking_only && finding.severity != DiffSeverity::Breaking {
+            continue;
+        }
+        match finding.severity {
+            DiffSeverity::Breaking => {
+                eprintln!("breaking: {finding}");
+                has_breaking = true;
+            }
+            DiffSeverity::Info => {
+                eprintln!("info: {finding}");
+            }
+        }
+    }
+
+    let breaking_count = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Breaking)
+        .count();
+    let info_count = findings.len() - breaking_count;
+
+    if findings.is_empty() {
+        info!("no differences found");
+    } else {
+        eprintln!("\n{breaking_count} breaking change(s), {info_count} info finding(s)");
+    }
+
+    Ok(has_breaking)
 }

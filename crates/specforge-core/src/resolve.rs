@@ -197,12 +197,21 @@ fn build_model(
         }
     };
 
+    // For allOf: if exactly one member is a $ref, record it as the base type
+    // so emitters can use embedding (Go) or flatten (Rust).
+    let base_type = if let SchemaKind::AllOf { all_of } = kind {
+        allof_base_type(all_of)
+    } else {
+        None
+    };
+
     let model = ObjectModel {
         name: name.to_string(),
         description: data.description.clone(),
         properties,
         additional_properties: additional,
         shape_type: Some(schema_kind_to_type(kind, data.nullable, data.discriminator.as_ref())),
+        base_type,
     };
     Ok(Model::Object(model))
 }
@@ -314,6 +323,27 @@ fn merge_allof_properties(
     }
 
     Ok((out, None))
+}
+
+/// If allOf has exactly one `$ref` member, return it as the base type for
+/// embedding (Go) or flatten (Rust). Returns `None` if there are zero or
+/// multiple `$ref` members, or if there are only inline members.
+fn allof_base_type(all_of: &[ReferenceOr<Schema>]) -> Option<Type> {
+    let ref_names: Vec<String> = all_of
+        .iter()
+        .filter_map(|m| match m {
+            ReferenceOr::Reference { reference } => Some(ref_name(reference)),
+            _ => None,
+        })
+        .collect();
+    if ref_names.len() == 1 {
+        Some(Type::Reference {
+            name: ref_names.into_iter().next().unwrap(),
+            nullable: false,
+        })
+    } else {
+        None
+    }
 }
 
 fn additional_to_type(ap: &AdditionalProperties) -> Option<Type> {
