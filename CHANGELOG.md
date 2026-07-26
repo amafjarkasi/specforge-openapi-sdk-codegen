@@ -88,4 +88,5 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
-[0.1.0]: https://github.com/example/specforge/releases/tag/v0.1.0
+[0.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.0
+[0.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.1.0
