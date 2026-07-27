@@ -213,13 +213,14 @@ Every generated SDK is a **complete, production-ready client** — not just type
 ### Quality gates
 
 - **221 unit tests** across core, emitters, and CLI
-- **Regression suite** on petstore (vendored) + GitHub / Stripe / Kubernetes / Atlassian / OpenAI (large real-world specs)
+- **21 test fixtures** (0.02MB to 14MB): petstore, GitHub, Stripe, Kubernetes, Atlassian, OpenAI, Vercel, Linode, Bitbucket, Adyen, Notion, Spotify, Adobe AEM, CircleCI, Okta, and more
 - **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
 - **E2E advanced**: concurrency serialisation, dedupe single-flight, middleware rewrite, idempotency-key on POST, SSE parse (all 3 langs)
 - **Performance benchmarks**: criterion benchmarks + 13 perf tests (petstore < 100ms, GitHub/Stripe < 10s)
 - **Multi-platform CI**: Linux, macOS, Windows (GitHub Actions matrix)
 - **Cross-compiled releases**: 5 targets (linux amd64/arm64, macOS Intel/Apple Silicon, Windows)
+- **Production hardening**: thread safety audit, unwrap/expect audit, SDK integration tests, stability enforcement
 
 ---
 
