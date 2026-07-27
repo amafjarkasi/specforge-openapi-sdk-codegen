@@ -1,51 +1,304 @@
 {
   "name": "specforge-vscode",
   "displayName": "specforge",
-  "description": "Preview generated SDKs from OpenAPI specs in VS Code",
-  "version": "0.1.0",
+  "description": "Generate, lint, and manage SDKs from OpenAPI specs directly in VS Code",
+  "version": "0.2.0",
   "publisher": "specforge",
   "engines": { "vscode": "^1.80.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onLanguage:yaml", "onLanguage:json"],
+  "categories": ["Other", "Programming Languages"],
+  "keywords": ["openapi", "swagger", "sdk", "codegen", "api", "spec"],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onLanguage:json",
+    "workspaceContains:**/openapi.yaml",
+    "workspaceContains:**/openapi.json",
+    "workspaceContains:**/swagger.yaml",
+    "workspaceContains:**/swagger.json",
+    "workspaceContains:**/.specforge-workspace.yaml"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "specforge.generate",
-        "title": "specforge: Generate SDK"
+        "title": "Generate SDK",
+        "category": "specforge",
+        "icon": "$(code)"
       },
       {
         "command": "specforge.check",
-        "title": "specforge: Check Spec"
+        "title": "Lint & Validate Spec",
+        "category": "specforge",
+        "icon": "$(checklist)"
       },
       {
-        "command": "specforge.preview",
-        "title": "specforge: Preview IR"
+        "command": "specforge.diff",
+        "title": "Diff Two Specs",
+        "category": "specforge",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "specforge.emit",
+        "title": "Preview IR as JSON",
+        "category": "specforge",
+        "icon": "$(json)"
+      },
+      {
+        "command": "specforge.init",
+        "title": "Scaffold New Spec",
+        "category": "specforge",
+        "icon": "$(add)"
+      },
+      {
+        "command": "specforge.convert",
+        "title": "Convert Spec Version (3.0/3.1)",
+        "category": "specforge",
+        "icon": "$(replace)"
+      },
+      {
+        "command": "specforge.merge",
+        "title": "Merge Specs",
+        "category": "specforge",
+        "icon": "$(merge)"
+      },
+      {
+        "command": "specforge.migrate",
+        "title": "Generate Migration Guide",
+        "category": "specforge",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "specforge.docs",
+        "title": "Generate HTML Documentation",
+        "category": "specforge",
+        "icon": "$(book)"
+      },
+      {
+        "command": "specforge.test",
+        "title": "Generate Tests",
+        "category": "specforge",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "specforge.versions",
+        "title": "List API Versions",
+        "category": "specforge",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "specforge.workspace",
+        "title": "Generate Workspace SDKs",
+        "category": "specforge",
+        "icon": "$(multi-root)"
+      },
+      {
+        "command": "specforge.workspaceInit",
+        "title": "Initialize Workspace Config",
+        "category": "specforge",
+        "icon": "$(file-directory-create)"
+      },
+      {
+        "command": "specforge.dashboard",
+        "title": "Open Metrics Dashboard",
+        "category": "specforge",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "specforge.security",
+        "title": "Analyze Security Requirements",
+        "category": "specforge",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "specforge.graph",
+        "title": "Show Dependency Graph",
+        "category": "specforge",
+        "icon": "$(project)"
+      },
+      {
+        "command": "specforge.analyze",
+        "title": "Bundle Analysis",
+        "category": "specforge",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "specforge.mock",
+        "title": "Start Mock Server",
+        "category": "specforge",
+        "icon": "$(server)"
+      },
+      {
+        "command": "specforge.export",
+        "title": "Export for Swagger Editor",
+        "category": "specforge",
+        "icon": "$(export)"
+      },
+      {
+        "command": "specforge.demo",
+        "title": "Generate Demo Spec",
+        "category": "specforge",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "specforge.evolution",
+        "title": "Track Schema Evolution",
+        "category": "specforge",
+        "icon": "$(history)"
+      },
+      {
+        "command": "specforge.infer",
+        "title": "Infer Spec from JSON",
+        "category": "specforge",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "specforge.verify",
+        "title": "Verify Running API",
+        "category": "specforge",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "specforge.changelog",
+        "title": "Generate Changelog",
+        "category": "specforge",
+        "icon": "$(note)"
       }
     ],
     "configuration": {
       "title": "specforge",
       "properties": {
+        "specforge.binaryPath": {
+          "type": "string",
+          "default": "specforge",
+          "description": "Path to the specforge binary. Leave as 'specforge' if it is on your PATH."
+        },
         "specforge.defaultLang": {
           "type": "string",
           "default": "ts",
           "enum": ["ts", "go", "rust"],
-          "description": "Default target language for SDK generation"
+          "enumDescriptions": [
+            "TypeScript (native fetch, ESM/CJS dual package)",
+            "Go (stdlib net/http)",
+            "Rust (reqwest + serde)"
+          ],
+          "description": "Default target language for SDK generation."
         },
         "specforge.outputDir": {
           "type": "string",
           "default": "./generated",
-          "description": "Default output directory"
+          "description": "Default output directory for generated SDKs."
+        },
+        "specforge.autoValidate": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically lint and validate OpenAPI specs when saved."
+        },
+        "specforge.specFilePattern": {
+          "type": "string",
+          "default": "**/openapi.{yaml,json},**/swagger.{yaml,json}",
+          "description": "Glob pattern for finding OpenAPI spec files in the workspace."
+        },
+        "specforge.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": ["error", "warn", "info", "debug", "trace"],
+          "description": "Log verbosity for specforge CLI commands."
         }
       }
+    },
+    "keybindings": [
+      {
+        "command": "specforge.generate",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "specforge.check",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "specforge.emit",
+        "key": "ctrl+shift+i",
+        "mac": "cmd+shift+i",
+        "when": "editorTextFocus"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "specforge.generate" },
+        { "command": "specforge.check" },
+        { "command": "specforge.diff" },
+        { "command": "specforge.emit" },
+        { "command": "specforge.init" },
+        { "command": "specforge.convert" },
+        { "command": "specforge.merge" },
+        { "command": "specforge.migrate" },
+        { "command": "specforge.docs" },
+        { "command": "specforge.test" },
+        { "command": "specforge.versions" },
+        { "command": "specforge.workspace" },
+        { "command": "specforge.workspaceInit" },
+        { "command": "specforge.dashboard" },
+        { "command": "specforge.security" },
+        { "command": "specforge.graph" },
+        { "command": "specforge.analyze" },
+        { "command": "specforge.mock" },
+        { "command": "specforge.export" },
+        { "command": "specforge.demo" },
+        { "command": "specforge.evolution" },
+        { "command": "specforge.infer" },
+        { "command": "specforge.verify" },
+        { "command": "specforge.changelog" }
+      ],
+      "editor/context": [
+        { "command": "specforge.generate", "when": "editorLangId == yaml || editorLangId == json" },
+        { "command": "specforge.check", "when": "editorLangId == yaml || editorLangId == json" },
+        { "command": "specforge.emit", "when": "editorLangId == yaml || editorLangId == json" }
+      ],
+      "explorer/context": [
+        {
+          "command": "specforge.generate",
+          "when": "resourceExtname == .yaml || resourceExtname == .json",
+          "group": "specforge"
+        },
+        {
+          "command": "specforge.check",
+          "when": "resourceExtname == .yaml || resourceExtname == .json",
+          "group": "specforge"
+        },
+        {
+          "command": "specforge.emit",
+          "when": "resourceExtname == .yaml || resourceExtname == .json",
+          "group": "specforge"
+        },
+        {
+          "command": "specforge.analyze",
+          "when": "resourceExtname == .yaml || resourceExtname == .json",
+          "group": "specforge"
+        },
+        {
+          "command": "specforge.export",
+          "when": "resourceExtname == .yaml || resourceExtname == .json",
+          "group": "specforge"
+        }
+      ],
+      "editor/title": [
+        { "command": "specforge.generate", "when": "editorLangId == yaml || editorLangId == json", "group": "navigation" },
+        { "command": "specforge.check", "when": "editorLangId == yaml || editorLangId == json", "group": "navigation" }
+      ]
     }
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.3.0",
-    "@types/vscode": "^1.80.0"
+    "@types/vscode": "^1.80.0",
+    "@types/node": "^18.0.0"
   }
 }
