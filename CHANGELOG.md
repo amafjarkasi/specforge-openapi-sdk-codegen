@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-07-27
+
+### Added
+
+#### TypeScript emitter
+- **Tree-shakeable API modules** — `src/index.ts` no longer re-exports API classes. Consumers import individual tags directly (`import { PetsApi } from "./api/Pets"`). New `src/api/index.ts` convenience barrel for callers who want everything. Subpath exports in `package.json` for `./api` and `./api/*`.
+
+#### CLI
+- **`specforge versions`** — List all API versions in a spec directory. Supports flat (`v1.yaml`, `v2.yaml`) and nested (`v1/openapi.yaml`) conventions.
+- **`--version` flag on `generate`** — Filter by version when spec is a directory. Matches by exact version string, file stem, or directory name.
+- **`--profile` flag on `generate` and `emit`** — Outputs detailed timing breakdown (parse, resolve, emit, total) to stderr.
+
+#### Core
+- **`scan_versions()`** — Scans a directory for spec files and extracts API versions.
+- **`resolve_spec_path()`** — Resolves spec path with optional version filtering.
+
 ## [0.6.0] — 2026-07-27
 
 ### Added
@@ -176,6 +192,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.7.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.7.0
 [0.6.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.6.0
 [0.5.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.5.0
 [0.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.4.0
