@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-07-27
+
+### Added
+
+#### VS Code Extension
+- **24 commands** (was 3) — generate, check, diff, emit, init, convert, merge, migrate, docs, test, versions, workspace, workspace-init, dashboard, security, graph, analyze, mock, export, demo, evolution, infer, verify, changelog
+- **6 configuration settings** — binaryPath, defaultLang, outputDir, autoValidate, specFilePattern, logLevel
+- **3 keyboard shortcuts** — Generate (Ctrl+Shift+G), Check (Ctrl+Shift+V), Emit IR (Ctrl+Shift+I)
+- **Context menus** — Editor + Explorer right-click for YAML/JSON files
+- **Status bar** — Mock server indicator with stop button
+- **Auto-validate on save** — Configurable spec validation
+- **Progress notifications** — Visual feedback for long operations
+- **Output channel** — Dedicated panel for all CLI output
+- **Interactive pickers** — Language, format, version, file pickers
+
 ## [1.3.0] — 2026-07-27
 
 ### Added
@@ -171,3 +186,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.2.1]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.1
 [0.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.0
 [0.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.1.0
+
+[1.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.4.0
