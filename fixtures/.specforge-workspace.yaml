@@ -1,0 +1,21 @@
+# Test workspace config for specforge workspace command.
+specs:
+  - name: petstore
+    spec: petstore.yaml
+    outputs:
+      - lang: ts
+        out: sdks/petstore-ts
+        name: "@acme/petstore"
+      - lang: go
+        out: sdks/petstore-go
+        name: github.com/acme/petstore-go
+
+  - name: sample-api
+    spec: sample-api.yaml
+    outputs:
+      - lang: ts
+        out: sdks/sample-api-ts
+        name: "@acme/sample-api"
+      - lang: rust
+        out: sdks/sample-api-rust
+        name: acme_sample_api_sdk

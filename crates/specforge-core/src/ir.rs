@@ -266,6 +266,23 @@ pub struct Operation {
     pub responses: Vec<Response>,
 }
 
+/// A resolved webhook ready for emission. Webhooks are OpenAPI 3.1 callbacks
+/// that the API can invoke on the client. Each webhook has a name (the map key
+/// in the spec), a method, and request/response definitions.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Webhook {
+    /// The webhook name from the spec (e.g. `newPet`).
+    pub name: String,
+    /// The HTTP method (typically POST).
+    pub method: HttpMethod,
+    /// A synthetic path for reference (e.g. `/webhooks/newPet`).
+    pub path: String,
+    pub summary: Option<String>,
+    pub description: Option<String>,
+    pub request_body: Option<RequestBody>,
+    pub responses: Vec<Response>,
+}
+
 // ─── Security IR ────────────────────────────────────────────────────────────
 
 /// Authentication schemes the SDK's runtime needs to support.
@@ -286,4 +303,5 @@ pub struct Document {
     pub security: Vec<SecurityScheme>,
     pub schemas: SchemaRegistry,
     pub operations: Vec<Operation>,
+    pub webhooks: Vec<Webhook>,
 }

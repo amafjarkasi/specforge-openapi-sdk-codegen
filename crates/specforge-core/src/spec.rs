@@ -24,6 +24,19 @@ pub struct VersionInfo {
     pub path: PathBuf,
 }
 
+/// A parsed OpenAPI document along with any webhooks extracted from the raw
+/// spec. The `openapiv3` crate does not support the `webhooks` field (OpenAPI
+/// 3.1), so we extract it from the raw JSON before parsing and carry it
+/// alongside the parsed spec.
+#[derive(Debug, Clone)]
+pub struct ParsedSpec {
+    /// The parsed OpenAPI document (3.0-compatible after any downgrade).
+    pub spec: OpenAPI,
+    /// The raw `webhooks` JSON map, if present. Each key is a webhook name
+    /// and each value is a PathItem object.
+    pub webhooks: Option<serde_json::Value>,
+}
+
 /// Read and parse an OpenAPI document from a file path (JSON or YAML).
 pub fn parse_file(path: impl AsRef<Path>) -> Result<OpenAPI, SpecError> {
     let path = path.as_ref();
@@ -34,11 +47,28 @@ pub fn parse_file(path: impl AsRef<Path>) -> Result<OpenAPI, SpecError> {
     parse_bytes(&bytes)
 }
 
+/// Read and parse an OpenAPI document from a file path, preserving webhooks.
+pub fn parse_file_full(path: impl AsRef<Path>) -> Result<ParsedSpec, SpecError> {
+    let path = path.as_ref();
+    let bytes = std::fs::read(path).map_err(|source| SpecError::Io {
+        path: path.display().to_string(),
+        source,
+    })?;
+    parse_bytes_full(&bytes)
+}
+
 /// Parse an OpenAPI document from bytes (JSON or YAML, auto-detected).
 pub fn parse_bytes(bytes: &[u8]) -> Result<OpenAPI, SpecError> {
     let text = std::str::from_utf8(bytes)
         .map_err(|e| SpecError::Invalid(format!("spec is not valid UTF-8: {e}")))?;
     parse_str(text)
+}
+
+/// Parse an OpenAPI document from bytes, preserving webhooks.
+pub fn parse_bytes_full(bytes: &[u8]) -> Result<ParsedSpec, SpecError> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|e| SpecError::Invalid(format!("spec is not valid UTF-8: {e}")))?;
+    parse_str_full(text)
 }
 
 /// Parse an OpenAPI document from a string (JSON or YAML, auto-detected).
@@ -57,6 +87,41 @@ pub fn parse_str(text: &str) -> Result<OpenAPI, SpecError> {
     }
 
     serde_json::from_value::<OpenAPI>(json).map_err(SpecError::Json)
+}
+
+/// Parse an OpenAPI document from a string, preserving the `webhooks` section.
+///
+/// OpenAPI 3.1 introduced a top-level `webhooks` field that maps webhook names
+/// to PathItem objects. The `openapiv3` crate does not support this field, so
+/// we extract it from the raw JSON before parsing and return it separately in
+/// the [`ParsedSpec`] struct.
+pub fn parse_str_full(text: &str) -> Result<ParsedSpec, SpecError> {
+    // JSON parses faster and stricter; try it first, fall back to YAML.
+    let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start())
+    {
+        v
+    } else {
+        serde_yaml::from_str::<JsonValue>(text).map_err(SpecError::Yaml)?
+    };
+
+    // Extract webhooks before downgrading (they exist only in 3.1).
+    let webhooks = extract_webhooks(&mut json);
+
+    // Downgrade 3.1 → 3.0 if needed.
+    if is_31(&json) {
+        downgrade_31_to_30(&mut json);
+    }
+
+    let spec = serde_json::from_value::<OpenAPI>(json).map_err(SpecError::Json)?;
+    Ok(ParsedSpec { spec, webhooks })
+}
+
+/// Extract the `webhooks` field from the raw JSON, removing it so the
+/// `openapiv3` parser doesn't choke on the unknown field.
+fn extract_webhooks(json: &mut JsonValue) -> Option<JsonValue> {
+    json.as_object_mut()
+        .and_then(|obj| obj.remove("webhooks"))
+        .filter(|v| v.is_object())
 }
 
 /// Check if the spec declares OpenAPI 3.1.x.

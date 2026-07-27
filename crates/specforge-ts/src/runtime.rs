@@ -1179,20 +1179,58 @@ export class ApiClient {{
     }}
     const url = this.baseUrl + path + (requestOptions?.query ? "?" + encodeQuery(requestOptions.query) : "");
 
+    // --- ETag cache: check for GET requests before dispatching ---
+    const isGet = method.toUpperCase() === "GET";
+    const cachedEntry = isGet && this.cache ? this.cache.get(url) : undefined;
+    const mergedHeaders: Record<string, string> | undefined =
+      cachedEntry
+        ? {{ ...requestOptions?.headers, "If-None-Match": cachedEntry.etag }}
+        : requestOptions?.headers;
+
     // The core dispatch loop (retry-aware). Split out so dedup can memoize it.
     const dispatch = async (): Promise<Response> => {{
       const release = await this.semaphore.acquire();
       try {{
-        return await this.dispatchWithRetry(method, url, requestOptions);
+        return await this.dispatchWithRetry(method, url, {{ ...requestOptions, headers: mergedHeaders }});
       }} finally {{
         release();
       }}
     }};
 
+    let response: Response;
     if (this.useDedupe) {{
-      return this.deduper.dedupe(method, url, dispatch);
+      response = await this.deduper.dedupe(method, url, dispatch);
+    }} else {{
+      response = await dispatch();
     }}
-    return dispatch();
+
+    // --- ETag cache: handle 304 Not Modified and update on 200 ---
+    if (isGet && this.cache) {{
+      if (response.status === 304 && cachedEntry) {{
+        // Return cached data as a synthetic Response.
+        return new Response(JSON.stringify(cachedEntry.data), {{
+          status: 200,
+          statusText: "OK (cached)",
+          headers: {{ "content-type": "application/json", "x-cache": "HIT" }},
+        }});
+      }}
+      if (response.ok) {{
+        const etag = response.headers.get("etag");
+        if (etag) {{
+          // Buffer the body so we can both return it and cache it.
+          const cloned = response.clone();
+          const body = await cloned.text();
+          try {{
+            this.cache.set(url, etag, JSON.parse(body));
+          }} catch {{
+            // Non-JSON body — cache the raw text.
+            this.cache.set(url, etag, body);
+          }}
+        }}
+      }}
+    }}
+
+    return response;
   }}
 
   /** Retry loop around a single attempt. Holds a semaphore slot while running. */

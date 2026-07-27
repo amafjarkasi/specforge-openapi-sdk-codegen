@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, init_workspace, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -76,6 +76,10 @@ enum Commands {
     Versions(VersionsArgs),
     /// Merge multiple OpenAPI spec files into one.
     Merge(MergeArgs),
+    /// Generate SDKs for all specs in a workspace config.
+    Workspace(WorkspaceArgs),
+    /// Generate a workspace config by scanning a directory for spec files.
+    WorkspaceInit(WorkspaceInitArgs),
 }
 
 #[derive(Args, Debug)]
@@ -275,6 +279,40 @@ struct MergeArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct WorkspaceArgs {
+    /// Path to workspace config file (default: .specforge-workspace.yaml).
+    #[arg(short, long, default_value = ".specforge-workspace.yaml")]
+    config: PathBuf,
+
+    /// Only generate for a specific spec name.
+    #[arg(long)]
+    only: Option<String>,
+
+    /// Dry run: show what would be generated without writing.
+    #[arg(long)]
+    dry_run: bool,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct WorkspaceInitArgs {
+    /// Directory to scan for spec files.
+    #[arg(default_value = ".")]
+    dir: PathBuf,
+
+    /// Output config file.
+    #[arg(short, long, default_value = ".specforge-workspace.yaml")]
+    out: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -289,6 +327,8 @@ fn main() -> ExitCode {
         Commands::Test(args) => args.log_level,
         Commands::Versions(args) => args.log_level,
         Commands::Merge(args) => args.log_level,
+        Commands::Workspace(args) => args.log_level,
+        Commands::WorkspaceInit(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -398,6 +438,39 @@ fn main() -> ExitCode {
         },
         Commands::Merge(args) => match run_merge(&args) {
             Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Workspace(args) => match run_workspace(&args) {
+            Ok(result) => {
+                if args.dry_run {
+                    info!("dry run complete");
+                } else {
+                    info!(
+                        "workspace: {} spec(s), {} output(s), {} file(s)",
+                        result.specs_processed, result.outputs_generated, result.files_written
+                    );
+                }
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::WorkspaceInit(args) => match run_workspace_init(&args) {
+            Ok(result) => {
+                eprintln!(
+                    "Created {} with {} spec(s)",
+                    result.config_path.display(),
+                    result.specs_found
+                );
+                ExitCode::SUCCESS
+            }
             Err(e) => {
                 eprintln!("error: {e:#}");
                 let _ = warn!("{e:#}");
@@ -990,6 +1063,120 @@ fn run_merge(cli: &MergeArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResult> {
+    let config = specforge_core::WorkspaceConfig::load(&cli.config)
+        .with_context(|| format!("failed to load workspace config from {}", cli.config.display()))?;
+
+    info!(
+        "loaded workspace: {} spec(s) from {}",
+        config.specs.len(),
+        cli.config.display()
+    );
+
+    let mut specs_processed = 0usize;
+    let mut outputs_generated = 0usize;
+    let mut files_written = 0usize;
+
+    for spec_config in &config.specs {
+        // Filter by --only if specified.
+        if let Some(ref only) = cli.only {
+            if &spec_config.name != only {
+                continue;
+            }
+        }
+
+        specs_processed += 1;
+        info!("generating: {}", spec_config.name);
+
+        let spec_path = spec_config.resolved_spec_path(&cli.config);
+
+        if cli.dry_run {
+            for output in &spec_config.outputs {
+                let display_name = output.name.as_deref().unwrap_or("(default)");
+                eprintln!(
+                    "  {} -> {} ({})",
+                    output.lang, output.out, display_name
+                );
+                outputs_generated += 1;
+            }
+            continue;
+        }
+
+        // Parse and resolve the spec once per spec entry.
+        let spec = parse_file(&spec_path)
+            .with_context(|| format!("[{}] failed to parse spec at {}", spec_config.name, spec_path.display()))?;
+        let doc = resolve(&spec)
+            .with_context(|| format!("[{}] failed to resolve spec into IR", spec_config.name))?;
+
+        for output in &spec_config.outputs {
+            let out_path = output.resolved_out_path(&cli.config);
+            let lang = output.lang.as_str();
+
+            info!("  {} -> {}", lang, out_path.display());
+
+            let written = match lang {
+                "ts" | "typescript" => {
+                    let opts = specforge_ts::GeneratorOptions {
+                        out_dir: out_path.clone(),
+                        package_name: output.name.clone(),
+                    };
+                    specforge_ts::generate(&doc, &opts)
+                        .with_context(|| format!("[{}] failed to emit TypeScript SDK", spec_config.name))?
+                }
+                "go" => {
+                    let opts = specforge_go::GeneratorOptions {
+                        out_dir: out_path.clone(),
+                        module_path: output.name.clone(),
+                        package_name: None,
+                    };
+                    specforge_go::generate(&doc, &opts)
+                        .with_context(|| format!("[{}] failed to emit Go SDK", spec_config.name))?
+                }
+                "rust" => {
+                    let opts = specforge_rust::GeneratorOptions {
+                        out_dir: out_path.clone(),
+                        crate_name: output.name.clone(),
+                    };
+                    specforge_rust::generate(&doc, &opts)
+                        .with_context(|| format!("[{}] failed to emit Rust SDK", spec_config.name))?
+                }
+                other => {
+                    bail!("[{}] unsupported language: {}", spec_config.name, other);
+                }
+            };
+
+            outputs_generated += 1;
+            files_written += written.len();
+        }
+    }
+
+    if specs_processed == 0 {
+        if cli.only.is_some() {
+            bail!(
+                "no spec matched --only filter; check the name in your workspace config"
+            );
+        }
+        bail!("workspace config contains no specs");
+    }
+
+    Ok(specforge_core::WorkspaceRunResult {
+        specs_processed,
+        outputs_generated,
+        files_written,
+    })
+}
+
+fn run_workspace_init(cli: &WorkspaceInitArgs) -> Result<specforge_core::WorkspaceInitResult> {
+    let result = specforge_core::init_workspace(&cli.dir, &cli.out)
+        .context("failed to initialize workspace")?;
+
+    if result.specs_found == 0 {
+        eprintln!("warning: no OpenAPI spec files found in {}", cli.dir.display());
+    }
+
+    Ok(result)
 }
 
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.

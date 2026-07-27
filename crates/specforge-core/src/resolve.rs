@@ -19,17 +19,34 @@ use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
-    Response, Scalar, SchemaRegistry, SecurityScheme, Type,
+    Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
 };
 
 /// Load and fully resolve a parsed OpenAPI document into the IR.
 pub fn resolve(spec: &OpenAPI) -> Result<Document, ResolveError> {
+    resolve_with_webhooks(spec, None)
+}
+
+/// Load and fully resolve a parsed OpenAPI document into the IR, including
+/// any webhooks extracted from the raw spec (OpenAPI 3.1 `webhooks` field).
+///
+/// The `webhooks_json` parameter is the raw JSON value of the `webhooks`
+/// top-level key, if present. Each key is a webhook name and each value is
+/// a PathItem-like object with HTTP method keys.
+pub fn resolve_with_webhooks(
+    spec: &OpenAPI,
+    webhooks_json: Option<&serde_json::Value>,
+) -> Result<Document, ResolveError> {
     let components = spec.components.as_ref();
 
     let schemas = resolve_schemas(components)?;
     let operations = resolve_operations(&spec.paths, components)?;
     let security = resolve_security(spec, components);
     let base_url = pick_base_url(&spec.servers);
+    let webhooks = match webhooks_json {
+        Some(wh) => resolve_webhooks(wh, components)?,
+        None => Vec::new(),
+    };
 
     Ok(Document {
         title: spec.info.title.clone(),
@@ -38,6 +55,7 @@ pub fn resolve(spec: &OpenAPI) -> Result<Document, ResolveError> {
         security,
         schemas,
         operations,
+        webhooks,
     })
 }
 
@@ -778,5 +796,183 @@ fn ref_or_schema_to_type(schema_or: &ReferenceOr<Schema>) -> Type {
             nullable: false,
             description: None,
         },
+    }
+}
+
+// ─── Webhooks → IR ──────────────────────────────────────────────────────────
+
+/// Resolve the raw `webhooks` JSON map into IR [`Webhook`] values.
+///
+/// In OpenAPI 3.1, webhooks are a map of `name -> PathItem` where each
+/// PathItem contains HTTP method keys (post, get, etc.). Since the
+/// `openapiv3` crate doesn't support webhooks, we parse from raw JSON.
+fn resolve_webhooks(
+    webhooks_json: &serde_json::Value,
+    components: Option<&Components>,
+) -> Result<Vec<Webhook>, ResolveError> {
+    let Some(obj) = webhooks_json.as_object() else {
+        return Ok(Vec::new());
+    };
+
+    let mut webhooks = Vec::new();
+
+    for (name, path_item) in obj {
+        let Some(path_obj) = path_item.as_object() else {
+            continue;
+        };
+
+        // Each key in the PathItem is an HTTP method.
+        let methods = [
+            ("get", HttpMethod::Get),
+            ("post", HttpMethod::Post),
+            ("put", HttpMethod::Put),
+            ("patch", HttpMethod::Patch),
+            ("delete", HttpMethod::Delete),
+            ("head", HttpMethod::Head),
+            ("options", HttpMethod::Options),
+        ];
+
+        for (method_str, method) in &methods {
+            let Some(op_json) = path_obj.get(*method_str) else {
+                continue;
+            };
+            let Some(op_obj) = op_json.as_object() else {
+                continue;
+            };
+
+            let path = format!("/webhooks/{}", name);
+
+            let summary = op_obj
+                .get("summary")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let description = op_obj
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let request_body = resolve_webhook_request_body(op_obj, components);
+
+            let responses = resolve_webhook_responses(op_obj, components);
+
+            webhooks.push(Webhook {
+                name: name.clone(),
+                method: *method,
+                path,
+                summary,
+                description,
+                request_body,
+                responses,
+            });
+        }
+    }
+
+    Ok(webhooks)
+}
+
+/// Extract the request body from a webhook operation JSON object.
+fn resolve_webhook_request_body(
+    op_obj: &serde_json::Map<String, serde_json::Value>,
+    _components: Option<&Components>,
+) -> Option<RequestBody> {
+    let rb = op_obj.get("requestBody")?;
+    let rb_obj = rb.as_object()?;
+
+    let content = rb_obj.get("content")?.as_object()?;
+    let json_content = content.get("application/json")?.as_object()?;
+    let schema_json = json_content.get("schema")?;
+
+    let ty = webhook_json_to_type(schema_json);
+    let required = rb_obj
+        .get("required")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let description = rb_obj
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    Some(RequestBody {
+        ty,
+        required,
+        description,
+    })
+}
+
+/// Extract responses from a webhook operation JSON object.
+fn resolve_webhook_responses(
+    op_obj: &serde_json::Map<String, serde_json::Value>,
+    _components: Option<&Components>,
+) -> Vec<Response> {
+    let Some(responses_json) = op_obj.get("responses") else {
+        return Vec::new();
+    };
+    let Some(responses_obj) = responses_json.as_object() else {
+        return Vec::new();
+    };
+
+    let mut responses = Vec::new();
+
+    for (status, resp_json) in responses_obj {
+        let body = resp_json
+            .as_object()
+            .and_then(|r| r.get("content"))
+            .and_then(|c| c.as_object())
+            .and_then(|c| c.get("application/json"))
+            .and_then(|m| m.as_object())
+            .and_then(|m| m.get("schema"))
+            .map(webhook_json_to_type);
+
+        let description = resp_json
+            .as_object()
+            .and_then(|r| r.get("description"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        responses.push(Response {
+            status: status.clone(),
+            description,
+            body,
+        });
+    }
+
+    responses
+}
+
+/// Convert a raw JSON schema value into an IR Type. This handles `$ref`
+/// references and inline types from webhook definitions.
+fn webhook_json_to_type(schema: &serde_json::Value) -> Type {
+    let Some(obj) = schema.as_object() else {
+        return Type::Unknown;
+    };
+
+    // Handle $ref.
+    if let Some(ref_val) = obj.get("$ref").and_then(|v| v.as_str()) {
+        return Type::Reference {
+            name: ref_name(ref_val),
+            nullable: false,
+            description: None,
+        };
+    }
+
+    // Handle inline types.
+    match obj.get("type").and_then(|v| v.as_str()) {
+        Some("string") => Type::Scalar(Scalar::String),
+        Some("integer") => Type::Scalar(Scalar::Integer),
+        Some("number") => Type::Scalar(Scalar::Float),
+        Some("boolean") => Type::Scalar(Scalar::Boolean),
+        Some("array") => {
+            let item = obj
+                .get("items")
+                .map(webhook_json_to_type)
+                .unwrap_or(Type::Unknown);
+            Type::Array {
+                item: Box::new(item),
+                nullable: false,
+            }
+        }
+        Some("object") => Type::Any,
+        _ => Type::Unknown,
     }
 }

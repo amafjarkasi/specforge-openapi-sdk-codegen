@@ -155,7 +155,7 @@ pub fn init_workspace(dir: &Path, out: &Path) -> Result<WorkspaceInitResult, Spe
         };
 
         specs.push(WorkspaceSpec {
-            name,
+            name: name.clone(),
             spec: relative_spec,
             outputs: vec![
                 WorkspaceOutput {
