@@ -951,7 +951,6 @@ fn ts_schema_type(ty: &specforge_core::Type) -> String {
     use specforge_core::{CompositionKind, Scalar, Type};
     match ty {
         Type::Scalar(s) => match s {
-            _ => todo!(),
             Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Integer64 => {
                 "{ kind: \"string\" }".into()
             }

@@ -732,6 +732,7 @@ version = "0.8.0"
 dependencies = [
  "rayon",
  "specforge-core",
+ "tempfile",
  "thiserror",
  "tracing",
 ]
@@ -758,6 +759,7 @@ version = "0.8.0"
 dependencies = [
  "rayon",
  "specforge-core",
+ "tempfile",
  "thiserror",
  "tracing",
 ]
@@ -769,6 +771,7 @@ dependencies = [
  "indexmap",
  "rayon",
  "specforge-core",
+ "tempfile",
  "thiserror",
  "tracing",
 ]

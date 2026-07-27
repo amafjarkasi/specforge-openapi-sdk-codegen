@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-07-27
+
+### Added
+
+#### Core
+- **Observability dashboard** — `specforge dashboard` generates HTML dashboard with Chart.js for SDK metrics visualization.
+- **OpenAPI 3.1 native parser** — `Schema31` model, `parse_31()`, `warn_unsupported_features()` for unsupported 3.1 features.
+- **Security scheme analysis** — `specforge security` with text/JSON/markdown output.
+- **Dependency graph** — `specforge graph` generates Mermaid/DOT diagrams.
+- **Bundle analyzer** — `specforge analyze` detects unused schemas, duplicates, large models.
+- **contentMediaType/contentEncoding** — `Scalar::Base64` and `Scalar::Binary` for binary data.
+- **Per-operation retry policies** — `x-retry` extensions on operations.
+- **Diff improvements** — Markdown/JSON/color output, inline schema diffs.
+- **JSDoc/docstrings** — Documentation comments from spec descriptions in generated code.
+
+#### Ecosystem
+- **5 large test fixtures** — GitHub Enterprise (14MB), Atlassian, LaunchDarkly, OpenAI (3.1.0)
+- **Performance benchmarks** — Criterion benchmarks + 13 perf tests
+- **VS Code extension** — Complete rewrite: 15 commands, icons, auto-validate, progress, output channel
+- **Website** — Landing page at specforge.deepwhaleai.com
+
 ## [1.0.0] — 2026-07-27
 
 ### Added
@@ -248,6 +269,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[1.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.1.0
 [1.0.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.0.0
 [0.9.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.9.0
 [0.8.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.8.0
