@@ -212,11 +212,16 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge evolution` | Track schema changes over git commits |
 | `specforge infer` | Generate an OpenAPI spec from sample JSON |
 | `specforge verify` | Validate a running API against the spec |
+| `specforge market` | Browse/search/manage specs in the marketplace |
+| `specforge market search` | Search specs by name, description, or tags |
+| `specforge market list` | List all curated specs with ratings |
+| `specforge market info` | Get detailed spec information |
+| `specforge market add` | Add a spec to the marketplace |
 | `specforge changelog` | Auto-generate CHANGELOG from spec changes |
 
 ### Quality gates
 
-- **221 unit tests** across core, emitters, and CLI
+- **227 unit tests** across core, emitters, and CLI
 - **21 test fixtures** (0.02MB to 14MB): petstore, GitHub, Stripe, Kubernetes, Atlassian, OpenAI, Vercel, Linode, Bitbucket, Adyen, Notion, Spotify, Adobe AEM, CircleCI, Okta, and more
 - **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
@@ -831,6 +836,19 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v1.5.0** — web UI redesign, spec marketplace:
+
+- [x] Professional light theme — complete rewrite (1713 lines, design system)
+- [x] Spec marketplace — 18 curated specs, `specforge market list/search/info/add`
+- [x] Browse Specs section in web UI with cards, search, and tag filtering
+- [x] **227 tests** passing (core 210 + TS 17)
+
+**v1.4.0** — VS Code extension comprehensive update:
+
+- [x] VS Code extension: 3 → **24 commands** (all CLI subcommands)
+- [x] 6 configuration settings, 3 keyboard shortcuts
+- [x] Context menus, status bar, auto-validate, progress notifications
+
 **v1.3.0** — production-ready milestone:
 
 - [x] All tests green — **221 passing** (core 204 + TS 17)  
@@ -959,7 +977,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 - [x] Multi-platform CI (Linux, macOS, Windows)  
 - [x] Richer generated READMEs (errors, pagination, concurrency, middleware, streaming)  
 
-**All roadmap items completed through v1.3.0. Production-ready.**
+**All roadmap items completed through v1.5.0. Production-ready with professional web UI and marketplace.**
 
 ---
 
@@ -1009,6 +1027,28 @@ The [specforge VS Code extension](vscode-extension/) provides a full IDE experie
 - Status bar with quick access
 - Output channel for all commands
 - Progress notifications for long operations
+
+### Spec Marketplace
+
+Browse and share OpenAPI specs with the community:
+
+```bash
+# List all specs
+specforge market list
+
+# Search by name, description, or tags
+specforge market search github
+
+# Get detailed info
+specforge market info stripe
+
+# Add your own spec
+specforge market add ./my-api.yaml
+```
+
+**18 curated specs included:** GitHub, Stripe, Petstore, Kubernetes, Spotify, Notion, Twilio, Vercel, Okta, Atlassian, Adyen, Bitbucket, Linode, CircleCI, LaunchDarkly, Adobe AEM, 1Password, Ably.
+
+Browse specs in the [Web UI](web-ui/) with search, tag filtering, and ratings.
 
 ### External Emitters
 
