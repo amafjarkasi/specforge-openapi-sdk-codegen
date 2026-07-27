@@ -589,4 +589,139 @@ components:
         let result = parse_str(yaml);
         assert!(result.is_ok(), "should parse: {:?}", result.err());
     }
+
+    // ── version scanning tests ──────────────────────────────────────────
+
+    #[test]
+    fn scan_versions_flat_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let v1 = dir.path().join("v1.yaml");
+        let v2 = dir.path().join("v2.yaml");
+        std::fs::write(&v1, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(&v2, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+
+        let versions = scan_versions(dir.path());
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].version, "1.0.0");
+        assert_eq!(versions[0].path, v1);
+        assert_eq!(versions[1].version, "2.0.0");
+        assert_eq!(versions[1].path, v2);
+    }
+
+    #[test]
+    fn scan_versions_nested_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let v1_dir = dir.path().join("v1");
+        let v2_dir = dir.path().join("v2");
+        std::fs::create_dir_all(&v1_dir).unwrap();
+        std::fs::create_dir_all(&v2_dir).unwrap();
+        std::fs::write(v1_dir.join("openapi.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(v2_dir.join("openapi.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+
+        let versions = scan_versions(dir.path());
+        assert_eq!(versions.len(), 2);
+        assert_eq!(versions[0].version, "1.0.0");
+        assert_eq!(versions[1].version, "2.0.0");
+    }
+
+    #[test]
+    fn scan_versions_empty_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let versions = scan_versions(dir.path());
+        assert!(versions.is_empty());
+    }
+
+    #[test]
+    fn scan_versions_ignores_non_spec_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("readme.txt"), "not a spec").unwrap();
+        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let versions = scan_versions(dir.path());
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].version, "1.0.0");
+    }
+
+    #[test]
+    fn scan_versions_json_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("v1.json"),
+            r#"{"openapi": "3.0.3", "info": {"title": "T", "version": "1.0.0"}, "paths": {}}"#,
+        ).unwrap();
+
+        let versions = scan_versions(dir.path());
+        assert_eq!(versions.len(), 1);
+        assert_eq!(versions[0].version, "1.0.0");
+    }
+
+    #[test]
+    fn resolve_spec_path_file_passthrough() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("api.yaml");
+        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(&file, None);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), file);
+    }
+
+    #[test]
+    fn resolve_spec_path_dir_requires_version() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(dir.path(), None);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("--version"), "error should mention --version: {err}");
+    }
+
+    #[test]
+    fn resolve_spec_path_exact_version_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("v1.yaml");
+        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(dir.path().join("v2.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(dir.path(), Some("1.0.0"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), file);
+    }
+
+    #[test]
+    fn resolve_spec_path_file_stem_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("v1.yaml");
+        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(dir.path(), Some("v1"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), file);
+    }
+
+    #[test]
+    fn resolve_spec_path_version_not_found() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(dir.path(), Some("99.0.0"));
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("not found"), "error should mention not found: {err}");
+        assert!(err.contains("1.0.0"), "error should list available versions: {err}");
+    }
+
+    #[test]
+    fn resolve_spec_path_nested_dir_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let v1_dir = dir.path().join("v1");
+        std::fs::create_dir_all(&v1_dir).unwrap();
+        let file = v1_dir.join("openapi.yaml");
+        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+
+        let result = resolve_spec_path(dir.path(), Some("v1"));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), file);
+    }
 }

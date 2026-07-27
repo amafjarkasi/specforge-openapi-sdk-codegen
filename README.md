@@ -24,61 +24,168 @@
 
 ## Why specforge?
 
-Most OpenAPI generators dump incomplete types, ignore runtime concerns, or lock you into one language. **specforge** is built the other way around:
+Most OpenAPI generators have critical shortcomings that leave teams building runtime infrastructure by hand:
 
-1. **Parse once** — OpenAPI YAML/JSON → resolved, language-neutral IR  
-2. **Emit many** — walk the same IR for TypeScript, Go, Rust, or WASM plugins  
-3. **Ship clients that run** — auth, retry, timeouts, pagination, concurrency, dedupe, middleware, idempotency, streaming, validation  
-4. **Extend with plugins** — build custom WASM emitters for any language  
+| Problem with other generators | specforge’s answer |
+|---|---|
+| **Incomplete types** — nullable, oneOf, allOf produce broken or `any`-typed output | Full composition support: allOf property merging, oneOf type guards, discriminator mapping, nullable propagation |
+| **No runtime** — you get types but no client, auth, retry, or error handling | Production-ready runtime: auth providers, exponential backoff, pagination helpers, concurrency control, middleware, idempotency keys, SSE streaming |
+| **Single language** — each generator is a silo with different behavior | One IR, four targets: TypeScript, Go, Rust, and WASM plugins share the same resolved spec |
+| **No validation** — generated code trusts the server blindly | Runtime request/response validation catches contract violations in dev and tests |
+| **No testing** — you write mock servers by hand | `specforge test` generates mock server tests from example responses |
+| **No documentation** — separate tools for API docs | `specforge docs` generates a static HTML documentation site |
+| **No CI integration** — manual diffing and linting | `specforge diff` detects breaking changes, `specforge check` lints specs, GitHub Action for one-line CI |
 
-The goal is not “types that might compile.” It’s **SDKs you can point at a real API today**.
+### The specforge advantage
+
+**1. Parse once, emit many**
+
+Your OpenAPI spec is parsed and resolved into a language-neutral IR (Intermediate Representation). Every emitter — TypeScript, Go, Rust, or a custom WASM plugin — walks the same IR. This means:
+
+- Consistent behavior across languages (same retry logic, same pagination, same auth)
+- Adding a new language means writing one emitter, not re-implementing the parser
+- The IR is a documented, versioned JSON schema (`assets/ir-schema.json`)
+
+**2. SDKs that actually work in production**
+
+specforge doesn’t just generate types — it generates **complete client libraries** with:
+
+- **Auth** — Bearer tokens (static or dynamic), API keys, custom providers
+- **Retry** — Full-jitter exponential backoff with configurable max retries and per-attempt timeouts
+- **Pagination** — Cursor and offset pagination helpers that walk all pages automatically
+- **Concurrency** — Async semaphore to limit in-flight requests (`maxConcurrent`)
+- **Deduplication** — In-flight request coalescing for GET/HEAD/OPTIONS (one upstream call, N waiters)
+- **Middleware** — Composable request/response middleware chain (logging, tracing, header injection)
+- **Idempotency** — Automatic `Idempotency-Key` headers on POST/PUT/PATCH/DELETE
+- **Streaming** — SSE and chunk streaming helpers with proper error handling
+- **Validation** — Runtime request/response body validation against the spec
+
+**3. Multi-language with one source of truth**
+
+Generate SDKs for all your teams from the same spec:
 
 ```mermaid
 graph LR
-    A["📄 OpenAPI 3.x<br/>YAML / JSON"] --> B["⚙️ specforge-core<br/>parse · resolve<br/>language-neutral IR"]
-    B --> C["🔧 emitters<br/>TS · Go · Rust · WASM<br/>typed client + runtime"]
+    A[“📄 OpenAPI 3.x<br/>YAML / JSON”] --> B[“⚙️ specforge-core<br/>parse · resolve<br/>language-neutral IR”]
+    B --> C[“🔧 emitters<br/>TS · Go · Rust · WASM<br/>typed client + runtime”]
 
     style A fill:#1a0f0a,stroke:#f97316,color:#fef3c7
     style B fill:#1a0f0a,stroke:#ef4444,color:#fef3c7
     style C fill:#1a0f0a,stroke:#fbbf24,color:#fef3c7
 ```
 
+Each generated SDK is a standalone project — no shared runtime dependency, no version coupling. The TypeScript SDK is a dual ESM/CJS package, the Go SDK uses only stdlib, and the Rust SDK uses `reqwest` + `serde`.
+
+**4. Built for CI**
+
+- `specforge check` lints your spec with configurable rules (`.specforge.yaml`)
+- `specforge diff` detects breaking changes between two spec versions — exit code 1 on breaking changes
+- GitHub Action for one-line CI integration
+- Deterministic output for reproducible builds and effective caching
+
+**5. Extensible via WASM plugins**
+
+Need Kotlin? Swift? Python? Build a custom emitter as a WASM plugin:
+
+```rust
+use specforge_plugin::{Plugin, PluginResult, GeneratedFile};
+
+struct MyPlugin;
+impl Plugin for MyPlugin {
+    fn generate(&self, ir_json: &str) -> PluginResult {
+        // Parse the IR, emit files for your language
+    }
+}
+specforge_plugin::export_plugin!(MyPlugin);
+```
+
+The plugin receives the full IR as JSON and returns generated files. Compile to WASM and run with `specforge`.
+
 ---
 
 ## Features
 
-### Generator
-- OpenAPI **3.0 / 3.x** via `openapiv3` (YAML + JSON)
-- Full **`$ref` resolution** without inlining blow-ups (named types stay named)
-- **Composition**: `allOf` / `oneOf` / `anyOf`, plus discriminator metadata
-- Inline **string enums** preserved for discriminant guards
-- Deterministic output (stable ordering from the spec)
-- Multi-language CLI: `-l ts|go|rust`
+### Spec parsing & resolution
 
-### Generated runtimes
+| Feature | Benefit |
+|---|---|
+| **OpenAPI 3.0 + 3.1** | Handles both spec versions transparently. 3.1 `type` arrays, `$ref` siblings, and numeric `exclusiveMinimum` are auto-converted to 3.0 for parsing. |
+| **Full `$ref` resolution** | Named types stay named — no exponential inlining blow-ups. Self-referential and mutual `$ref` cycles are safe by construction. |
+| **Composition support** | `allOf` merges properties (last-wins, required union). `oneOf`/`anyOf` generate type guards. Discriminator mapping preserved. |
+| **AllOf type aliases** | When allOf has one `$ref` member, Go emits embedded structs and Rust emits `#[serde(flatten)]` — proper composition, not flat merging. |
+| **Deterministic output** | `IndexMap` preserves spec order. Same spec + same version = identical output. Bit-stable for caching and diffing. |
+| **Spec linting** | 8 configurable rules (duplicate operation IDs, missing descriptions, unused schemas, etc.) with `.specforge.yaml` config. |
+| **Breaking change detection** | `specforge diff` compares two specs: removed operations, new required parameters, type changes. Exit code 1 for CI gates. |
 
-| Capability | TypeScript | Go | Rust | WASM plugin |
-|---|:---:|:---:|:---:|:---:|
-| Typed models + operations | ✅ | ✅ | ✅ | via JSON |
-| Bearer / API-key auth providers | ✅ | ✅ | ✅ | — |
-| Retry + full-jitter exponential backoff | ✅ | ✅ | ✅ | — |
-| Per-attempt timeouts | ✅ | ✅ | ✅ | — |
-| Cursor & offset pagination helpers | ✅ | ✅ | ✅ | — |
-| Concurrency semaphore (`maxConcurrent`) | ✅ | ✅ | ✅ | — |
-| In-flight dedupe (GET/HEAD/OPTIONS) | ✅ | ✅ | ✅ | — |
-| Middleware chain | ✅ | ✅ | ✅ | — |
-| Idempotency-Key on POST/PUT/PATCH/DELETE | ✅ | ✅ | ✅ | — |
-| SSE / chunk streaming helpers | ✅ | ✅ | ✅ | — |
-| oneOf runtime type guards | ✅ | — | untagged enums | — |
-| Runtime request/response validation | ✅ | ✅ | ✅ | — |
-| Tree-shakeable multi-file package | ✅ ESM/CJS | stdlib module | cargo crate | WASM binary |
+### Generated SDK runtimes
+
+Every generated SDK is a **complete, production-ready client** — not just types.
+
+| Capability | What it does | Why it matters |
+|---|---|---|
+| **Typed models + operations** | Full request/response types with proper optionality | Catch type errors at compile time, not in production |
+| **Auth providers** | Bearer (static/dynamic), API key (header/query), custom | Swap credentials without touching client code |
+| **Retry + backoff** | Full-jitter exponential backoff, configurable max retries | Handle transient failures gracefully without thundering herd |
+| **Per-attempt timeouts** | Configurable timeout on each retry attempt | Prevent hung requests from blocking your app |
+| **Pagination helpers** | Cursor and offset pagination that walks all pages | One call instead of manual loop + cursor management |
+| **Concurrency semaphore** | `maxConcurrent` limits in-flight requests | Prevent overwhelming the API or hitting rate limits |
+| **In-flight dedupe** | Coalesces identical GET/HEAD/OPTIONS requests | N concurrent callers → 1 upstream call, N shared results |
+| **Middleware chain** | Composable request/response middleware | Add logging, tracing, header injection without modifying the client |
+| **Idempotency keys** | Auto-generated `Idempotency-Key` on unsafe methods | Safe retries on POST/PUT/PATCH/DELETE without duplicate side effects |
+| **SSE streaming** | Server-Sent Event parser with proper error handling | Real-time data streams without manual parsing |
+| **Runtime validation** | Validate request/response bodies against the spec | Catch API contract violations in dev and tests, not production |
+| **oneOf type guards** | `isPetCreated()`, `narrowPetEvent()` (TS); `is_pet_created()`, `discriminant()` (Rust) | Safely narrow union types at runtime |
+
+### Language-specific highlights
+
+**TypeScript**
+- Dual ESM/CJS package (`sideEffects: false` for tree-shaking)
+- Native `fetch` — no runtime dependencies
+- Discriminated union error types (`ApiError`)
+- `isX()` / `narrowX()` type guards for oneOf unions
+- Per-model `validatePet()` functions
+
+**Go**
+- Stdlib only (`net/http`, `encoding/json`) — zero third-party dependencies
+- Embedded structs for allOf composition
+- `New{Union}(m map[string]any)` for discriminated oneOf deserialization
+- `New{Union}FromJSON(raw json.RawMessage)` for non-discriminated unions
+- `WithValidation(true)` for runtime request/response checking
+
+**Rust**
+- `reqwest` + `serde` + `tokio` async runtime
+- `#[serde(flatten)]` for allOf composition
+- `impl PetEvent { fn discriminant() -> &str; fn is_pet_created() -> bool; }` for oneOf
+- `SseStream` for SSE parsing over `bytes_stream()`
+- `.validation(true)` builder option
+
+**WASM plugins**
+- `specforge-plugin` crate with `Plugin` trait and `export_plugin!` macro
+- Receives full IR as JSON, returns generated files
+- Compile to `wasm32-wasi` for any language emitter
+
+### CLI subcommands
+
+| Command | What it does |
+|---|---|
+| `specforge generate` | Generate an SDK from an OpenAPI spec |
+| `specforge check` | Lint and validate a spec with configurable rules |
+| `specforge diff` | Compare two specs and report breaking changes |
+| `specforge emit` | Dump the resolved IR as JSON (for external tools) |
+| `specforge init` | Scaffold a new OpenAPI spec with a `/health` endpoint |
+| `specforge convert` | Convert between OpenAPI 3.0 and 3.1 |
+| `specforge docs` | Generate a static HTML API documentation site |
+| `specforge test` | Generate mock server tests from spec examples |
 
 ### Quality gates
-- **Unit tests** for IR + TypeScript emitter  
-- **Regression** on petstore (vendored) + GitHub / Stripe (cached large specs)  
-- **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`  
-- **E2E smoke**: mock × list/show/create + auth/retry/pagination (all 3 langs)  
+
+- **123+ unit tests** across core, emitters, and CLI
+- **Regression suite** on petstore (vendored) + GitHub / Stripe (large real-world specs)
+- **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
+- **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
 - **E2E advanced**: concurrency serialisation, dedupe single-flight, middleware rewrite, idempotency-key on POST, SSE parse (all 3 langs)
+- **Multi-platform CI**: Linux, macOS, Windows (GitHub Actions matrix)
+- **Cross-compiled releases**: 5 targets (linux amd64/arm64, macOS Intel/Apple Silicon, Windows)
 
 ---
 
