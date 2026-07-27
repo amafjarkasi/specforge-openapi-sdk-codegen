@@ -175,7 +175,7 @@ fn ts_assertion(ty: &Type) -> String {
             )
         }
         Type::Scalar(s) => match s {
-            Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Base64 | Scalar::Binary => {
+            Scalar::String | Scalar::DateTime | Scalar::Uuid => {
                 "console.assert(typeof result === 'string', 'expected string')".to_string()
             }
             Scalar::Integer | Scalar::Integer64 | Scalar::Float => {
@@ -196,10 +196,8 @@ fn generate_ts_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>, i
             Scalar::DateTime => r#""2024-01-01T00:00:00Z""#.to_string(),
             Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
-            Scalar::Float => "1.0".to_string(),
-            Scalar::Base64 | Scalar::Binary => r#""dGVzdA==""#.to_string(),
-            Scalar::Boolean => "true".to_string(),
-            Scalar::Base64 | Scalar::Binary => r#""example""#.to_string(),
+            Scalar::Float => "1.0".to_string(), => r#""dGVzdA==""#.to_string(),
+            Scalar::Boolean => "true".to_string(), => r#""example""#.to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
@@ -346,8 +344,7 @@ fn generate_go_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>) -
             Scalar::String => "\"example\"".to_string(),
             Scalar::DateTime => "\"2024-01-01T00:00:00Z\"".to_string(),
             Scalar::Uuid => "\"550e8400-e29b-41d4-a716-446655440000\"".to_string(),
-            Scalar::Integer | Scalar::Integer64 => "1".to_string(),
-            Scalar::Base64 | Scalar::Binary => r#""dGVzdA==""#.to_string(),
+            Scalar::Integer | Scalar::Integer64 => "1".to_string(), => r#""dGVzdA==""#.to_string(),
             Scalar::Float => "1.0".to_string(),
             Scalar::Boolean => "true".to_string(),
         },
@@ -506,8 +503,7 @@ fn generate_rust_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>)
         Type::Scalar(s) => match s {
             Scalar::String => r#""example""#.to_string(),
             Scalar::DateTime => r#""2024-01-01T00:00:00Z""#.to_string(),
-            Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(),
-            Scalar::Base64 | Scalar::Binary => r#""dGVzdA==""#.to_string(),
+            Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(), => r#""dGVzdA==""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(),
             Scalar::Boolean => "true".to_string(),
@@ -666,8 +662,7 @@ mod tests {
                         nullable: false,
                     }),
                 }],
-                retry_policy: None,
-            }],
+                    }],
         }
     }
 

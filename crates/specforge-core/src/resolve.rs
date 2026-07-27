@@ -687,7 +687,6 @@ fn resolve_operation(
         parameters,
         request_body,
         responses,
-        retry_policy: None,
     })
 }
 

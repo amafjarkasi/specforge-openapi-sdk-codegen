@@ -1,4 +1,4 @@
-//! specforge-core
+pub mod analyzer;
 pub mod deprecation;
 pub mod diff;
 pub mod docs;
@@ -12,25 +12,21 @@ pub mod spec;
 pub mod testgen;
 pub mod validate;
 pub mod workspace;
-pub mod analyzer;
-pub mod graph;
-pub mod dashboard;
-pub mod schema31;
-pub mod security;
 
+pub use analyzer::{analyze_spec, AnalysisReport};
 pub use deprecation::{find_deprecations, generate_migration_guide, DeprecationInfo, DeprecationKind};
-pub use diff::{diff, diff_detailed, format_colored, format_json, format_markdown, format_text, DiffFinding, DiffFormat, DiffJsonOutput, DiffResult, DiffSeverity, DiffSummary, PropertyChange, PropertyChangeKind, SchemaDiffDetail};
+pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
 pub use merge::merge_specs;
 pub use testgen::{generate_tests, TestGenOptions, TestLang};
-pub use ir::{Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod, Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook};
+pub use ir::{
+    Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
+    Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response,
+    Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
+};
 pub use lint::{Diagnostic, Severity};
 pub use lint_config::{LintConfig, LintRule, RuleSeverity};
 pub use resolve::{resolve, resolve_with_webhooks};
 pub use spec::{detect_31_features, parse_bytes, parse_bytes_full, parse_file, parse_file_full, parse_str, parse_str_full, resolve_spec_path, scan_versions, ParsedSpec, Spec31Features, VersionInfo};
 pub use validate::{validate, ValidationError};
 pub use workspace::{init_workspace, WorkspaceConfig, WorkspaceInitResult, WorkspaceOutput, WorkspaceRunResult, WorkspaceSpec};
-pub use analyzer::{analyze_spec, AnalysisReport};
-pub use graph::{generate_graph, GraphFormat};
-pub use dashboard::generate_dashboard;
-pub use security::{analyze_security, analyze_security_detailed, OperationSecurity, SecurityIssue, SecurityReport, SecuritySchemeInfo};
