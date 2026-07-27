@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use crate::ir::{Document, Model, Operation, Type};
 
 /// Diagnostic severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Severity {
     Warning,
     Error,
@@ -25,7 +25,7 @@ impl std::fmt::Display for Severity {
 }
 
 /// A single lint finding.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Diagnostic {
     pub severity: Severity,
     pub message: String,

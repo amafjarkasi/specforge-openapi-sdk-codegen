@@ -17,6 +17,14 @@ A browser-based previewer for the specforge IR.
 - Download IR as JSON
 - Dark forge-themed UI
 
+## WASM Support
+
+For client-side parsing without `specforge emit`:
+
+1. Install wasm-pack: `curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh`
+2. Build WASM: `./scripts/build-wasm.sh`
+3. Open `index.html` — the "Parse Locally (WASM)" button will parse specs directly in the browser
+
 ## Development
 
 No build step needed — open `index.html` directly. All CSS and JS are inline.

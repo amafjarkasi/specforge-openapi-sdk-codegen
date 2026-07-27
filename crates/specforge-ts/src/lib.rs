@@ -93,7 +93,8 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     body.push_str("export * from \"./errors\";\n");
     body.push_str("export * from \"./auth\";\n");
     body.push_str("export * from \"./retry\";\n");
-    body.push_str("export * from \"./paginate\";\n\n");
+    body.push_str("export * from \"./paginate\";\n");
+    body.push_str("export * from \"./validate\";\n\n");
 
     // Models.
     for (_, model) in doc.schemas.iter() {

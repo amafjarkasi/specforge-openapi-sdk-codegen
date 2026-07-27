@@ -71,6 +71,9 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let streaming = src.join("streaming.rs");
     files.push((rel(&streaming, &opts.out_dir), streaming, emit_streaming()));
 
+    let validate = src.join("validate.rs");
+    files.push((rel(&validate, &opts.out_dir), validate, emit_validate(doc)));
+
     let models = src.join("models.rs");
     files.push((rel(&models, &opts.out_dir), models, emit_models(doc)));
 
@@ -412,6 +415,7 @@ pub mod models;
 pub mod paginate;
 pub mod retry;
 pub mod streaming;
+pub mod validate;
 
 pub use client::{Auth, Client, ClientBuilder};
 pub use concurrency::Semaphore;
@@ -1061,12 +1065,13 @@ use crate::concurrency::Semaphore;
 	    /// Per-attempt timeout. `None` uses the underlying reqwest client default.
 	    timeout: Option<Duration>,
 	    semaphore: Option<Semaphore>,
-	    dedupe: bool,
-	    idempotency: bool,
-		    deduper: RequestDeduper,
-		    middlewares: Vec<Middleware>,
-		    stream_middlewares: Vec<StreamMiddleware>,
-		}}
+		    dedupe: bool,
+		    idempotency: bool,
+		    validation: bool,
+			    deduper: RequestDeduper,
+			    middlewares: Vec<Middleware>,
+			    stream_middlewares: Vec<StreamMiddleware>,
+			}}
 	
 	impl std::fmt::Debug for Client {{
 	    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
@@ -1075,9 +1080,10 @@ use crate::concurrency::Semaphore;
 	            .field("auth", &self.auth)
 	            .field("retry", &self.retry)
 	            .field("timeout", &self.timeout)
-	            .field("dedupe", &self.dedupe)
-	            .field("idempotency", &self.idempotency)
-	            .field("max_concurrent", &self.semaphore.as_ref().map(|_| "set"))
+		            .field("dedupe", &self.dedupe)
+		            .field("idempotency", &self.idempotency)
+		            .field("validation", &self.validation)
+		            .field("max_concurrent", &self.semaphore.as_ref().map(|_| "set"))
 		            .field("middlewares", &self.middlewares.len())
 		            .field("stream_middlewares", &self.stream_middlewares.len())
 		            .finish()
@@ -1446,14 +1452,15 @@ use crate::concurrency::Semaphore;
 	    retry: RetryOptions,
 	    timeout: Option<Duration>,
 	    max_concurrent: Option<usize>,
-	    dedupe: bool,
-	    idempotency: bool,
-		    middlewares: Vec<Middleware>,
-		    stream_middlewares: Vec<StreamMiddleware>,
-		    /// Seeded from the first API-key security scheme in the spec, if any.
-	    #[allow(dead_code)]
-	    default_api_key_header: String,
-	}}
+		    dedupe: bool,
+		    idempotency: bool,
+		    validation: bool,
+			    middlewares: Vec<Middleware>,
+			    stream_middlewares: Vec<StreamMiddleware>,
+			    /// Seeded from the first API-key security scheme in the spec, if any.
+		    #[allow(dead_code)]
+		    default_api_key_header: String,
+		}}
 	
 	impl std::fmt::Debug for ClientBuilder {{
 	    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
@@ -1463,14 +1470,15 @@ use crate::concurrency::Semaphore;
 	            .field("retry", &self.retry)
 	            .field("timeout", &self.timeout)
 	            .field("max_concurrent", &self.max_concurrent)
-	            .field("dedupe", &self.dedupe)
-	            .field("idempotency", &self.idempotency)
-	            .field("middlewares", &self.middlewares.len())
-	            .finish()
-	    }}
-	}}
-	
-	impl ClientBuilder {{
+		            .field("dedupe", &self.dedupe)
+		            .field("idempotency", &self.idempotency)
+		            .field("validation", &self.validation)
+		            .field("middlewares", &self.middlewares.len())
+		            .finish()
+		    }}
+		}}
+
+		impl ClientBuilder {{
 	    pub fn new() -> Self {{
 	        Self {{
 	            base_url: {base_lit}.to_string(),
@@ -1479,12 +1487,13 @@ use crate::concurrency::Semaphore;
 	            retry: RetryOptions::default(),
 	            timeout: Some(Duration::from_secs(30)),
 	            max_concurrent: None,
-	            dedupe: true,
-	            idempotency: true,
-		            middlewares: Vec::new(),
-		            stream_middlewares: Vec::new(),
-		            default_api_key_header: {api_key_header_lit}.to_string(),
-	        }}
+		    dedupe: true,
+		    idempotency: true,
+		    validation: false,
+			            middlewares: Vec::new(),
+			            stream_middlewares: Vec::new(),
+			            default_api_key_header: {api_key_header_lit}.to_string(),
+		        }}
 	    }}
 	
 	    pub fn base_url(mut self, url: impl Into<String>) -> Self {{
@@ -1535,10 +1544,15 @@ use crate::concurrency::Semaphore;
 	        self
 	    }}
 	
-	    pub fn idempotency(mut self, on: bool) -> Self {{
-	        self.idempotency = on;
-	        self
-	    }}
+		    pub fn idempotency(mut self, on: bool) -> Self {{
+		        self.idempotency = on;
+		        self
+		    }}
+
+		    pub fn validation(mut self, on: bool) -> Self {{
+		        self.validation = on;
+		        self
+		    }}
 	
 		    pub fn middleware(mut self, mw: Middleware) -> Self {{
 		        self.middlewares.push(mw);
@@ -1562,9 +1576,10 @@ use crate::concurrency::Semaphore;
 	            retry: self.retry,
 	            timeout: self.timeout,
 	            semaphore: self.max_concurrent.map(Semaphore::new),
-	            dedupe: self.dedupe,
-	            idempotency: self.idempotency,
-		            deduper: RequestDeduper::new(),
+		            dedupe: self.dedupe,
+		            idempotency: self.idempotency,
+		            validation: self.validation,
+			            deduper: RequestDeduper::new(),
 		            middlewares: self.middlewares,
 		            stream_middlewares: self.stream_middlewares,
 		        }})
@@ -1582,6 +1597,216 @@ use crate::concurrency::Semaphore;
 	        api_key_header_lit = rust_string_lit(default_api_key_header),
 	    )
 	}
+
+// ─── validate.rs ─────────────────────────────────────────────────────────────
+
+fn emit_validate(doc: &Document) -> String {
+    let mut out = String::from(
+        r#"// Code generated by specforge. DO NOT EDIT.
+
+//! Runtime validation of values against the OpenAPI schema.
+//!
+//! Each model gets a `validate_<model>` function that checks required fields,
+//! types, enum values, and recursively validates nested objects.
+
+use serde_json::Value;
+
+/// A single validation error with a JSON-path-style location and message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidationError {
+    /// JSON-pointer-style path to the offending value (e.g. `.items[2].name`).
+    pub path: String,
+    /// Human-readable description of what went wrong.
+    pub message: String,
+}
+
+impl std::fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.path, self.message)
+    }
+}
+
+impl std::error::Error for ValidationError {}
+
+/// Validate a JSON value as an object, returning any errors found.
+fn validate_object_fields(
+    value: &Value,
+    required: &[&str],
+    path: &str,
+) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: format!("expected object, got {}", value_type_name(value)),
+            });
+            return errors;
+        }
+    };
+    for field in required {
+        if !obj.contains_key(*field) {
+            errors.push(ValidationError {
+                path: if path.is_empty() {
+                    field.to_string()
+                } else {
+                    format!("{path}.{field}")
+                },
+                message: "missing required field".to_string(),
+            });
+        }
+    }
+    errors
+}
+
+/// Validate that a string field value is one of the allowed enum values.
+fn validate_enum_field(
+    value: &Value,
+    field: &str,
+    allowed: &[&str],
+    path: &str,
+) -> Vec<ValidationError> {
+    let mut errors = Vec::new();
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return errors,
+    };
+    if let Some(val) = obj.get(field) {
+        if let Some(s) = val.as_str() {
+            if !allowed.contains(&s) {
+                let field_path = if path.is_empty() {
+                    field.to_string()
+                } else {
+                    format!("{path}.{field}")
+                };
+                errors.push(ValidationError {
+                    path: field_path,
+                    message: format!("invalid enum value: \"{s}\""),
+                });
+            }
+        }
+    }
+    errors
+}
+
+fn value_type_name(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+"#,
+    );
+
+    // Per-model validators.
+    for (_, model) in doc.schemas.iter() {
+        match model {
+            Model::Object(o) => {
+                let fn_name = snake(&o.name);
+                let model_name = pascal(&o.name);
+                let required: Vec<&str> = o
+                    .properties
+                    .iter()
+                    .filter(|p| p.required)
+                    .map(|p| p.name.as_str())
+                    .collect();
+
+                out.push_str(&format!(
+                    "/// Validate a value against the `{model_name}` schema.\n"
+                ));
+                out.push_str(&format!(
+                    "pub fn validate_{fn_name}(v: &Value) -> Result<(), Vec<ValidationError>> {{\n"
+                ));
+                out.push_str("    let mut errors = Vec::new();\n");
+
+                if required.is_empty() && o.properties.is_empty() {
+                    // Empty object - just check it's an object.
+                    out.push_str("    if !v.is_object() {\n");
+                    out.push_str("        errors.push(ValidationError {\n");
+                    out.push_str("            path: String::new(),\n");
+                    out.push_str(&format!(
+                        "            message: format!(\"expected object, got {{}}\", value_type_name(v)),\n"
+                    ));
+                    out.push_str("        });\n");
+                    out.push_str("    }\n");
+                } else {
+                    // Check required fields.
+                    if !required.is_empty() {
+                        let req_lit: Vec<String> = required
+                            .iter()
+                            .map(|r| format!("\"{}\"", escape_rust_string(r)))
+                            .collect();
+                        out.push_str(&format!(
+                            "    errors.extend(validate_object_fields(v, &[{}], \"\"));\n",
+                            req_lit.join(", ")
+                        ));
+                    }
+                    // Check enum fields.
+                    for prop in &o.properties {
+                        if let Type::StringEnum { variants, .. } = &prop.ty {
+                            let vals: Vec<String> = variants
+                                .iter()
+                                .map(|v| format!("\"{}\"", escape_rust_string(v)))
+                                .collect();
+                            out.push_str(&format!(
+                                "    errors.extend(validate_enum_field(v, \"{}\", &[{}], \"\"));\n",
+                                escape_rust_string(&prop.name),
+                                vals.join(", ")
+                            ));
+                        }
+                    }
+                }
+
+                out.push_str("    if errors.is_empty() { Ok(()) } else { Err(errors) }\n");
+                out.push_str("}\n\n");
+            }
+            Model::Enum(e) => {
+                let fn_name = snake(&e.name);
+                let model_name = pascal(&e.name);
+                let vals: Vec<String> = e
+                    .variants
+                    .iter()
+                    .map(|v| format!("\"{}\"", escape_rust_string(&v.value)))
+                    .collect();
+
+                out.push_str(&format!(
+                    "/// Validate a value is a valid `{model_name}` enum value.\n"
+                ));
+                out.push_str(&format!(
+                    "pub fn validate_{fn_name}(v: &Value) -> Result<(), Vec<ValidationError>> {{\n"
+                ));
+                out.push_str("    if let Some(s) = v.as_str() {\n");
+                out.push_str(&format!(
+                    "        if [{}].contains(&s) {{ return Ok(()); }}\n",
+                    vals.join(", ")
+                ));
+                out.push_str("        Err(vec![ValidationError {\n");
+                out.push_str("            path: String::new(),\n");
+                out.push_str(&format!(
+                    "            message: format!(\"invalid {model_name} value: \\\"{{s}}\\\"\"),\n"
+                ));
+                out.push_str("        }])\n");
+                out.push_str("    } else {\n");
+                out.push_str("        Err(vec![ValidationError {\n");
+                out.push_str("            path: String::new(),\n");
+                out.push_str(&format!(
+                    "            message: format!(\"expected string for {model_name}, got {{}}\", value_type_name(v)),\n"
+                ));
+                out.push_str("        }])\n");
+                out.push_str("    }\n");
+                out.push_str("}\n\n");
+            }
+        }
+    }
+
+    out
+}
 
 // ─── models.rs ───────────────────────────────────────────────────────────────
 

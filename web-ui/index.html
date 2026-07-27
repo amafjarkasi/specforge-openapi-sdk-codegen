@@ -129,6 +129,7 @@
             <div class="btn-group">
                 <button onclick="loadIR()">Load IR</button>
                 <button class="btn-secondary" onclick="document.getElementById('file-input').click()">Upload File</button>
+                <button class="btn-secondary" onclick="parseLocal()">Parse Locally (WASM)</button>
             </div>
             <input type="file" id="file-input" accept=".json,.yaml,.yml" style="display:none" onchange="handleFile(event)">
 
@@ -255,6 +256,28 @@
         function escapeHtml(str) {
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
+    </script>
+
+    <script type="module">
+        import init, { parse_and_resolve } from './pkg/specforge_wasm.js';
+
+        let wasmReady = false;
+        init().then(() => { wasmReady = true; });
+
+        window.parseLocal = async function() {
+            if (!wasmReady) {
+                alert('WASM module loading...');
+                return;
+            }
+            const input = document.getElementById('ir-input').value;
+            try {
+                const result = parse_and_resolve(input);
+                document.getElementById('ir-input').value = result;
+                loadIR();
+            } catch (e) {
+                alert('Parse error: ' + e);
+            }
+        };
     </script>
 </body>
 </html>

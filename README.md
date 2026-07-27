@@ -11,7 +11,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.4.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.5.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -210,6 +210,9 @@ Commands:
   check     Lint and validate an OpenAPI spec without generating
   diff      Compare two OpenAPI specs and report breaking changes
   emit      Emit the resolved IR as JSON (for external emitters / plugins)
+  init      Scaffold a new minimal OpenAPI spec
+  convert   Convert between OpenAPI 3.0 and 3.1
+  docs      Generate static HTML API documentation
   help      Print this message or the help of the given subcommand
 ```
 
@@ -282,6 +285,21 @@ Outputs the resolved IR as pretty-printed JSON to stdout. Use this to build exte
 ```bash
 specforge emit openapi.yaml | my-custom-emitter --input - --output ./sdk
 ```
+
+### `specforge docs`
+
+```text
+specforge docs [OPTIONS] <SPEC>
+
+Arguments:
+  <SPEC>   Path to OpenAPI YAML or JSON
+
+Options:
+  -o, --out <DIR>           Output directory [default: ./docs]
+  -v, --log-level <LEVEL>   error|warn|info|debug|trace [default: info]
+```
+
+Generates a static HTML documentation site with color-coded HTTP method badges, schema listings, and the base URL.
 
 ---
 
@@ -591,6 +609,13 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.5.0** — validation, WASM, docs:
+
+- [x] Runtime validation middleware (TS/Go/Rust SDKs)  
+- [x] WASM-compiled specforge (`specforge-wasm` crate)  
+- [x] `specforge docs` — static HTML API documentation generator  
+- [x] Web UI WASM integration (client-side parsing)  
+
 **v0.4.0** — plugins, web UI, validation:
 
 - [x] WASM plugin SDK (`specforge-plugin` crate + `export_plugin!` macro)  
@@ -638,9 +663,9 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] Request/response validation middleware in generated SDKs  
-- [ ] WASM-compiled specforge for browser use  
-- [ ] Spec documentation generator  
+- [ ] SDK test generation (mock servers from spec)  
+- [ ] OpenAPI 3.1 `$ref` sibling support  
+- [ ] Spec lint rules configuration  
 
 ---
 

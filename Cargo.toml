@@ -7,11 +7,12 @@ members = [
     "crates/specforge-rust",
     "crates/specforge-cli",
     "crates/specforge-plugin",
+    "crates/specforge-wasm",
     "examples/plugin-example",
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT"
@@ -36,11 +37,11 @@ clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Internal crates
-specforge-core = { path = "crates/specforge-core", version = "0.4.0" }
-specforge-ts = { path = "crates/specforge-ts", version = "0.4.0" }
-specforge-go = { path = "crates/specforge-go", version = "0.4.0" }
-specforge-rust = { path = "crates/specforge-rust", version = "0.4.0" }
-specforge-plugin = { path = "crates/specforge-plugin", version = "0.4.0" }
+specforge-core = { path = "crates/specforge-core", version = "0.5.0" }
+specforge-ts = { path = "crates/specforge-ts", version = "0.5.0" }
+specforge-go = { path = "crates/specforge-go", version = "0.5.0" }
+specforge-rust = { path = "crates/specforge-rust", version = "0.5.0" }
+specforge-plugin = { path = "crates/specforge-plugin", version = "0.5.0" }
 
 [profile.release]
 codegen-units = 1

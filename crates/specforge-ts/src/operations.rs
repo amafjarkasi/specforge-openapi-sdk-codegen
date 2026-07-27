@@ -41,26 +41,30 @@ pub fn collect(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, P
         let stem = pascal(tag);
         let file = api_dir.join(format!("{stem}.ts"));
         let rel = path_str(&file, out_dir);
-        let content = emit_tag_file(tag, ops);
+        let content = emit_tag_file(doc, tag, ops);
         files.push((rel, file, content));
     }
     Ok(files)
 }
 
-fn emit_tag_file(tag: &str, ops: &[&Operation]) -> String {
+fn emit_tag_file(doc: &Document, tag: &str, ops: &[&Operation]) -> String {
     let class_name = format!("{}Api", pascal(tag));
     let mut refs = TypeRefs::default();
+    let mut validate_imports = std::collections::BTreeSet::new();
 
     let mut params_interfaces = String::new();
     let mut methods = String::new();
     for op in ops {
-        let (iface, body) = emit_method(op, &mut refs);
+        let (iface, body, validators) = emit_method(doc, op, &mut refs);
         if let Some(iface) = iface {
             params_interfaces.push_str(&iface);
             params_interfaces.push('\n');
         }
         methods.push_str(&body);
         methods.push('\n');
+        for v in validators {
+            validate_imports.insert(v);
+        }
     }
 
     let mut out = String::new();
@@ -68,6 +72,13 @@ fn emit_tag_file(tag: &str, ops: &[&Operation]) -> String {
     out.push('\n');
     // Imports.
     out.push_str("import type { ApiClient, RequestOptions } from \"../client\";\n");
+    if !validate_imports.is_empty() {
+        let names: Vec<&str> = validate_imports.iter().map(|s| s.as_str()).collect();
+        out.push_str(&format!(
+            "import {{ {} }} from \"../validate\";\n",
+            names.join(", ")
+        ));
+    }
     if refs.model_imports() {
         // Collect distinct referenced model names and emit one import each.
         // Names are pascalized to match the generated model filenames/identifiers.
@@ -103,9 +114,9 @@ fn emit_tag_file(tag: &str, ops: &[&Operation]) -> String {
     out
 }
 
-/// Emit one operation. Returns `(params_interface, method_body)` so the caller
+/// Emit one operation. Returns `(params_interface, method_body, validator_imports)` so the caller
 /// can place the interface before the class definition.
-fn emit_method(op: &Operation, refs: &mut TypeRefs) -> (Option<String>, String) {
+fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<String>, String, Vec<String>) {
     let method_name = camel(&op.operation_id);
 
     // Partition parameters by location.
@@ -215,21 +226,91 @@ fn emit_method(op: &Operation, refs: &mut TypeRefs) -> (Option<String>, String) 
         format!(", {{ {} }}", opts_parts.join(", "))
     };
 
+    // Determine validator names for request body and response body.
+    let req_validator = op.request_body.as_ref().and_then(|b| validator_name(&b.ty));
+    let resp_validator = success.as_ref().and_then(|t| validator_name(t));
+
+    // Schema names for the generated code (e.g. "PetSchema", "StatusSchema").
+    let req_schema_name = op.request_body.as_ref().and_then(|b| schema_name(&b.ty));
+    let resp_schema_name = success.as_ref().and_then(|t| schema_name(t));
+
+    let mut used_validators = Vec::new();
+    if let Some(v) = &req_validator {
+        used_validators.push(v.clone());
+    }
+    if let Some(v) = &resp_validator {
+        used_validators.push(v.clone());
+    }
+    // Also import the schema constants and validateRequest/validateResponse functions.
+    if let Some(s) = &req_schema_name {
+        used_validators.push(s.clone());
+    }
+    if let Some(s) = &resp_schema_name {
+        used_validators.push(s.clone());
+    }
+    // When any validation is needed, import the validateRequest/validateResponse functions.
+    if req_schema_name.is_some() {
+        used_validators.push("validateRequest".to_string());
+    }
+    if resp_schema_name.is_some() {
+        used_validators.push("validateResponse".to_string());
+    }
+
     let call = if is_void {
-        format!(
-            "await this.client.request(\"{}\", `{}`{});",
+        let mut lines = String::new();
+        if let (Some(v), Some(s)) = (&req_validator, &req_schema_name) {
+            lines.push_str(&format!(
+                "    if (this.client.validate) {{ validateRequest(\"{}\", `{}`, params.body, {}); }}\n",
+                op.method.upper(),
+                path_subst,
+                s,
+            ));
+            let _ = v;
+        }
+        lines.push_str(&format!(
+            "    await this.client.request(\"{}\", `{}`{});",
             op.method.upper(),
             path_subst,
             opts_literal
-        )
+        ));
+        lines
     } else {
-        format!(
-            "return await this.client.requestJson<{}>(\"{}\", `{}`{});",
-            returns,
-            op.method.upper(),
-            path_subst,
-            opts_literal
-        )
+        let mut lines = String::new();
+        if let (Some(v), Some(s)) = (&req_validator, &req_schema_name) {
+            lines.push_str(&format!(
+                "    if (this.client.validate) {{ validateRequest(\"{}\", `{}`, params.body, {}); }}\n",
+                op.method.upper(),
+                path_subst,
+                s,
+            ));
+            let _ = v;
+        }
+        if let (Some(v), Some(s)) = (&resp_validator, &resp_schema_name) {
+            lines.push_str(&format!(
+                "    const result = await this.client.requestJson<{}>(\"{}\", `{}`{});\n",
+                returns,
+                op.method.upper(),
+                path_subst,
+                opts_literal
+            ));
+            lines.push_str(&format!(
+                "    if (this.client.validate) {{ validateResponse(\"{}\", `{}`, 200, result, {}); }}\n",
+                op.method.upper(),
+                path_subst,
+                s,
+            ));
+            lines.push_str("    return result;");
+            let _ = v;
+        } else {
+            lines.push_str(&format!(
+                "    return await this.client.requestJson<{}>(\"{}\", `{}`{});",
+                returns,
+                op.method.upper(),
+                path_subst,
+                opts_literal
+            ));
+        }
+        lines
     };
 
     // Doc comment.
@@ -263,7 +344,27 @@ fn emit_method(op: &Operation, refs: &mut TypeRefs) -> (Option<String>, String) 
         "  async {method_name}({sig_params}){ret} {{\n    {call}\n  }}\n"
     ));
 
-    (iface, method)
+    (iface, method, used_validators)
+}
+
+/// Return the validate-module function name for a type (e.g. "validatePet").
+fn validator_name(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Reference { name, .. } => Some(format!("validate{}", crate::name::pascal(name))),
+        Type::Array { item, .. } => validator_name(item),
+        Type::Map { value, .. } => validator_name(value),
+        _ => None,
+    }
+}
+
+/// Return the schema constant name for a type (e.g. "PetSchema").
+fn schema_name(ty: &Type) -> Option<String> {
+    match ty {
+        Type::Reference { name, .. } => Some(format!("{}Schema", crate::name::pascal(name))),
+        Type::Array { item, .. } => schema_name(item),
+        Type::Map { value, .. } => schema_name(value),
+        _ => None,
+    }
 }
 
 /// Pick the success-body type for an operation: the body of the lowest 2xx,
@@ -341,7 +442,16 @@ mod tests {
 
     #[test]
     fn emits_a_method_per_operation() {
-        let file = emit_tag_file("Pets", &[&op()]);
+        use specforge_core::SchemaRegistry;
+        let doc = Document {
+            title: "Test".into(),
+            version: "1.0.0".into(),
+            base_url: None,
+            security: vec![],
+            schemas: SchemaRegistry::default(),
+            operations: vec![],
+        };
+        let file = emit_tag_file(&doc, "Pets", &[&op()]);
         assert!(file.contains("export class PetsApi"));
         assert!(file.contains("async getPet(params: GetPetParams): Promise<Pet>"));
         assert!(file.contains("`/pets/${params.petId}`"));

@@ -68,6 +68,8 @@ enum Commands {
     Init(InitArgs),
     /// Convert an OpenAPI spec between versions 3.0 and 3.1.
     Convert(ConvertArgs),
+    /// Generate a static HTML documentation site from an OpenAPI spec.
+    Docs(DocsArgs),
 }
 
 #[derive(Args, Debug)]
@@ -162,6 +164,20 @@ struct InitArgs {
 }
 
 #[derive(Args, Debug)]
+struct DocsArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Output directory for the documentation site.
+    #[arg(short, long, default_value = "./docs")]
+    out: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
 struct ConvertArgs {
     /// Path to the OpenAPI spec (YAML or JSON).
     spec: PathBuf,
@@ -189,6 +205,7 @@ fn main() -> ExitCode {
         Commands::Emit(args) => args.log_level,
         Commands::Init(args) => args.log_level,
         Commands::Convert(args) => args.log_level,
+        Commands::Docs(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -262,6 +279,14 @@ fn main() -> ExitCode {
             }
         },
         Commands::Convert(args) => match run_convert(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Docs(args) => match run_docs(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
@@ -566,6 +591,29 @@ specforge emit openapi.yaml
 
     eprintln!("Created {}", yaml_path.display());
     eprintln!("Created {}", readme_path.display());
+    Ok(())
+}
+
+fn run_docs(cli: &DocsArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let opts = specforge_core::docs::DocsOptions {
+        out_dir: cli.out.clone(),
+    };
+    let written = specforge_core::docs::generate_docs(&doc, &opts)
+        .context("failed to generate documentation")?;
+    info!("generated {} files in {}", written.len(), cli.out.display());
     Ok(())
 }
 

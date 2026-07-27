@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-07-27
+
+### Added
+
+#### TypeScript emitter
+- **Runtime validation** — `validate.ts` with per-model schema descriptors and validators. `validateRequest()` / `validateResponse()` called automatically when `validate: true` is set on the client.
+
+#### Go emitter
+- **Runtime validation** — `validate.go` with `ValidatePet(v any) error` per model. `WithValidation(true)` option on client.
+
+#### Rust emitter
+- **Runtime validation** — `validate.rs` with `fn validate_pet(v: &Value)` per model. `.validation(true)` builder option.
+
+#### WASM
+- **`specforge-wasm` crate** — Compiles core parsing/resolving to WASM via `wasm-bindgen`. Exposes `parse_and_resolve()` and `lint()` functions.
+- **Web UI WASM integration** — "Parse Locally (WASM)" button for client-side spec parsing without `specforge emit`.
+
+#### CLI
+- **`specforge docs`** — Generate static HTML API documentation from a spec. Dark forge-themed with color-coded HTTP method badges.
+
 ## [0.4.0] — 2026-07-27
 
 ### Added
@@ -146,6 +166,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.5.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.5.0
 [0.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.3.0
 [0.2.2]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.2

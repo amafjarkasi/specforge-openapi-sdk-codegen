@@ -8,6 +8,7 @@
 //! import `openapiv3`, so swapping the parser later won't ripple into emitters.
 
 pub mod diff;
+pub mod docs;
 pub mod error;
 pub mod ir;
 pub mod lint;
