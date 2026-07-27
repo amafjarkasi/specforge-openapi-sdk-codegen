@@ -31,13 +31,14 @@ Most OpenAPI generators dump incomplete types, ignore runtime concerns, or lock 
 
 The goal is not “types that might compile.” It’s **SDKs you can point at a real API today**.
 
-```text
-┌──────────────┐     ┌─────────────────┐     ┌──────────────────────────┐
-│ OpenAPI 3.x  │ ──▶ │  specforge-core │ ──▶ │ emitters                 │
-│ YAML / JSON  │     │  parse · resolve│     │  TS  ·  Go  ·  Rust      │
-└──────────────┘     │  language-neutral│     │  typed client + runtime  │
-                     │  IR             │     └──────────────────────────┘
-                     └─────────────────┘
+```mermaid
+graph LR
+    A["📄 OpenAPI 3.x<br/>YAML / JSON"] --> B["⚙️ specforge-core<br/>parse · resolve<br/>language-neutral IR"]
+    B --> C["🔧 emitters<br/>TS · Go · Rust<br/>typed client + runtime"]
+
+    style A fill:#1a0f0a,stroke:#f97316,color:#fef3c7
+    style B fill:#1a0f0a,stroke:#ef4444,color:#fef3c7
+    style C fill:#1a0f0a,stroke:#fbbf24,color:#fef3c7
 ```
 
 ---
@@ -433,21 +434,27 @@ sdk-rs/
 
 All three clients share the same conceptual request pipeline:
 
-```text
-operation call
-    │
-    ├─▶ build URL / query / body
-    ├─▶ acquire concurrency permit          (optional)
-    ├─▶ dedupe in-flight safe requests      (GET/HEAD/OPTIONS)
-    │       │
-    │       └─▶ retry loop
-    │               │
-    │               ├─▶ apply auth
-    │               ├─▶ attach Idempotency-Key (unsafe methods, once per loop)
-    │               ├─▶ per-attempt timeout
-    │               ├─▶ middleware chain  ──▶ transport (fetch / net/http / reqwest)
-    │               └─▶ classify error → retry or throw
-    └─▶ decode JSON → typed model
+```mermaid
+graph TD
+    A["🚀 operation call"] --> B["build URL / query / body"]
+    B --> C["acquire concurrency permit<br/>(optional)"]
+    C --> D{"dedupe in-flight?<br/>GET/HEAD/OPTIONS"}
+    D -->|yes| E["share result with<br/>concurrent callers"]
+    D -->|no| F["retry loop"]
+    F --> G["apply auth"]
+    G --> H["attach Idempotency-Key<br/>(unsafe methods, once per loop)"]
+    H --> I["per-attempt timeout"]
+    I --> J["middleware chain"]
+    J --> K["transport<br/>fetch / net/http / reqwest"]
+    K --> L{"classify error"}
+    L -->|retriable| F
+    L -->|success| M["decode JSON → typed model"]
+    L -->|non-retriable| N["throw"]
+    E --> M
+
+    style A fill:#1a0f0a,stroke:#f97316,color:#fef3c7
+    style M fill:#1a0f0a,stroke:#22c55e,color:#fef3c7
+    style N fill:#1a0f0a,stroke:#ef4444,color:#fef3c7
 ```
 
 ### Auth
