@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, lint, parse_file, resolve, DiffSeverity, Severity};
+use specforge_core::{diff, lint, lint_config, parse_file, resolve, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -70,6 +70,8 @@ enum Commands {
     Convert(ConvertArgs),
     /// Generate a static HTML documentation site from an OpenAPI spec.
     Docs(DocsArgs),
+    /// Generate SDK test files with mock servers from an OpenAPI spec.
+    Test(TestArgs),
 }
 
 #[derive(Args, Debug)]
@@ -102,6 +104,22 @@ struct CheckArgs {
     /// Treat warnings as errors.
     #[arg(long)]
     strict: bool,
+
+    /// Disable a lint rule (can be repeated).
+    #[arg(long = "disable", value_name = "RULE")]
+    disable_rules: Vec<String>,
+
+    /// Enable a lint rule (can be repeated).
+    #[arg(long = "enable", value_name = "RULE")]
+    enable_rules: Vec<String>,
+
+    /// Set rule severity as RULE:SEVERITY where SEVERITY is error, warning, or off (can be repeated).
+    #[arg(long = "severity", value_name = "RULE:SEVERITY")]
+    severity_overrides: Vec<String>,
+
+    /// Path to a lint config YAML file.
+    #[arg(long = "config", value_name = "FILE")]
+    config_file: Option<PathBuf>,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
@@ -178,6 +196,24 @@ struct DocsArgs {
 }
 
 #[derive(Args, Debug)]
+struct TestArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Output directory for the generated test files.
+    #[arg(short, long, default_value = "./tests")]
+    out: PathBuf,
+
+    /// Target language for test generation.
+    #[arg(short = 'l', long = "lang", value_enum, default_value_t = Lang::Ts)]
+    lang: Lang,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
 struct ConvertArgs {
     /// Path to the OpenAPI spec (YAML or JSON).
     spec: PathBuf,
@@ -206,6 +242,7 @@ fn main() -> ExitCode {
         Commands::Init(args) => args.log_level,
         Commands::Convert(args) => args.log_level,
         Commands::Docs(args) => args.log_level,
+        Commands::Test(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -294,6 +331,17 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Commands::Test(args) => match run_test(&args) {
+            Ok(count) => {
+                info!("generated {count} test file(s)");
+                ExitCode::SUCCESS
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
@@ -363,7 +411,28 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
         doc.operations.len(),
     );
 
-    let diagnostics = lint::lint(&doc);
+    // Build lint config: start from file or defaults, then apply CLI overrides.
+    let mut lint_cfg = match &cli.config_file {
+        Some(path) => {
+            info!("loading lint config from {}", path.display());
+            LintConfig::load_from_file(path)
+        }
+        None => lint_config::LintConfig::load(),
+    };
+
+    for rule in &cli.disable_rules {
+        lint_cfg.set_enabled(rule, false);
+    }
+    for rule in &cli.enable_rules {
+        lint_cfg.set_enabled(rule, true);
+    }
+    for override_str in &cli.severity_overrides {
+        let (rule, sev) = parse_severity_override(override_str)
+            .with_context(|| format!("invalid --severity value: {override_str:?}"))?;
+        lint_cfg.set_severity(&rule, sev);
+    }
+
+    let diagnostics = lint::lint_with_config(&doc, &lint_cfg);
 
     let mut has_errors = false;
     for diag in &diagnostics {
@@ -398,6 +467,20 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
     }
 
     Ok(has_errors)
+}
+
+/// Parse a `RULE:SEVERITY` string into a (rule_name, RuleSeverity) pair.
+fn parse_severity_override(s: &str) -> Result<(String, RuleSeverity)> {
+    let (rule, sev) = s
+        .rsplit_once(':')
+        .ok_or_else(|| anyhow::anyhow!("expected RULE:SEVERITY, got {s:?}"))?;
+    let sev = match sev.to_lowercase().as_str() {
+        "error" => RuleSeverity::Error,
+        "warning" | "warn" => RuleSeverity::Warning,
+        "off" | "none" => RuleSeverity::Off,
+        other => bail!("unknown severity {other:?}, expected error/warning/off"),
+    };
+    Ok((rule.to_string(), sev))
 }
 
 fn run_diff(cli: &DiffArgs) -> Result<bool> {
@@ -615,6 +698,48 @@ fn run_docs(cli: &DocsArgs) -> Result<()> {
         .context("failed to generate documentation")?;
     info!("generated {} files in {}", written.len(), cli.out.display());
     Ok(())
+}
+
+fn run_test(cli: &TestArgs) -> Result<usize> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let lang = match cli.lang {
+        Lang::Ts => specforge_core::TestLang::TypeScript,
+        Lang::Go => specforge_core::TestLang::Go,
+        Lang::Rust => specforge_core::TestLang::Rust,
+    };
+
+    info!("generating {:?} test file(s) to: {}", lang, cli.out.display());
+
+    let opts = specforge_core::TestGenOptions { lang };
+    let test_code = specforge_core::generate_tests(&doc, &opts);
+
+    std::fs::create_dir_all(&cli.out)
+        .with_context(|| format!("failed to create output directory {}", cli.out.display()))?;
+
+    let filename = match lang {
+        specforge_core::TestLang::TypeScript => "test.ts",
+        specforge_core::TestLang::Go => "client_test.go",
+        specforge_core::TestLang::Rust => "integration.rs",
+    };
+
+    let path = cli.out.join(filename);
+    std::fs::write(&path, &test_code)
+        .with_context(|| format!("failed to write {}", path.display()))?;
+
+    eprintln!("Wrote {}", path.display());
+    Ok(1)
 }
 
 fn run_convert(cli: &ConvertArgs) -> Result<()> {

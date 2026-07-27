@@ -340,10 +340,56 @@ fn allof_base_type(all_of: &[ReferenceOr<Schema>]) -> Option<Type> {
         Some(Type::Reference {
             name: ref_names.into_iter().next().unwrap(),
             nullable: false,
+            description: None,
         })
     } else {
         None
     }
+}
+
+/// Detect the `$ref` + metadata-sibling pattern produced by the 3.1→3.0
+/// preprocessing step. When an `allOf` has exactly two members — one `$ref`
+/// and one inline schema that carries only metadata (`description`,
+/// `summary`, `deprecated`, and no `type`/`properties`/etc.) — collapse
+/// them into a single `Type::Reference` with a description override.
+///
+/// Returns `None` if the pattern doesn't match (caller should fall through
+/// to normal allOf handling).
+fn allof_ref_sibling_description(all_of: &[ReferenceOr<Schema>]) -> Option<Type> {
+    if all_of.len() != 2 {
+        return None;
+    }
+
+    // Find the $ref and the inline member.
+    let (ref_ref, inline) = match (&all_of[0], &all_of[1]) {
+        (ReferenceOr::Reference { reference }, ReferenceOr::Item(s)) => (reference, s),
+        (ReferenceOr::Item(s), ReferenceOr::Reference { reference }) => (reference, s),
+        _ => return None,
+    };
+
+    // The inline member must be metadata-only: no `type`, no `properties`,
+    // no `allOf`/`oneOf`/`anyOf`, no `items`, no `additional_properties`.
+    // `SchemaKind::Any(...)` represents the `{}` / empty schema.
+    let is_metadata_only = matches!(inline.schema_kind, SchemaKind::Any(_))
+        && (inline.schema_data.description.is_some()
+            || inline.schema_data.title.is_some()
+            || inline.schema_data.deprecated);
+
+    if !is_metadata_only {
+        return None;
+    }
+
+    let description = inline
+        .schema_data
+        .description
+        .clone()
+        .or_else(|| inline.schema_data.title.clone());
+
+    Some(Type::Reference {
+        name: ref_name(ref_ref),
+        nullable: false,
+        description,
+    })
 }
 
 fn additional_to_type(ap: &AdditionalProperties) -> Option<Type> {
@@ -377,6 +423,14 @@ fn schema_kind_to_type(
             composition(CompositionKind::AnyOf, any_of, discriminator)
         }
         SchemaKind::AllOf { all_of } => {
+            // Check if this is a $ref with metadata siblings (produced by
+            // the 3.1→3.0 preprocessing step). When an allOf has exactly
+            // one $ref and one inline schema that carries only metadata
+            // (description/summary/deprecated), collapse it back to a
+            // Reference with a description override.
+            if let Some(desc) = allof_ref_sibling_description(all_of) {
+                return desc;
+            }
             composition(CompositionKind::AllOf, all_of, discriminator)
         }
         // OpenAPI `{}` / `Any(...)` → any.
@@ -446,6 +500,7 @@ fn ref_or_boxed_schema_to_type(schema_or: &ReferenceOr<Box<Schema>>) -> Type {
         ReferenceOr::Reference { reference } => Type::Reference {
             name: ref_name(reference),
             nullable: false,
+            description: None,
         },
     }
 }
@@ -458,6 +513,7 @@ fn boxed_ref_or_schema_to_type(boxed: &Box<ReferenceOr<Schema>>) -> Type {
         ReferenceOr::Reference { reference } => Type::Reference {
             name: ref_name(reference),
             nullable: false,
+            description: None,
         },
     }
 }
@@ -474,6 +530,7 @@ fn composition(
             ReferenceOr::Reference { reference } => Type::Reference {
                 name: ref_name(reference),
                 nullable: false,
+                description: None,
             },
         })
         .collect();
@@ -719,6 +776,7 @@ fn ref_or_schema_to_type(schema_or: &ReferenceOr<Schema>) -> Type {
         ReferenceOr::Reference { reference } => Type::Reference {
             name: ref_name(reference),
             nullable: false,
+            description: None,
         },
     }
 }

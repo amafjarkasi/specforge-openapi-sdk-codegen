@@ -83,7 +83,7 @@ fn validate_inner(
             }
         }
 
-        Type::Reference { name, nullable } => {
+        Type::Reference { name, nullable, .. } => {
             if *nullable && value.is_null() {
                 return;
             }
@@ -640,6 +640,7 @@ mod tests {
         let ty = Type::Reference {
             name: "Pet".into(),
             nullable: false,
+            description: None,
         };
 
         let valid = validate(&json!({"name": "Fido", "id": 1}), &ty, &registry);
@@ -655,6 +656,7 @@ mod tests {
         let ty = Type::Reference {
             name: "Pet".into(),
             nullable: true,
+            description: None,
         };
         let errors = validate(&json!(null), &ty, &SchemaRegistry::default());
         assert!(errors.is_empty());
@@ -684,6 +686,7 @@ mod tests {
         let ty = Type::Reference {
             name: "Status".into(),
             nullable: false,
+            description: None,
         };
 
         let valid = validate(&json!("active"), &ty, &registry);
@@ -712,6 +715,7 @@ mod tests {
         let ty = Type::Reference {
             name: "Status".into(),
             nullable: false,
+            description: None,
         };
 
         let errors = validate(&json!(42), &ty, &registry);
@@ -844,6 +848,7 @@ mod tests {
             item: Box::new(Type::Reference {
                 name: "Inner".into(),
                 nullable: false,
+                description: None,
             }),
             nullable: false,
         };
@@ -898,6 +903,7 @@ mod tests {
         let ty = Type::Reference {
             name: "StringAlias".into(),
             nullable: false,
+            description: None,
         };
 
         let valid = validate(&json!("hello"), &ty, &registry);

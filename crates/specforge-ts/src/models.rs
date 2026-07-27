@@ -449,10 +449,12 @@ mod tests {
                     Type::Reference {
                         name: "PetCreated".into(),
                         nullable: false,
+                        description: None,
                     },
                     Type::Reference {
                         name: "PetUpdated".into(),
                         nullable: false,
+                        description: None,
                     },
                 ],
                 discriminator: Some(specforge_core::Discriminator {
@@ -526,10 +528,12 @@ mod tests {
                     Type::Reference {
                         name: "PetCreated".into(),
                         nullable: false,
+                        description: None,
                     },
                     Type::Reference {
                         name: "PetUpdated".into(),
                         nullable: false,
+                        description: None,
                     },
                 ],
                 discriminator: Some(Discriminator {
@@ -603,10 +607,12 @@ mod tests {
                     Type::Reference {
                         name: "Dog".into(),
                         nullable: false,
+                        description: None,
                     },
                     Type::Reference {
                         name: "Cat".into(),
                         nullable: false,
+                        description: None,
                     },
                 ],
                 discriminator: Some(Discriminator {

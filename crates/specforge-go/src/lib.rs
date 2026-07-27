@@ -230,7 +230,7 @@ fn render_type(ty: &Type) -> String {
         Type::StringEnum { .. } => "string".into(),
         Type::Array { item, .. } => format!("[]{}", render_type(item)),
         Type::Map { value } => format!("map[string]{}", render_type(value)),
-        Type::Reference { name, nullable } => {
+        Type::Reference { name, nullable, .. } => {
             let n = export_ident(name);
             if *nullable {
                 format!("*{n}")

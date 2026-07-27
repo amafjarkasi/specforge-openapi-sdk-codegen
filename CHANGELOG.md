@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] — 2026-07-27
+
+### Added
+
+#### Core
+- **Mock server test generation** — New `specforge test` subcommand generates mock server tests for TS/Go/Rust SDKs. Creates mock HTTP servers from spec example responses and verifies SDK calls.
+- **3.1 `$ref` sibling support** — `$ref` objects with sibling `description`/`summary`/`deprecated` are now preserved via `allOf` wrapping during preprocessing. IR `Type::Reference` carries optional `description` override.
+- **Configurable lint rules** — New `lint_config` module with `LintConfig`, `LintRule`, `RuleSeverity`. Loads from `.specforge.yaml`. CLI flags: `--disable`, `--enable`, `--severity`, `--config`.
+- **New lint rules** — `missing-operation-id`, `missing-schema-description` (off by default), `path-trailing-slash`, `deprecated-operation`.
+
 ## [0.5.0] — 2026-07-27
 
 ### Added
@@ -166,6 +176,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.6.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.6.0
 [0.5.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.5.0
 [0.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.3.0

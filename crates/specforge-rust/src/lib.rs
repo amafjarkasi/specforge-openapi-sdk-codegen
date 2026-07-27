@@ -333,7 +333,7 @@ fn render_type(ty: &Type) -> String {
             "::std::collections::HashMap<String, {}>",
             render_type(value)
         ),
-        Type::Reference { name, nullable } => {
+        Type::Reference { name, nullable, .. } => {
             let n = pascal(name);
             if *nullable {
                 format!("Option<{n}>")

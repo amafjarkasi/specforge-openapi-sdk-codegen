@@ -41,6 +41,10 @@ pub enum Type {
     Reference {
         name: String,
         nullable: bool,
+        /// Optional description override from a `$ref` sibling (OpenAPI 3.1).
+        /// When present, emitters should prefer this over the referenced
+        /// model's own description.
+        description: Option<String>,
     },
     /// A composition of other types.
     Composition(Composition),

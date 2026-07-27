@@ -435,6 +435,7 @@ mod tests {
                 body: Some(Type::Reference {
                     name: "Pet".into(),
                     nullable: false,
+                    description: None,
                 }),
             }],
         }

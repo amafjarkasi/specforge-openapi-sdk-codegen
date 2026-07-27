@@ -12,18 +12,22 @@ pub mod docs;
 pub mod error;
 pub mod ir;
 pub mod lint;
+pub mod lint_config;
 pub mod resolve;
 pub mod spec;
+pub mod testgen;
 pub mod validate;
 
 pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
+pub use testgen::{generate_tests, TestGenOptions, TestLang};
 pub use ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response,
     Scalar, SchemaRegistry, SecurityScheme, Type,
 };
 pub use lint::{Diagnostic, Severity};
+pub use lint_config::{LintConfig, LintRule, RuleSeverity};
 pub use resolve::resolve;
 pub use spec::{parse_bytes, parse_file, parse_str};
 pub use validate::{validate, ValidationError};

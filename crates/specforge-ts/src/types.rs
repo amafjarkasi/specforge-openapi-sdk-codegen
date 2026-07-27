@@ -52,7 +52,7 @@ pub fn render(ty: &Type) -> String {
             }
         }
         Type::Map { value } => format!("Record<string, {}>", render(value)),
-        Type::Reference { name, nullable } => {
+        Type::Reference { name, nullable, .. } => {
             let rendered = pascal(name);
             if *nullable {
                 format!("{rendered} | null")
@@ -123,14 +123,16 @@ mod tests {
         assert_eq!(
             render(&Type::Reference {
                 name: "pet".into(),
-                nullable: false
+                nullable: false,
+                description: None,
             }),
             "Pet"
         );
         assert_eq!(
             render(&Type::Reference {
                 name: "pet".into(),
-                nullable: true
+                nullable: true,
+                description: None,
             }),
             "Pet | null"
         );
@@ -144,10 +146,12 @@ mod tests {
                 Type::Reference {
                     name: "a".into(),
                     nullable: false,
+                    description: None,
                 },
                 Type::Reference {
                     name: "b".into(),
                     nullable: false,
+                    description: None,
                 },
             ],
             discriminator: None,
@@ -169,10 +173,12 @@ mod tests {
                 Type::Reference {
                     name: "base".into(),
                     nullable: false,
+                    description: None,
                 },
                 Type::Reference {
                     name: "extra".into(),
                     nullable: false,
+                    description: None,
                 },
             ],
             discriminator: None,
