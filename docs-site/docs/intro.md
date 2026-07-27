@@ -1,3 +1,9 @@
+---
+title: Introduction
+sidebar_position: 1
+description: specforge - Forge production-ready SDKs from OpenAPI specs
+---
+
 <p align="center">
   <img src="assets/logo-banner.svg" alt="specforge" width="860"/>
 </p>
@@ -135,13 +141,6 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | **SSE streaming** | Server-Sent Event parser with proper error handling | Real-time data streams without manual parsing |
 | **Runtime validation** | Validate request/response bodies against the spec | Catch API contract violations in dev and tests, not production |
 | **oneOf type guards** | `isPetCreated()`, `narrowPetEvent()` (TS); `is_pet_created()`, `discriminant()` (Rust) | Safely narrow union types at runtime |
-| **Response caching** | ETag-based caching with TTL expiry and 304 handling | Avoid re-fetching unchanged data |
-| **Rate limiting** | Token bucket and sliding window rate limiters | Prevent overwhelming APIs |
-| **Logging** | Pluggable `Logger` interface (ConsoleLogger, NoopLogger) | Structured request/response logging |
-| **Telemetry** | Request metrics, error tracking, cache hit/miss | Monitor SDK performance |
-| **i18n** | Localized error messages (8 locales) | International error handling |
-| **Interceptors** | Request/response body transformers | Post-process data without middleware |
-| **Dependency injection** | Custom HTTP client injection (Go `WithHTTPClient`, Rust `.http_client()`) | Test with mock HTTP clients |
 
 ### Language-specific highlights
 
@@ -151,11 +150,6 @@ Every generated SDK is a **complete, production-ready client** — not just type
 - Discriminated union error types (`ApiError`)
 - `isX()` / `narrowX()` type guards for oneOf unions
 - Per-model `validatePet()` functions
-- Response caching with ETags
-- Token bucket / sliding window rate limiting
-- `Logger` interface with ConsoleLogger
-- `RequestInterceptor` / `ResponseInterceptor` / `ResponseTransformer`
-- `@param`, `@returns`, `@throws` JSDoc on generated functions
 
 **Go**
 - Stdlib only (`net/http`, `encoding/json`) — zero third-party dependencies
@@ -163,31 +157,27 @@ Every generated SDK is a **complete, production-ready client** — not just type
 - `New{Union}(m map[string]any)` for discriminated oneOf deserialization
 - `New{Union}FromJSON(raw json.RawMessage)` for non-discriminated unions
 - `WithValidation(true)` for runtime request/response checking
-- `WithCache(ttl)`, `WithRateLimiter(limiter)`, `WithLogger(logger)`
-- `WithRequestInterceptors()` / `WithResponseInterceptors()` / `WithResponseTransformers()`
 
 **Rust**
 - `reqwest` + `serde` + `tokio` async runtime
 - `#[serde(flatten)]` for allOf composition
 - `impl PetEvent { fn discriminant() -> &str; fn is_pet_created() -> bool; }` for oneOf
 - `SseStream` for SSE parsing over `bytes_stream()`
-- `.validation(true)`, `.cache_ttl(Duration)`, `.rate_limiter(limiter)`, `.logger(logger)`
-- `.http_client(reqwest::Client)` for DI in tests
-- `RequestInterceptor` / `ResponseInterceptor` / `ResponseTransformer` traits
+- `.validation(true)` builder option
 
 **WASM plugins**
 - `specforge-plugin` crate with `Plugin` trait and `export_plugin!` macro
 - Receives full IR as JSON, returns generated files
 - Compile to `wasm32-wasi` for any language emitter
 
-### CLI subcommands (22 commands)
+### CLI subcommands
 
 | Command | What it does |
 |---|---|
 | `specforge generate` | Generate an SDK from an OpenAPI spec |
 | `specforge check` | Lint and validate a spec with configurable rules |
-| `specforge diff` | Compare two specs — markdown/JSON/color output, inline schema diffs |
-| `specforge emit` | Dump the resolved IR as JSON (for external tools / plugins) |
+| `specforge diff` | Compare two specs and report breaking changes |
+| `specforge emit` | Dump the resolved IR as JSON (for external tools) |
 | `specforge init` | Scaffold a new OpenAPI spec with a `/health` endpoint |
 | `specforge convert` | Convert between OpenAPI 3.0 and 3.1 |
 | `specforge merge` | Merge multiple spec files into one |
@@ -196,26 +186,14 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge test` | Generate mock server tests from spec examples |
 | `specforge versions` | List API versions in a spec directory |
 | `specforge workspace` | Generate SDKs for all specs in a workspace config |
-| `specforge workspace-init` | Generate a workspace config from a directory |
-| `specforge dashboard` | Generate HTML metrics dashboard from SDK telemetry |
-| `specforge security` | Analyze auth requirements and detect issues |
-| `specforge graph` | Generate schema dependency diagrams (Mermaid/DOT) |
-| `specforge analyze` | Detect unused schemas, duplicates, optimization opportunities |
-| `specforge mock` | Start a local mock server from spec examples |
-| `specforge export` | Export Swagger Editor-compatible spec (inline `$ref`) |
-| `specforge demo` | Generate a realistic demo Petstore spec |
-| `specforge evolution` | Track schema changes over git commits |
-| `specforge infer` | Generate an OpenAPI spec from sample JSON |
-| `specforge verify` | Validate a running API against the spec |
 
 ### Quality gates
 
-- **208+ unit tests** across core, emitters, and CLI
-- **Regression suite** on petstore (vendored) + GitHub / Stripe / Kubernetes / Atlassian / OpenAI (large real-world specs)
+- **169+ unit tests** across core, emitters, and CLI
+- **Regression suite** on petstore (vendored) + GitHub / Stripe (large real-world specs)
 - **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
 - **E2E advanced**: concurrency serialisation, dedupe single-flight, middleware rewrite, idempotency-key on POST, SSE parse (all 3 langs)
-- **Performance benchmarks**: criterion benchmarks + 13 perf tests (petstore < 100ms, GitHub/Stripe < 10s)
 - **Multi-platform CI**: Linux, macOS, Windows (GitHub Actions matrix)
 - **Cross-compiled releases**: 5 targets (linux amd64/arm64, macOS Intel/Apple Silicon, Windows)
 

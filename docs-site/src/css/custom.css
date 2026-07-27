@@ -4,27 +4,71 @@
  * work well for content-centric websites.
  */
 
-/* You can override the default Infima variables here. */
+/* Forge theme - light mode */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #f97316;
+  --ifm-color-primary-dark: #e06514;
+  --ifm-color-primary-darker: #c75812;
+  --ifm-color-primary-darkest: #a4490f;
+  --ifm-color-primary-light: #fa8c3e;
+  --ifm-color-primary-lighter: #fba566;
+  --ifm-color-primary-lightest: #fcbd8e;
   --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  --ifm-font-family-base: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --ifm-font-family-monospace: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+  --docusaurus-highlighted-code-line-bg: rgba(249, 115, 22, 0.1);
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* Forge theme - dark mode */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #fbbf24;
+  --ifm-color-primary-dark: #f59e0b;
+  --ifm-color-primary-darker: #d97706;
+  --ifm-color-primary-darkest: #b45309;
+  --ifm-color-primary-light: #fcd34d;
+  --ifm-color-primary-lighter: #fde68a;
+  --ifm-color-primary-lightest: #fef3c7;
+  --ifm-background-color: #0a0705;
+  --ifm-background-surface-color: #0f0a06;
+  --ifm-navbar-background-color: #0a0705;
+  --ifm-footer-background-color: #0a0705;
+  --docusaurus-highlighted-code-line-bg: rgba(251, 191, 36, 0.15);
+}
+
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* Navbar styling */
+.navbar {
+  border-bottom: 1px solid rgba(249, 115, 22, 0.1);
+}
+
+.navbar__title {
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+/* Footer styling */
+.footer {
+  border-top: 1px solid rgba(249, 115, 22, 0.1);
+}
+
+/* Code blocks */
+.prism-code {
+  font-family: var(--ifm-font-family-monospace);
+}
+
+/* Sidebar */
+.menu__link--active {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+/* Links */
+a {
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  text-decoration: none;
 }
