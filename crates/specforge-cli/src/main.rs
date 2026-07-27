@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{analyze_security_detailed, diff, generate_graph, lint, lint_config, merge_specs, parse_file, parse_file_full, resolve, resolve_spec_path, scan_versions, DiffSeverity, GraphFormat, LintConfig, RuleSeverity, SecurityReport, Severity};
+use specforge_core::{diff, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -82,10 +82,6 @@ enum Commands {
     WorkspaceInit(WorkspaceInitArgs),
     /// Compare two spec versions and generate a migration guide.
     Migrate(MigrateArgs),
-    /// Generate a schema dependency graph (Mermaid or DOT) from an OpenAPI spec.
-    Graph(GraphArgs),
-    /// Generate a static HTML dashboard for SDK observability metrics.
-    Dashboard(DashboardArgs),
 }
 
 #[derive(Args, Debug)]
@@ -209,14 +205,6 @@ struct InitArgs {
     /// API version.
     #[arg(long, default_value = "1.0.0")]
     version: String,
-
-    /// Default max retry count for generated SDK operations.
-    #[arg(long)]
-    retry_default: Option<u32>,
-
-    /// HTTP methods to enable retries on (comma-separated, e.g. GET,PUT,DELETE).
-    #[arg(long, value_delimiter = ',')]
-    retry_on: Option<Vec<String>>,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Warn)]
@@ -352,57 +340,6 @@ struct MigrateArgs {
     log_level: LogLevel,
 }
 
-
-#[derive(Args, Debug)]
-struct GraphArgs {
-    /// Path to the OpenAPI spec (YAML or JSON).
-    spec: PathBuf,
-
-    /// Output format: mermaid or dot (Graphviz).
-    #[arg(long, value_enum, default_value_t = GraphFormatArg::Mermaid)]
-    format: GraphFormatArg,
-
-    /// Output file (default: stdout).
-    #[arg(short, long)]
-    out: Option<PathBuf>,
-
-    /// Log verbosity.
-    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
-    log_level: LogLevel,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum GraphFormatArg {
-    /// Mermaid diagram (default). Renderable on GitHub and with mmdc.
-    Mermaid,
-    /// Graphviz DOT format. Renderable with dot, neato, fdp, etc.
-    Dot,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum AnalyzeFormat {
-    /// Human-readable text output (default).
-    Text,
-    /// JSON output.
-    Json,
-    /// Markdown output.
-    Markdown,
-}
-
-#[derive(Args, Debug)]
-struct AnalyzeArgs {
-    /// Path to the OpenAPI spec (YAML or JSON).
-    spec: PathBuf,
-
-    /// Output format.
-    #[arg(long, value_enum, default_value_t = AnalyzeFormat::Text)]
-    format: AnalyzeFormat,
-
-    /// Log verbosity.
-    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
-    log_level: LogLevel,
-}
-
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -420,7 +357,6 @@ fn main() -> ExitCode {
         Commands::Workspace(args) => args.log_level,
         Commands::WorkspaceInit(args) => args.log_level,
         Commands::Migrate(args) => args.log_level,
-        Commands::Graph(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -571,33 +507,6 @@ fn main() -> ExitCode {
         },
         Commands::Migrate(args) => match run_migrate(&args) {
             Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
-                ExitCode::FAILURE
-            }
-        },
-        Commands::Migrate(args) => match run_migrate(&args) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
-                ExitCode::FAILURE
-            }
-        },
-        Commands::Graph(args) => match run_graph(&args) {
-            Ok(()) => ExitCode::SUCCESS,
-            Err(e) => {
-                eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
-                ExitCode::FAILURE
-            }
-        },
-        Commands::Dashboard(args) => match run_dashboard(&args) {
-            Ok(files) => {
-                info!("generated {} dashboard file(s)", files.len());
-                ExitCode::SUCCESS
-            }
             Err(e) => {
                 eprintln!("error: {e:#}");
                 let _ = warn!("{e:#}");
@@ -934,38 +843,12 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
     Ok(())
 }
 
-/// Build x-retry YAML extension lines for a GET /health endpoint.
-/// Returns an empty string when no retry options are provided.
-fn build_retry_yaml_block(max_retries: Option<u32>, retry_on: Option<&[String]>) -> String {
-    // Only add x-retry if the caller explicitly requested retry options.
-    if max_retries.is_none() && retry_on.is_none() {
-        return String::new();
-    }
-
-    let mut lines = vec!["      x-retry:".to_string()];
-
-    if let Some(max) = max_retries {
-        lines.push(format!("        maxRetries: {max}"));
-    }
-
-    // If retry_on is set, check if GET is in the list.
-    if let Some(methods) = retry_on {
-        let retryable = methods.iter().any(|m| m.eq_ignore_ascii_case("GET"));
-        lines.push(format!("        retryable: {retryable}"));
-    }
-
-    lines.join("\n")
-}
-
 fn run_init(cli: &InitArgs) -> Result<()> {
     std::fs::create_dir_all(&cli.out)
         .with_context(|| format!("failed to create output directory {}", cli.out.display()))?;
 
     let title_escaped = cli.title.replace('"', "\\\"");
     let dollar_ref = ["$", "ref"].concat();
-
-    // Build x-retry extension block if retry options are provided.
-    let retry_block = build_retry_yaml_block(cli.retry_default, cli.retry_on.as_deref());
     let schema_path = ["#", "/", "components", "/schemas", "/HealthResponse"].concat();
     let openapi_yaml = vec![
         "openapi: \"3.0.3\"",
@@ -984,7 +867,6 @@ fn run_init(cli: &InitArgs) -> Result<()> {
         "      description: Returns the health status of the API.",
         "      tags:",
         "        - system",
-        &retry_block,
         "      responses:",
         "        \"200\":",
         "          description: Service is healthy",
@@ -1418,294 +1300,6 @@ fn run_migrate(cli: &MigrateArgs) -> Result<()> {
     }
 
     Ok(())
-}
-
-
-fn print_security_text(report: &SecurityReport) {
-    // Security schemes.
-    eprintln!("Security Schemes ({})", report.schemes.len());
-    eprintln!("{}", "-".repeat(60));
-    for scheme in &report.schemes {
-        eprintln!(
-            "  {:<20} type: {:<15} {}",
-            scheme.name,
-            scheme.kind,
-            scheme
-                .header
-                .as_ref()
-                .map(|h| format!("param: {h}"))
-                .unwrap_or_default(),
-        );
-    }
-
-    // Operations.
-    eprintln!();
-    eprintln!("Operations ({})", report.operations.len());
-    eprintln!("{}", "-".repeat(60));
-    for op in &report.operations {
-        let auth = if op.requires_auth { "auth" } else { "open" };
-        let scheme = op.scheme.as_deref().unwrap_or("-");
-        let override_marker = if op.has_override { " *" } else { "" };
-        eprintln!(
-            "  {:<8} {:<30} [{:<4}] scheme: {}{}",
-            op.method, op.path, auth, scheme, override_marker,
-        );
-    }
-
-    // Issues.
-    if report.issues.is_empty() {
-        eprintln!();
-        eprintln!("No security issues found.");
-    } else {
-        eprintln!();
-        eprintln!("Issues ({})", report.issues.len());
-        eprintln!("{}", "-".repeat(60));
-        for issue in &report.issues {
-            eprintln!(
-                "  [{:<7}] {} ({})",
-                issue.severity, issue.message, issue.path,
-            );
-        }
-    }
-
-    eprintln!();
-    eprintln!("(*) = per-operation security override");
-}
-
-fn print_security_json(report: &SecurityReport) -> Result<()> {
-    let json = serde_json::to_string_pretty(report)
-        .context("failed to serialize security report to JSON")?;
-    println!("{json}");
-    Ok(())
-}
-
-fn print_security_markdown(report: &SecurityReport) {
-    println!("## Security Analysis");
-    println!();
-
-    // Schemes.
-    println!("### Security Schemes");
-    println!();
-    if report.schemes.is_empty() {
-        println!("_No security schemes defined._");
-    } else {
-        println!("| Name | Type | Parameter |");
-        println!("|------|------|-----------|");
-        for scheme in &report.schemes {
-            let param = scheme.header.as_deref().unwrap_or("-");
-            println!("| {} | {} | {} |", scheme.name, scheme.kind, param);
-        }
-    }
-    println!();
-
-    // Operations.
-    println!("### Operations");
-    println!();
-    println!("| Method | Path | Auth Required | Scheme | Override |");
-    println!("|--------|------|:-------------:|--------|:--------:|");
-    for op in &report.operations {
-        let auth = if op.requires_auth { "Yes" } else { "No" };
-        let scheme = op.scheme.as_deref().unwrap_or("-");
-        let override_mark = if op.has_override { "Yes" } else { "-" };
-        println!(
-            "| {} | {} | {} | {} | {} |",
-            op.method, op.path, auth, scheme, override_mark,
-        );
-    }
-    println!();
-
-    // Issues.
-    println!("### Issues");
-    println!();
-    if report.issues.is_empty() {
-        println!("_No security issues found._");
-    } else {
-        println!("| Severity | Message | Path |");
-        println!("|----------|---------|------|");
-        for issue in &report.issues {
-            println!(
-                "| {} | {} | {} |",
-                issue.severity, issue.message, issue.path,
-            );
-        }
-    }
-}
-
-fn run_graph(cli: &GraphArgs) -> Result<()> {
-    info!("reading spec: {}", cli.spec.display());
-    let spec = parse_file(&cli.spec)
-        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
-
-    info!("resolving document into IR");
-    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
-
-    info!(
-        "resolved: {} schemas, {} operations",
-        doc.schemas.models.len(),
-        doc.operations.len(),
-    );
-
-    let format = match cli.format {
-        GraphFormatArg::Mermaid => GraphFormat::Mermaid,
-        GraphFormatArg::Dot => GraphFormat::Dot,
-    };
-
-    let output = generate_graph(&doc, format);
-
-    match &cli.out {
-        Some(path) => {
-            std::fs::write(path, &output)
-                .with_context(|| format!("failed to write {}", path.display()))?;
-            eprintln!("Wrote {}", path.display());
-        }
-        None => {
-            print!("{output}");
-        }
-    }
-
-    Ok(())
-}
-
-
-fn run_analyze(cli: &AnalyzeArgs) -> Result<()> {
-    info!("reading spec: {}", cli.spec.display());
-    let spec = parse_file(&cli.spec)
-        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
-
-    info!("resolving document into IR");
-    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
-
-    info!(
-        "resolved: {} schemas, {} operations",
-        doc.schemas.models.len(),
-        doc.operations.len(),
-    );
-
-    let report = analyze_spec(&doc);
-
-    match cli.format {
-        AnalyzeFormat::Json => {
-            let json = serde_json::to_string_pretty(&report)
-                .context("failed to serialize analysis report")?;
-            println!("{json}");
-        }
-        AnalyzeFormat::Markdown => {
-            print_analysis_markdown(&report);
-        }
-        AnalyzeFormat::Text => {
-            print_analysis_text(&report);
-        }
-    }
-
-    Ok(())
-}
-
-fn print_analysis_text(report: &AnalysisReport) {
-    eprintln!("=== Spec Bundle Analysis ===");
-    eprintln!();
-    eprintln!("Schemas:     {}", report.total_schemas);
-    eprintln!("Operations:  {}", report.total_operations);
-    eprintln!("IR size:     {:.1} KB", report.total_size_bytes as f64 / 1024.0);
-    eprintln!();
-
-    if !report.unused_schemas.is_empty() {
-        eprintln!("Unused schemas ({}):", report.unused_schemas.len());
-        for name in &report.unused_schemas {
-            eprintln!("  - {name}");
-        }
-        eprintln!();
-    }
-
-    if !report.duplicate_schemas.is_empty() {
-        eprintln!("Duplicate schemas ({} pair(s)):", report.duplicate_schemas.len());
-        for (a, b) in &report.duplicate_schemas {
-            eprintln!("  - {a} <-> {b}");
-        }
-        eprintln!();
-    }
-
-    if !report.large_schemas.is_empty() {
-        eprintln!("Large schemas (>20 properties):");
-        for (name, count) in &report.large_schemas {
-            eprintln!("  - {name}: {count} properties");
-        }
-        eprintln!();
-    }
-
-    if !report.deep_refs.is_empty() {
-        eprintln!("Deep reference chains:");
-        for (name, depth) in &report.deep_refs {
-            eprintln!("  - {name}: depth {depth}");
-        }
-        eprintln!();
-    }
-
-    if report.recommendations.is_empty() {
-        eprintln!("No issues found. Spec looks healthy.");
-    } else {
-        eprintln!("Recommendations ({}):", report.recommendations.len());
-        for (i, rec) in report.recommendations.iter().enumerate() {
-            eprintln!("  {}. {rec}", i + 1);
-        }
-    }
-}
-
-fn print_analysis_markdown(report: &AnalysisReport) {
-    println!("# Spec Bundle Analysis");
-    println!();
-    println!("| Metric | Value |");
-    println!("|--------|-------|");
-    println!("| Schemas | {} |", report.total_schemas);
-    println!("| Operations | {} |", report.total_operations);
-    println!("| IR size | {:.1} KB |", report.total_size_bytes as f64 / 1024.0);
-    println!();
-
-    if !report.unused_schemas.is_empty() {
-        println!("## Unused Schemas ({})", report.unused_schemas.len());
-        println!();
-        for name in &report.unused_schemas {
-            println!("- `{name}`");
-        }
-        println!();
-    }
-
-    if !report.duplicate_schemas.is_empty() {
-        println!("## Duplicate Schemas ({} pair(s))", report.duplicate_schemas.len());
-        println!();
-        for (a, b) in &report.duplicate_schemas {
-            println!("- `{a}` <-> `{b}`");
-        }
-        println!();
-    }
-
-    if !report.large_schemas.is_empty() {
-        println!("## Large Schemas (>20 properties)");
-        println!();
-        for (name, count) in &report.large_schemas {
-            println!("- `{name}`: {count} properties");
-        }
-        println!();
-    }
-
-    if !report.deep_refs.is_empty() {
-        println!("## Deep Reference Chains");
-        println!();
-        for (name, depth) in &report.deep_refs {
-            println!("- `{name}`: depth {depth}");
-        }
-        println!();
-    }
-
-    if !report.recommendations.is_empty() {
-        println!("## Recommendations");
-        println!();
-        for (i, rec) in report.recommendations.iter().enumerate() {
-            println!("{}. {rec}", i + 1);
-        }
-        println!();
-    } else {
-        println!("No issues found. Spec looks healthy.");
-    }
 }
 
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.
