@@ -6,7 +6,7 @@ jobs:
   generate-sdk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/specforge
         with:
           command: generate
@@ -21,7 +21,7 @@ jobs:
   check-spec:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/specforge
         with:
           command: check
@@ -31,7 +31,7 @@ jobs:
   diff-spec:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/specforge
         with:
           command: diff
