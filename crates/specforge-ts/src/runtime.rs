@@ -957,7 +957,7 @@ fn ts_schema_type(ty: &specforge_core::Type) -> String {
                 "{ kind: \"string\" }".into()
             }
             Scalar::Integer | Scalar::Float => "{ kind: \"number\" }".into(),
-            Scalar::Boolean => "{ kind: \"boolean\" }".into(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "{ kind: \"boolean\" }".into(),
         },
         Type::StringEnum { variants, .. } => {
             let vals: Vec<String> = variants

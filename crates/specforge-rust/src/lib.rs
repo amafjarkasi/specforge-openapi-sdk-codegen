@@ -341,7 +341,7 @@ fn render_type(ty: &Type) -> String {
             Scalar::Integer => "i32".into(),
             Scalar::Integer64 => "i64".into(),
             Scalar::Float => "f64".into(),
-            Scalar::Boolean => "bool".into(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "bool".into(),
         },
         Type::StringEnum { .. } => "String".into(),
         Type::Array { item, .. } => format!("Vec<{}>", render_type(item)),
@@ -2945,7 +2945,7 @@ fn rust_coerce_string(ty: &Type, ident: &str) -> String {
         Type::Scalar(Scalar::Integer)
         | Type::Scalar(Scalar::Integer64)
         | Type::Scalar(Scalar::Float)
-        | Type::Scalar(Scalar::Boolean) => format!("{ident}.to_string()"),
+        | Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => format!("{ident}.to_string()"),
         // Arrays/maps/any: JSON-stringify for query (OpenAPI often uses explode
         // forms; JSON is a safe compile-time default).
         Type::Array { .. } | Type::Map { .. } | Type::Any | Type::Unknown | Type::Composition(_) => {
@@ -2964,7 +2964,7 @@ fn rust_coerce_string_ref(ty: &Type) -> String {
         Type::Scalar(Scalar::Integer)
         | Type::Scalar(Scalar::Integer64)
         | Type::Scalar(Scalar::Float)
-        | Type::Scalar(Scalar::Boolean) => "v.to_string()".into(),
+        | Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => "v.to_string()".into(),
         Type::Array { .. } | Type::Map { .. } | Type::Any | Type::Unknown | Type::Composition(_) => {
             "serde_json::to_string(v).unwrap_or_default()".into()
         }

@@ -180,7 +180,7 @@ fn validate_scalar(
                 });
             }
         }
-        Scalar::Boolean => {
+        Scalar::Boolean | Scalar::Base64 | Scalar::Binary => {
             if !value.is_boolean() {
                 errors.push(ValidationError {
                     path: path.to_string(),

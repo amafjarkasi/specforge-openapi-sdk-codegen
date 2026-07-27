@@ -24,7 +24,7 @@ pub fn render(ty: &Type) -> String {
                 "string".to_string()
             }
             Scalar::Integer | Scalar::Float => "number".to_string(),
-            Scalar::Boolean => "boolean".to_string(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "boolean".to_string(),
         },
         Type::StringEnum { variants, nullable } => {
             let arms: Vec<String> = variants
@@ -98,7 +98,7 @@ mod tests {
         assert_eq!(render(&Type::Scalar(Scalar::Integer)), "number");
         assert_eq!(render(&Type::Scalar(Scalar::Uuid)), "string");
         assert_eq!(render(&Type::Scalar(Scalar::DateTime)), "string");
-        assert_eq!(render(&Type::Scalar(Scalar::Boolean)), "boolean");
+        assert_eq!(render(&Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary)), "boolean");
     }
 
     #[test]

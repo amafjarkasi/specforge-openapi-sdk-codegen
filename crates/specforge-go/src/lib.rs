@@ -240,7 +240,7 @@ fn render_type(ty: &Type) -> String {
             Scalar::Integer => "int".into(),
             Scalar::Integer64 => "int64".into(),
             Scalar::Float => "float64".into(),
-            Scalar::Boolean => "bool".into(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "bool".into(),
         },
         Type::StringEnum { .. } => "string".into(),
         Type::Array { item, .. } => format!("[]{}", render_type(item)),
@@ -2464,7 +2464,7 @@ fn coerce_to_string(ty: &Type, ident: &str) -> String {
         Type::Reference { .. } => format!("anyString({ident})"),
         Type::Scalar(Scalar::Integer) => format!("fmtInt({ident})"),
         Type::Scalar(Scalar::Integer64) => format!("fmtInt64({ident})"),
-        Type::Scalar(Scalar::Boolean) => format!("fmtBool({ident})"),
+        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => format!("fmtBool({ident})"),
         Type::Scalar(Scalar::Float) => format!("fmtFloat({ident})"),
         // arrays/maps/any — stringify via helper (lives in client.go, no fmt import needed here)
         _ => format!("anyString({ident})"),
@@ -2480,7 +2480,7 @@ fn zero_check(ty: &Type, ident: &str) -> String {
         Type::Scalar(Scalar::Integer) | Type::Scalar(Scalar::Integer64) | Type::Scalar(Scalar::Float) => {
             format!("{ident} != 0")
         }
-        Type::Scalar(Scalar::Boolean) => format!("{ident}") // only send when true
+        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => format!("{ident}") // only send when true
         ,
         Type::Reference { .. } => format!("true /* always send ref */"),
         Type::Array { .. } | Type::Map { .. } => format!("len({ident}) > 0"),

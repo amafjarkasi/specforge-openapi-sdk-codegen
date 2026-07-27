@@ -19,11 +19,7 @@ pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
 pub use merge::merge_specs;
 pub use testgen::{generate_tests, TestGenOptions, TestLang};
-pub use ir::{
-    Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
-    Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response,
-    Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
-};
+pub use ir::{Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod, Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook};
 pub use lint::{Diagnostic, Severity};
 pub use lint_config::{LintConfig, LintRule, RuleSeverity};
 pub use resolve::{resolve, resolve_with_webhooks};

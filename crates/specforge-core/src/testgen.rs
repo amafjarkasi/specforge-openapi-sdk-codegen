@@ -181,7 +181,7 @@ fn ts_assertion(ty: &Type) -> String {
             Scalar::Integer | Scalar::Integer64 | Scalar::Float => {
                 "console.assert(typeof result === 'number', 'expected number')".to_string()
             }
-            Scalar::Boolean => {
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => {
                 "console.assert(typeof result === 'boolean', 'expected boolean')".to_string()
             }
         },
@@ -197,7 +197,7 @@ fn generate_ts_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>, i
             Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(), => r#""dGVzdA==""#.to_string(),
-            Scalar::Boolean => "true".to_string(), => r#""example""#.to_string(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(), => r#""example""#.to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
@@ -346,7 +346,7 @@ fn generate_go_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>) -
             Scalar::Uuid => "\"550e8400-e29b-41d4-a716-446655440000\"".to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(), => r#""dGVzdA==""#.to_string(),
             Scalar::Float => "1.0".to_string(),
-            Scalar::Boolean => "true".to_string(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
@@ -506,7 +506,7 @@ fn generate_rust_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>)
             Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(), => r#""dGVzdA==""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(),
-            Scalar::Boolean => "true".to_string(),
+            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
