@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 openapiv3.workspace = true
 serde.workspace = true
 serde_json.workspace = true

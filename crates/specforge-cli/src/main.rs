@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, MarketplaceIndex, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -98,6 +98,8 @@ enum Commands {
     Demo(DemoArgs),
     /// Generate a CHANGELOG.md from an OpenAPI spec.
     Changelog(ChangelogArgs),
+    /// Browse, search, and manage the community spec marketplace.
+    Market(MarketArgs),
 }
 
 #[derive(Args, Debug)]
@@ -533,6 +535,82 @@ struct ChangelogArgs {
     log_level: LogLevel,
 }
 
+/// Browse, search, and manage the community spec marketplace.
+#[derive(Args, Debug)]
+struct MarketArgs {
+    #[command(subcommand)]
+    market_cmd: MarketCommands,
+
+    /// Path to an extra marketplace index JSON to merge.
+    #[arg(long = "index")]
+    extra_index: Option<PathBuf>,
+}
+
+#[derive(Subcommand, Debug)]
+enum MarketCommands {
+    /// Search the marketplace by keyword.
+    Search(MarketSearchArgs),
+    /// List all available specs.
+    List(MarketListArgs),
+    /// Show detailed info about a specific spec.
+    Info(MarketInfoArgs),
+    /// Add a local spec to the marketplace index.
+    Add(MarketAddArgs),
+}
+
+#[derive(Args, Debug)]
+struct MarketSearchArgs {
+    /// Search query (matches name, description, tags, author).
+    query: String,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    format: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct MarketListArgs {
+    /// Output format (text or json).
+    #[arg(long, default_value = "text")]
+    format: String,
+
+    /// Filter by tag.
+    #[arg(long)]
+    tag: Option<String>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct MarketInfoArgs {
+    /// Name of the spec to inspect.
+    name: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct MarketAddArgs {
+    /// Path to a local OpenAPI spec file.
+    path: PathBuf,
+
+    /// Output marketplace index file (default: marketplace.json in current dir).
+    #[arg(short, long, default_value = "marketplace.json")]
+    out: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -558,6 +636,12 @@ fn main() -> ExitCode {
         Commands::Export(args) => args.log_level,
         Commands::Demo(args) => args.log_level,
         Commands::Changelog(args) => args.log_level,
+        Commands::Market(args) => match &args.market_cmd {
+            MarketCommands::Search(a) => a.log_level,
+            MarketCommands::List(a) => a.log_level,
+            MarketCommands::Info(a) => a.log_level,
+            MarketCommands::Add(a) => a.log_level,
+        },
     };
 
     let level_str = match level {
@@ -778,6 +862,14 @@ fn main() -> ExitCode {
             }
         },
         Commands::Changelog(args) => match run_changelog(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Market(args) => match run_market(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
@@ -2065,4 +2157,185 @@ fn run_changelog(cli: &ChangelogArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn run_market(cli: &MarketArgs) -> Result<()> {
+    let mut index = MarketplaceIndex::built_in();
+
+    // Merge an extra index if provided.
+    if let Some(ref extra_path) = cli.extra_index {
+        let extra = MarketplaceIndex::load(extra_path)
+            .with_context(|| format!("failed to load extra index from {}", extra_path.display()))?;
+        index.merge(&extra);
+    }
+
+    match &cli.market_cmd {
+        MarketCommands::Search(args) => run_market_search(&index, args),
+        MarketCommands::List(args) => run_market_list(&index, args),
+        MarketCommands::Info(args) => run_market_info(&index, args),
+        MarketCommands::Add(args) => run_market_add(&index, args),
+    }
+}
+
+fn run_market_search(index: &MarketplaceIndex, cli: &MarketSearchArgs) -> Result<()> {
+    let results = index.search(&cli.query);
+
+    if results.is_empty() {
+        eprintln!("No specs found matching \"{}\".", cli.query);
+        return Ok(());
+    }
+
+    match cli.format.as_str() {
+        "json" => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&results).context("failed to serialize")?
+            );
+        }
+        _ => {
+            eprintln!("Found {} spec(s) matching \"{}\":\n", results.len(), cli.query);
+            for entry in &results {
+                let verified = if entry.verified { " [verified]" } else { "" };
+                eprintln!(
+                    "  {} v{}{}\n    {} (by {})\n    Downloads: {} | Rating: {:.1}/5\n    Tags: {}\n",
+                    entry.name,
+                    entry.version,
+                    verified,
+                    truncate(&entry.description, 80),
+                    entry.author,
+                    entry.downloads,
+                    entry.rating,
+                    entry.tags.join(", "),
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_market_list(index: &MarketplaceIndex, cli: &MarketListArgs) -> Result<()> {
+    let entries: Vec<&specforge_core::SpecEntry> = if let Some(ref tag) = cli.tag {
+        let q = tag.to_lowercase();
+        index
+            .entries
+            .iter()
+            .filter(|e| e.tags.iter().any(|t| t.to_lowercase() == q))
+            .collect()
+    } else {
+        index.sorted_by_downloads()
+    };
+
+    if entries.is_empty() {
+        eprintln!("No specs found.");
+        return Ok(());
+    }
+
+    match cli.format.as_str() {
+        "json" => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&entries).context("failed to serialize")?
+            );
+        }
+        _ => {
+            eprintln!("Spec Marketplace -- {} spec(s)\n", entries.len());
+            let name_w = entries
+                .iter()
+                .map(|e| e.name.len())
+                .max()
+                .unwrap_or(20)
+                .max(20);
+            eprintln!(
+                "  {:<width$}  {:>10}  {:>5}  {}",
+                "NAME",
+                "DOWNLOADS",
+                "RATING",
+                "DESCRIPTION",
+                width = name_w,
+            );
+            eprintln!(
+                "  {:─<width$}  {:─>10}  {:─>5}  {width:─<40}",
+                "",
+                "",
+                "",
+                width = name_w
+            );
+            for entry in &entries {
+                let verified = if entry.verified { " [v]" } else { "" };
+                eprintln!(
+                    "  {:<width$}  {:>10}  {:>5.1}  {}{}",
+                    entry.name,
+                    entry.downloads,
+                    entry.rating,
+                    truncate(&entry.description, 50),
+                    verified,
+                    width = name_w,
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_market_info(index: &MarketplaceIndex, cli: &MarketInfoArgs) -> Result<()> {
+    let entry = index
+        .find(&cli.name)
+        .ok_or_else(|| anyhow::anyhow!("spec not found: {}", cli.name))?;
+
+    eprintln!("{}\n", entry.name);
+    eprintln!("  Version:      {}", entry.version);
+    eprintln!("  Author:       {}", entry.author);
+    eprintln!("  Description:  {}", entry.description);
+    eprintln!("  Downloads:    {}", entry.downloads);
+    eprintln!("  Rating:       {:.1}/5", entry.rating);
+    eprintln!(
+        "  Verified:     {}",
+        if entry.verified { "Yes" } else { "No" }
+    );
+    eprintln!("  Tags:         {}", entry.tags.join(", "));
+    if !entry.url.is_empty() {
+        eprintln!("  URL:          {}", entry.url);
+    }
+    eprintln!("  Spec URL:     {}", entry.spec_url);
+
+    Ok(())
+}
+
+fn run_market_add(index: &MarketplaceIndex, cli: &MarketAddArgs) -> Result<()> {
+    let spec_path = &cli.path;
+    if !spec_path.exists() {
+        bail!("file not found: {}", spec_path.display());
+    }
+
+    let entry = MarketplaceIndex::generate_metadata(spec_path)
+        .with_context(|| format!("failed to generate metadata from {}", spec_path.display()))?;
+
+    eprintln!("Generated metadata for: {}", entry.name);
+    eprintln!("  Version:     {}", entry.version);
+    eprintln!("  Description: {}", entry.description);
+
+    // Build a new index: start from existing built-in entries and append.
+    let mut new_index = index.clone();
+    new_index.entries.push(entry);
+    new_index.entries.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+
+    let json =
+        serde_json::to_string_pretty(&new_index).context("failed to serialize marketplace index")?;
+
+    let out_path = &cli.out;
+    std::fs::write(out_path, &json)
+        .with_context(|| format!("failed to write {}", out_path.display()))?;
+    eprintln!("Wrote {}", out_path.display());
+
+    Ok(())
+}
+
+fn truncate(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max_len - 3])
+    }
 }

@@ -1272,6 +1272,7 @@ dependencies = [
 name = "specforge-core"
 version = "0.8.0"
 dependencies = [
+ "anyhow",
  "indexmap",
  "openapiv3",
  "reqwest",

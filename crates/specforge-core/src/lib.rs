@@ -14,6 +14,7 @@ pub mod infer;
 pub mod ir;
 pub mod lint;
 pub mod lint_config;
+pub mod marketplace;
 pub mod merge;
 pub mod mock;
 pub mod resolve;
@@ -30,6 +31,7 @@ pub use deprecation::{find_deprecations, generate_migration_guide, DeprecationIn
 pub use diff::{diff, diff_detailed, format_colored, format_json, format_markdown, format_text, DiffFinding, DiffFormat, DiffJsonOutput, DiffResult, DiffSeverity, DiffSummary, PropertyChange, PropertyChangeKind, SchemaDiffDetail};
 pub use error::{ResolveError, SpecError};
 pub use i18n::I18nConfig;
+pub use marketplace::{MarketplaceIndex, SpecEntry};
 pub use merge::merge_specs;
 pub use testgen::{generate_tests, TestGenOptions, TestLang};
 pub use ir::{Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod, IR_VERSION, Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook};

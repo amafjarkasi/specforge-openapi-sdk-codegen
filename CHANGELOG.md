@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] — 2026-07-27
+
+### Added
+
+#### Web UI
+- **Professional light theme** — Complete redesign with modern design system
+- **Design system** — Color palette, typography, spacing, components documented
+- **Interactive features** — Schema tree browser, JSON viewer, YAML export, copy buttons
+- **Responsive design** — Mobile-friendly with breakpoints at 1024px and 640px
+- **WCAG AA accessibility** — Focus states, aria labels, keyboard navigation
+
+#### Marketplace
+- **18 curated specs** — GitHub, Stripe, Petstore, Kubernetes, Spotify, Notion, Twilio, Vercel, Okta, Atlassian, Adyen, Bitbucket, Linode, CircleCI, LaunchDarkly, Adobe AEM, 1Password, Ably
+- **`specforge market list`** — Browse all specs with ratings and downloads
+- **`specforge market search`** — Search by name, description, tags, author
+- **`specforge market info`** — Detailed spec information
+- **`specforge market add`** — Add your own spec to the marketplace
+- **Marketplace section in web UI** — Browse specs with cards, search, and tag filtering
+
+#### Quality
+- **227 tests** (core 210 + TS 17)
+
 ## [1.4.0] — 2026-07-27
 
 ### Added
@@ -188,3 +210,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.1.0
 
 [1.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.4.0
+
+[1.5.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.5.0
