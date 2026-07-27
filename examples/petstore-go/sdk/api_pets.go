@@ -8,6 +8,9 @@ import (
 )
 
 // List all pets
+
+// limit: How many items to return at one time (max 100)
+// Returns unexpected error for default.
 func (c *Client) ListPets(ctx context.Context, limit int) (*Pets, error) {
 	query := url.Values{}
 	if limit != 0 {
@@ -21,12 +24,16 @@ func (c *Client) ListPets(ctx context.Context, limit int) (*Pets, error) {
 }
 
 // Create a pet
+// Returns unexpected error for default.
 func (c *Client) CreatePets(ctx context.Context) error {
 	query := url.Values{}
 	return c.DoJSON(ctx, "POST", "/pets", query, nil, nil)
 }
 
 // Info for a specific pet
+
+// petId: The id of the pet to retrieve
+// Returns unexpected error for default.
 func (c *Client) ShowPetById(ctx context.Context, petId string) (*Pet, error) {
 	query := url.Values{}
 	var out Pet

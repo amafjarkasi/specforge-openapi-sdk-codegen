@@ -5,6 +5,28 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] — 2026-07-27
+
+### Added
+
+#### SDK Features
+- **Mock server** — `specforge mock` starts local HTTP mock server from spec examples
+- **Logging hooks** — `Logger` interface/trait for all 3 SDKs (ConsoleLogger, NoopLogger)
+- **i18n support** — `--locale en,es` flag generates localized error messages (8 locales)
+- **Request/response interceptors** — Transform request body and response data
+- **Response transformers** — Post-processing hooks on deserialized responses
+
+#### Core
+- **Swagger Editor export** — `specforge export` inlines all `$ref` for editor compatibility
+- **Demo spec** — `specforge demo` generates realistic Petstore spec with examples
+- **Schema evolution tracker** — `specforge evolution` tracks changes over git commits
+- **Reverse inference** — `specforge infer` generates OpenAPI spec from sample JSON
+- **Compatibility checker** — `specforge verify` validates running APIs against spec
+
+#### Testing
+- **208 tests** across core, emitters, and CLI
+- Swagger Editor lint rules (`--profile swagger-editor`)
+
 ## [1.1.0] — 2026-07-27
 
 ### Added
@@ -269,6 +291,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[1.2.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.2.0
 [1.1.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.1.0
 [1.0.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.0.0
 [0.9.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.9.0

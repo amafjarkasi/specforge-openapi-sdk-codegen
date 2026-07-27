@@ -31,6 +31,9 @@ pub struct GeneratorOptions {
     pub out_dir: PathBuf,
     /// Package name written into package.json. Defaults to a derived slug.
     pub package_name: Option<String>,
+    /// Optional i18n configuration for localized error messages.
+    /// When `Some`, generates `src/i18n.ts` with per-locale translation maps.
+    pub i18n: Option<specforge_core::I18nConfig>,
 }
 
 /// Generate the full SDK into `opts.out_dir`. Returns the list of files written
@@ -68,8 +71,13 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
         files.extend(collect_webhooks(&doc.webhooks, &opts.out_dir)?);
     }
 
+    // i18n — localized error messages (only when locales are provided).
+    if let Some(ref i18n) = opts.i18n {
+        files.extend(collect_i18n(i18n, &opts.out_dir));
+    }
+
     // Barrel index (root exports client + models only; API tags are tree-shakeable).
-    files.extend(collect_index(doc, &opts.out_dir)?);
+    files.extend(collect_index(doc, &opts.out_dir, opts.i18n.is_some())?);
 
     // API convenience barrel (re-exports all tags for callers who want everything).
     files.extend(collect_api_index(doc, &opts.out_dir)?);
@@ -137,6 +145,87 @@ fn collect_webhooks(
     Ok(vec![(rel, path, body)])
 }
 
+/// Collect `src/i18n.ts` — localized error message translations for each locale.
+fn collect_i18n(
+    i18n: &specforge_core::I18nConfig,
+    out_dir: &Path,
+) -> Vec<(String, PathBuf, String)> {
+    let src = out_dir.join("src");
+    let mut body = String::from("/* eslint-disable */\n// Generated i18n translations. DO NOT EDIT.\n\n");
+
+    // Group translations into a nested object per locale: { errors: { key: "value" } }
+    for (locale, translations) in &i18n.translations {
+        body.push_str(&format!("export const {locale} = {{\n  errors: {{\n"));
+        // Sort keys for deterministic output.
+        let mut sorted: Vec<(&String, &String)> = translations.iter().collect();
+        sorted.sort_by_key(|(k, _)| k.to_string());
+        for (key, value) in &sorted {
+            // Strip the "errors." prefix for the nested object key.
+            let short_key = key.strip_prefix("errors.").unwrap_or(key);
+            let escaped_value = value
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
+                .replace('\n', "\\n");
+            body.push_str(&format!("    {}: \"{}\",\n", short_key, escaped_value));
+        }
+        body.push_str("  },\n};\n\n");
+    }
+
+    // Generate the locale map and helper function.
+    body.push_str("/** Available locale codes. */\n");
+    let locale_keys: Vec<&str> = i18n.translations.keys().map(|s| s.as_str()).collect();
+    body.push_str(&format!(
+        "export type Locale = {};\n\n",
+        locale_keys
+            .iter()
+            .map(|l| format!("\"{}\"", l))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    ));
+
+    body.push_str("/** All translation maps keyed by locale code. */\n");
+    body.push_str("export const locales: Record<Locale, typeof en> = {\n");
+    for locale in &locale_keys {
+        body.push_str(&format!("  {},\n", locale));
+    }
+    body.push_str("};\n\n");
+
+    body.push_str(&format!(
+        "/** Default locale code. */\nexport const defaultLocale: Locale = \"{}\";\n\n",
+        i18n.default_locale
+    ));
+
+    // The translate helper.
+    body.push_str(
+        r#"/**
+ * Look up a translated error message. Falls back to the key itself if the
+ * locale or key is missing.
+ *
+ * @param key    Dot-separated translation key (e.g. "errors.notFound")
+ * @param locale Locale code (e.g. "en", "es")
+ * @param params Optional interpolation parameters (e.g. { status: 404 })
+ */
+export function t(
+  key: string,
+  locale: Locale = defaultLocale,
+  params?: Record<string, string | number>,
+): string {
+  const map = locales[locale] ?? locales[defaultLocale];
+  const raw = key in map ? map[key as keyof typeof map] : key;
+  if (!params) return raw;
+  return Object.entries(params).reduce(
+    (s, [k, v]) => s.replace(new RegExp(`\\{${k}\\}`, "g"), String(v)),
+    raw,
+  );
+}
+"#,
+    );
+
+    let path = src.join("i18n.ts");
+    let rel = path_str(&path, out_dir);
+    vec![(rel, path, body)]
+}
+
 /// Collect `src/index.ts` content for parallel writing.
 ///
 /// The root barrel exports only the client core, runtime helpers, and models.
@@ -150,7 +239,7 @@ fn collect_webhooks(
 ///
 /// A convenience barrel at `src/api/index.ts` re-exports every tag for callers
 /// who prefer a single import.
-fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
     let mut body = String::from("/* eslint-disable */\n// Generated barrel. DO NOT EDIT.\n\n");
 
@@ -171,13 +260,15 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
 
     // Runtime exports.
     body.push_str("export * from \"./client\";\n");
+    body.push_str("export * from \"./interceptors\";\n");
     body.push_str("export * from \"./errors\";\n");
     body.push_str("export * from \"./auth\";\n");
     body.push_str("export * from \"./retry\";\n");
     body.push_str("export * from \"./paginate\";\n");
     body.push_str("export * from \"./validate\";\n");
     body.push_str("export * from \"./ratelimit\";\n");
-    body.push_str("export * from \"./telemetry\";\n\n");
+    body.push_str("export * from \"./telemetry\";\n");
+    body.push_str("export * from \"./logging\";\n\n");
 
     // Models.
     for (_, model) in doc.schemas.iter() {
@@ -187,6 +278,10 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     // Webhooks.
     if !doc.webhooks.is_empty() {
         body.push_str("export * from \"./webhooks\";\n");
+    }
+    // i18n — localized error messages.
+    if has_i18n {
+        body.push_str("export * from \"./i18n\";\n");
     }
     body.push('\n');
 

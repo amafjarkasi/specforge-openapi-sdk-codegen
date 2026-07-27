@@ -29,7 +29,7 @@ type Middleware func(ctx context.Context, req *MiddlewareRequest, next func(cont
 func ComposeMiddleware(
 	middlewares []Middleware,
 	dispatch func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error),
-) func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error) {
+	) func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error) {
 	h := dispatch
 	// Apply in reverse so registration order is outer-to-inner left-to-right.
 	for i := len(middlewares) - 1; i >= 0; i-- {

@@ -66,6 +66,12 @@ func (a APIKeyAuth) Apply(req *http.Request) error {
 	return nil
 }
 
+// ResponseTransformer transforms response data before it reaches the application.
+// Transformers are applied in order after JSON decoding.
+type ResponseTransformer interface {
+	Transform(response any) any
+}
+
 // Client is the generated HTTP client for Swagger Petstore.
 type Client struct {
 	BaseURL    string
@@ -83,10 +89,26 @@ type Client struct {
 	Dedupe bool
 	// Idempotency auto-attaches Idempotency-Key on POST/PUT/PATCH/DELETE. Default true.
 	Idempotency bool
+	// Validation enables runtime request/response validation against the OpenAPI schema.
+	Validation bool
+	// Cache enables GET response caching with ETag/conditional requests. Nil = disabled.
+	Cache *ResponseCache
+	// RateLimiter controls request throughput. Nil = no rate limiting.
+	RateLimiter RateLimiter
+	// Logger provides structured logging for SDK lifecycle events.
+	Logger Logger
+	// Telemetry provides hooks for request lifecycle observability.
+	Telemetry TelemetryHooks
 	// Middleware runs around each HTTP attempt (after auth headers are applied).
 	Middleware []Middleware
 	// StreamMiddleware runs before streaming requests (header-only modifications).
 	StreamMiddleware []StreamMiddleware
+	// ResponseTransformers are applied in order after JSON decoding of successful responses.
+	ResponseTransformers []ResponseTransformer
+	// RequestInterceptors are applied in order before each request body is serialized.
+	RequestInterceptors []RequestInterceptor
+	// ResponseInterceptors are applied in order after each response body is deserialized.
+	ResponseInterceptors []ResponseInterceptor
 
 	sem     *Semaphore
 	deduper *RequestDeduper
@@ -188,10 +210,56 @@ func (c *Client) WithIdempotency(on bool) *Client {
 	return c
 }
 
+// WithValidation enables/disables runtime request/response validation against the OpenAPI schema.
+func (c *Client) WithValidation(on bool) *Client {
+	c.Validation = on
+	return c
+}
+
+// WithCache enables GET response caching with ETag/conditional requests.
+// Pass a TTL of 0 to use the default (60s).
+func (c *Client) WithCache(ttl time.Duration) *Client {
+	if ttl <= 0 {
+		ttl = 60 * time.Second
+	}
+	c.Cache = NewResponseCache(ttl)
+	return c
+}
+
+// WithRateLimiter sets a rate limiter applied before each request.
+func (c *Client) WithRateLimiter(limiter RateLimiter) *Client {
+	c.RateLimiter = limiter
+	return c
+}
+
+// WithTelemetry sets telemetry hooks for request lifecycle observability.
+func (c *Client) WithTelemetry(hooks TelemetryHooks) *Client {
+	c.Telemetry = hooks
+	return c
+}
+
 // WithHTTPClient replaces the underlying *http.Client.
 func (c *Client) WithHTTPClient(hc *http.Client) *Client {
 	c.HTTPClient = hc
 	return c
+}
+
+// WithResponseTransformers sets response transformers applied in order after JSON decoding.
+func (c *Client) WithResponseTransformers(transformers ...ResponseTransformer) *Client {
+	c.ResponseTransformers = append(c.ResponseTransformers, transformers...)
+	return c
+
+// WithRequestInterceptors sets request interceptors applied in order before each request body is serialized.
+func (c *Client) WithRequestInterceptors(interceptors ...RequestInterceptor) *Client {
+	c.RequestInterceptors = append(c.RequestInterceptors, interceptors...)
+	return c
+}
+
+// WithResponseInterceptors sets response interceptors applied in order after each response body is deserialized.
+func (c *Client) WithResponseInterceptors(interceptors ...ResponseInterceptor) *Client {
+	c.ResponseInterceptors = append(c.ResponseInterceptors, interceptors...)
+	return c
+}
 }
 
 // DoJSON issues an HTTP request (concurrency + dedupe + retry + middleware),
@@ -205,6 +273,10 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 
 	var bodyBytes []byte
 	if body != nil {
+	// Apply request interceptors before serializing the body.
+	for _, i := range c.RequestInterceptors {
+		body = i.Transform(body)
+	}
 		var err error
 		bodyBytes, err = json.Marshal(body)
 		if err != nil {
@@ -223,14 +295,62 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		defer c.sem.Release()
 	}
 
+	// Rate limiting: wait for permission before proceeding.
+	if c.RateLimiter != nil {
+		if err := c.RateLimiter.Acquire(ctx); err != nil {
+			return err
+		}
+	}
+
+	// Logger: request start.
+	if c.Logger != nil {
+		c.Logger.Infof("[request] %s %s", method, path)
+	}
+
+	// Telemetry: request start.
+	startTime := time.Now()
+	if c.Telemetry != nil {
+		c.Telemetry.OnRequestStart(method, path)
+	}
+
+	// --- ETag cache: check for GET requests ---
+	isGet := strings.ToUpper(method) == "GET"
+	var cachedEntry CacheEntry
+	var hasCache bool
+	if isGet && c.Cache != nil {
+		cachedEntry, hasCache = c.Cache.Get(u)
+		if hasCache {
+			c.Header.Set("If-None-Match", cachedEntry.ETag)
+			if c.Logger != nil {
+				c.Logger.Debugf("[cache] HIT %s %s", method, path)
+			}
+			if c.Telemetry != nil {
+				c.Telemetry.OnCacheHit(method, path)
+			}
+		} else {
+			if c.Logger != nil {
+				c.Logger.Debugf("[cache] MISS %s %s", method, path)
+			}
+			if c.Telemetry != nil {
+				c.Telemetry.OnCacheMiss(method, path)
+			}
+		}
+	}
+
 	// Stable idempotency key for the whole retry loop (generated once).
 	var idemKey string
 	if c.Idempotency && IsIdempotencyCandidate(method) {
 		idemKey = NewIdempotencyKey()
 	}
 
+	var respETag string
+
 	run := func() ([]byte, int, error) {
-		return c.doWithRetry(ctx, method, u, bodyBytes, body != nil, idemKey)
+		d, s, e, err := c.doWithRetry(ctx, method, u, bodyBytes, body != nil, idemKey)
+		if err == nil {
+			respETag = e
+		}
+		return d, s, err
 	}
 
 	var data []byte
@@ -244,11 +364,57 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 	} else {
 		data, status, err = run()
 	}
+
+	// Clean up the If-None-Match header we may have set.
+	if hasCache {
+		c.Header.Del("If-None-Match")
+	}
+
 	if err != nil {
+		if c.Telemetry != nil {
+			c.Telemetry.OnRequestError(method, path, time.Since(startTime).Milliseconds(), err)
+		}
 		return err
 	}
+
+	// Logger: response received.
+	if c.Logger != nil {
+		c.Logger.Infof("[response] %s %s -> %d", method, path, status)
+	}
+
+	// Telemetry: successful response.
+	if c.Telemetry != nil {
+		c.Telemetry.OnRequestEnd(method, path, time.Since(startTime).Milliseconds(), status)
+	}
+
+	// --- ETag cache: handle 304 Not Modified and update on 200 ---
+	if isGet && c.Cache != nil {
+		if status == http.StatusNotModified && hasCache {
+			// Return cached data.
+			data = cachedEntry.Data
+			status = http.StatusOK
+		} else if status >= 200 && status < 300 && respETag != "" {
+			// Store response in cache for future conditional requests.
+			c.Cache.Set(u, respETag, data)
+		}
+	}
+
 	if out == nil || status == http.StatusNoContent || len(data) == 0 {
 		return nil
+	}
+	// Apply response transformers to raw data before decoding.
+	for _, t := range c.ResponseTransformers {
+		transformed := t.Transform(data)
+		if b, ok := transformed.([]byte); ok {
+			data = b
+		}
+	}
+	// Apply response interceptors before decoding.
+	for _, i := range c.ResponseInterceptors {
+		transformed := i.Transform(data)
+		if b, ok := transformed.([]byte); ok {
+			data = b
+		}
 	}
 	if err := json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
@@ -284,6 +450,12 @@ func (c *Client) DoStream(ctx context.Context, method, path string, query url.Va
 		// should set MaxConcurrent carefully for streams.
 		defer c.sem.Release()
 	}
+	// Rate limiting: wait for permission before proceeding.
+	if c.RateLimiter != nil {
+		if err := c.RateLimiter.Acquire(ctx); err != nil {
+			return nil, err
+		}
+	}
 	var idemKey string
 	if c.Idempotency && IsIdempotencyCandidate(method) {
 		idemKey = NewIdempotencyKey()
@@ -291,7 +463,7 @@ func (c *Client) DoStream(ctx context.Context, method, path string, query url.Va
 	return c.doOnceStream(ctx, method, u, bodyBytes, body != nil, idemKey)
 }
 
-func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, error) {
+func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, string, error) {
 	retry := c.Retry
 	if retry.MaxRetries == 0 && retry.BaseDelay == 0 && len(retry.RetryOnStatuses) == 0 {
 		retry = DefaultRetryOptions()
@@ -305,21 +477,29 @@ func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []
 			select {
 			case <-ctx.Done():
 				timer.Stop()
-				return nil, 0, ctx.Err()
+				return nil, 0, "", ctx.Err()
 			case <-timer.C:
 			}
 		}
 
-		data, status, err := c.doOnce(ctx, method, u, bodyBytes, hasBody, idemKey)
+		data, status, etag, err := c.doOnce(ctx, method, u, bodyBytes, hasBody, idemKey)
 		if err == nil {
-			return data, status, nil
+			return data, status, etag, nil
 		}
 		lastErr = err
 		if !isRetriable(method, err, retry) || attempt == retry.MaxRetries {
-			return nil, 0, err
+			return nil, 0, "", err
+		}
+		// Logger: retry notification.
+		if c.Logger != nil {
+			c.Logger.Warnf("[retry] %s %s error=%v, attempt %d/%d", method, u, err, attempt+2, retry.MaxRetries+1)
+		}
+		// Telemetry: retry notification.
+		if c.Telemetry != nil {
+			c.Telemetry.OnRetry(method, u, attempt+1, err)
 		}
 	}
-	return nil, 0, lastErr
+	return nil, 0, "", lastErr
 }
 
 func (c *Client) buildHeaders(ctx context.Context, method, u string, hasBody bool, idemKey string) (http.Header, error) {
@@ -353,7 +533,7 @@ func (c *Client) buildHeaders(ctx context.Context, method, u string, hasBody boo
 	return tmp.Header, nil
 }
 
-func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, error) {
+func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, string, error) {
 	reqCtx := ctx
 	var cancel context.CancelFunc
 	timeout := c.Timeout
@@ -370,7 +550,7 @@ func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte,
 
 	headers, err := c.buildHeaders(reqCtx, method, u, hasBody, idemKey)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, "", err
 	}
 
 	mwReq := &MiddlewareRequest{
@@ -404,12 +584,17 @@ func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte,
 
 	mwRes, err := handler(reqCtx, mwReq)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, "", err
 	}
+	etag := mwRes.Header.Get("Etag")
 	if mwRes.StatusCode < 200 || mwRes.StatusCode >= 300 {
-		return nil, 0, &APIError{StatusCode: mwRes.StatusCode, Body: mwRes.Body, URL: u}
+		// Pass through 304 as-is so DoJSON can handle it.
+		if mwRes.StatusCode == http.StatusNotModified {
+			return mwRes.Body, mwRes.StatusCode, etag, nil
+		}
+		return nil, 0, "", &APIError{StatusCode: mwRes.StatusCode, Body: mwRes.Body, URL: u}
 	}
-	return mwRes.Body, mwRes.StatusCode, nil
+	return mwRes.Body, mwRes.StatusCode, etag, nil
 }
 
 func (c *Client) doOnceStream(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) (*http.Response, error) {

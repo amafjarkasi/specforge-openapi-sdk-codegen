@@ -27,6 +27,8 @@ pub struct GeneratorOptions {
     pub module_path: Option<String>,
     /// Go package name for generated sources. Defaults to `sdk`.
     pub package_name: Option<String>,
+    /// Optional i18n configuration for localized error messages.
+    pub i18n: Option<specforge_core::I18nConfig>,
 }
 
 /// Generate a Go SDK into `opts.out_dir`. Returns relative paths written.
@@ -60,6 +62,8 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
 
     let middleware = opts.out_dir.join("middleware.go");
     files.push((rel(&middleware, &opts.out_dir), middleware, emit_middleware(&pkg)));
+    let interceptors = opts.out_dir.join("interceptors.go");
+    files.push((rel(&interceptors, &opts.out_dir), interceptors, emit_interceptors(&pkg)));
 
     let idempotency = opts.out_dir.join("idempotency.go");
     files.push((rel(&idempotency, &opts.out_dir), idempotency, emit_idempotency(&pkg)));
@@ -75,6 +79,9 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
 
     let telemetry = opts.out_dir.join("telemetry.go");
     files.push((rel(&telemetry, &opts.out_dir), telemetry, emit_telemetry(&pkg)));
+
+    let logging = opts.out_dir.join("logging.go");
+    files.push((rel(&logging, &opts.out_dir), logging, emit_logging(&pkg)));
 
     let validate = opts.out_dir.join("validate.go");
     files.push((rel(&validate, &opts.out_dir), validate, emit_validate(&pkg, doc)));
@@ -529,6 +536,12 @@ func (a APIKeyAuth) Apply(req *http.Request) error {{
 	return nil
 }}
 
+// ResponseTransformer transforms response data before it reaches the application.
+// Transformers are applied in order after JSON decoding.
+type ResponseTransformer interface {{
+	Transform(response any) any
+}}
+
 // Client is the generated HTTP client for {title}.
 type Client struct {{
 	BaseURL    string
@@ -552,12 +565,20 @@ type Client struct {{
 	Cache *ResponseCache
 	// RateLimiter controls request throughput. Nil = no rate limiting.
 	RateLimiter RateLimiter
+	// Logger provides structured logging for SDK lifecycle events.
+	Logger Logger
 	// Telemetry provides hooks for request lifecycle observability.
 	Telemetry TelemetryHooks
 	// Middleware runs around each HTTP attempt (after auth headers are applied).
 	Middleware []Middleware
 	// StreamMiddleware runs before streaming requests (header-only modifications).
 	StreamMiddleware []StreamMiddleware
+	// ResponseTransformers are applied in order after JSON decoding of successful responses.
+	ResponseTransformers []ResponseTransformer
+	// RequestInterceptors are applied in order before each request body is serialized.
+	RequestInterceptors []RequestInterceptor
+	// ResponseInterceptors are applied in order after each response body is deserialized.
+	ResponseInterceptors []ResponseInterceptor
 
 	sem     *Semaphore
 	deduper *RequestDeduper
@@ -693,6 +714,24 @@ func (c *Client) WithHTTPClient(hc *http.Client) *Client {{
 	return c
 }}
 
+// WithResponseTransformers sets response transformers applied in order after JSON decoding.
+func (c *Client) WithResponseTransformers(transformers ...ResponseTransformer) *Client {{
+	c.ResponseTransformers = append(c.ResponseTransformers, transformers...)
+	return c
+
+// WithRequestInterceptors sets request interceptors applied in order before each request body is serialized.
+func (c *Client) WithRequestInterceptors(interceptors ...RequestInterceptor) *Client {{
+	c.RequestInterceptors = append(c.RequestInterceptors, interceptors...)
+	return c
+}}
+
+// WithResponseInterceptors sets response interceptors applied in order after each response body is deserialized.
+func (c *Client) WithResponseInterceptors(interceptors ...ResponseInterceptor) *Client {{
+	c.ResponseInterceptors = append(c.ResponseInterceptors, interceptors...)
+	return c
+}}
+}}
+
 // DoJSON issues an HTTP request (concurrency + dedupe + retry + middleware),
 // JSON-decodes a successful response into out (when non-nil), and returns a
 // non-nil error for non-2xx statuses.
@@ -704,6 +743,10 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 
 	var bodyBytes []byte
 	if body != nil {{
+	// Apply request interceptors before serializing the body.
+	for _, i := range c.RequestInterceptors {{
+		body = i.Transform(body)
+	}}
 		var err error
 		bodyBytes, err = json.Marshal(body)
 		if err != nil {{
@@ -729,6 +772,11 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		}}
 	}}
 
+	// Logger: request start.
+	if c.Logger != nil {{
+		c.Logger.Infof("[request] %s %s", method, path)
+	}}
+
 	// Telemetry: request start.
 	startTime := time.Now()
 	if c.Telemetry != nil {{
@@ -743,11 +791,19 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		cachedEntry, hasCache = c.Cache.Get(u)
 		if hasCache {{
 			c.Header.Set("If-None-Match", cachedEntry.ETag)
+			if c.Logger != nil {{
+				c.Logger.Debugf("[cache] HIT %s %s", method, path)
+			}}
 			if c.Telemetry != nil {{
 				c.Telemetry.OnCacheHit(method, path)
 			}}
-		}} else if c.Telemetry != nil {{
-			c.Telemetry.OnCacheMiss(method, path)
+		}} else {{
+			if c.Logger != nil {{
+				c.Logger.Debugf("[cache] MISS %s %s", method, path)
+			}}
+			if c.Telemetry != nil {{
+				c.Telemetry.OnCacheMiss(method, path)
+			}}
 		}}
 	}}
 
@@ -791,6 +847,11 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		return err
 	}}
 
+	// Logger: response received.
+	if c.Logger != nil {{
+		c.Logger.Infof("[response] %s %s -> %d", method, path, status)
+	}}
+
 	// Telemetry: successful response.
 	if c.Telemetry != nil {{
 		c.Telemetry.OnRequestEnd(method, path, time.Since(startTime).Milliseconds(), status)
@@ -810,6 +871,20 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 
 	if out == nil || status == http.StatusNoContent || len(data) == 0 {{
 		return nil
+	}}
+	// Apply response transformers to raw data before decoding.
+	for _, t := range c.ResponseTransformers {{
+		transformed := t.Transform(data)
+		if b, ok := transformed.([]byte); ok {{
+			data = b
+		}}
+	}}
+	// Apply response interceptors before decoding.
+	for _, i := range c.ResponseInterceptors {{
+		transformed := i.Transform(data)
+		if b, ok := transformed.([]byte); ok {{
+			data = b
+		}}
 	}}
 	if err := json.Unmarshal(data, out); err != nil {{
 		return fmt.Errorf("decode response: %w", err)
@@ -884,6 +959,10 @@ func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []
 		lastErr = err
 		if !isRetriable(method, err, retry) || attempt == retry.MaxRetries {{
 			return nil, 0, "", err
+		}}
+		// Logger: retry notification.
+		if c.Logger != nil {{
+			c.Logger.Warnf("[retry] %s %s error=%v, attempt %d/%d", method, u, err, attempt+2, retry.MaxRetries+1)
 		}}
 		// Telemetry: retry notification.
 		if c.Telemetry != nil {{
@@ -1429,7 +1508,7 @@ type Middleware func(ctx context.Context, req *MiddlewareRequest, next func(cont
 func ComposeMiddleware(
 	middlewares []Middleware,
 	dispatch func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error),
-) func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error) {{
+	) func(context.Context, *MiddlewareRequest) (*MiddlewareResponse, error) {{
 	h := dispatch
 	// Apply in reverse so registration order is outer-to-inner left-to-right.
 	for i := len(middlewares) - 1; i >= 0; i-- {{
@@ -1445,6 +1524,28 @@ func ComposeMiddleware(
 // StreamMiddleware can observe or modify a request before streaming begins.
 // It cannot read the response body. Return a non-nil error to abort.
 type StreamMiddleware func(ctx context.Context, req *MiddlewareRequest) error
+"#,
+        pkg = pkg,
+    )
+}
+
+fn emit_interceptors(pkg: &str) -> String {
+    format!(
+        r#"// Code generated by specforge. DO NOT EDIT.
+
+package {pkg}
+
+// RequestInterceptor transforms the request body before it is serialized and sent.
+// Return the (possibly modified) body.
+type RequestInterceptor interface {{
+	Transform(body interface{{}}) interface{{}}
+}}
+
+// ResponseInterceptor transforms the response body after it is deserialized.
+// Return the (possibly modified) body.
+type ResponseInterceptor interface {{
+	Transform(body interface{{}}) interface{{}}
+}}
 "#,
         pkg = pkg,
     )
@@ -1839,6 +1940,79 @@ func minFloat(a, b float64) float64 {{
 	}}
 	return b
 }}
+"#,
+        pkg = pkg,
+    )
+}
+
+// ─── logging.go ─────────────────────────────────────────────────────────────
+
+fn emit_logging(pkg: &str) -> String {
+    format!(
+        r#"// Code generated by specforge. DO NOT EDIT.
+
+package {pkg}
+
+import (
+	"fmt"
+	"log"
+	"os"
+)
+
+// Logger is the structured logging interface for SDK lifecycle events.
+// Implement this to plug in your own logger; the SDK logs requests,
+// responses, retries, and cache hits/misses.
+type Logger interface {{
+	Debugf(format string, args ...any)
+	Infof(format string, args ...any)
+	Warnf(format string, args ...any)
+	Errorf(format string, args ...any)
+}}
+
+// ConsoleLogger delegates to the standard log package.
+type ConsoleLogger struct {{
+	DebugLogger *log.Logger
+	InfoLogger  *log.Logger
+	WarnLogger  *log.Logger
+	ErrorLogger *log.Logger
+}}
+
+// NewConsoleLogger creates a Logger that writes to stderr via the standard log package.
+func NewConsoleLogger() *ConsoleLogger {{
+	return &ConsoleLogger{{
+		DebugLogger: log.New(os.Stderr, "[DEBUG] ", log.LstdFlags),
+		InfoLogger:  log.New(os.Stderr, "[INFO]  ", log.LstdFlags),
+		WarnLogger:  log.New(os.Stderr, "[WARN]  ", log.LstdFlags),
+		ErrorLogger: log.New(os.Stderr, "[ERROR] ", log.LstdFlags),
+	}}
+}}
+
+func (l *ConsoleLogger) Debugf(format string, args ...any) {{
+	l.DebugLogger.Output(2, fmt.Sprintf(format, args...))
+}}
+
+func (l *ConsoleLogger) Infof(format string, args ...any) {{
+	l.InfoLogger.Output(2, fmt.Sprintf(format, args...))
+}}
+
+func (l *ConsoleLogger) Warnf(format string, args ...any) {{
+	l.WarnLogger.Output(2, fmt.Sprintf(format, args...))
+}}
+
+func (l *ConsoleLogger) Errorf(format string, args ...any) {{
+	l.ErrorLogger.Output(2, fmt.Sprintf(format, args...))
+}}
+
+// noopLogger discards all log messages.
+type noopLogger struct{{}}
+
+func (noopLogger) Debugf(string, ...any) {{}}
+func (noopLogger) Infof(string, ...any)  {{}}
+func (noopLogger) Warnf(string, ...any)  {{}}
+func (noopLogger) Errorf(string, ...any) {{}}
+
+// NoopLogger is a Logger that discards all messages.
+var NoopLogger Logger = noopLogger{{}}
 "#,
         pkg = pkg,
     )

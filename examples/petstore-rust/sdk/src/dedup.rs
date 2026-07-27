@@ -9,12 +9,15 @@ use tokio::sync::{Mutex, broadcast};
 
 use crate::error::{Error, Result};
 
-type BoxFut = Pin<Box<dyn Future<Output = Result<(Vec<u8>, u16)>> + Send>>;
+/// A deduplicated response: body, status code, and ETag.
+pub type DedupeResponse = (Vec<u8>, u16, String);
+
+type BoxFut = Pin<Box<dyn Future<Output = Result<DedupeResponse>> + Send>>;
 
 /// Coalesces identical in-flight safe requests.
 #[derive(Clone, Default)]
 pub struct RequestDeduper {
-    inflight: Arc<Mutex<HashMap<String, broadcast::Sender<std::result::Result<(Vec<u8>, u16), String>>>>>,
+    inflight: Arc<Mutex<HashMap<String, broadcast::Sender<std::result::Result<DedupeResponse, String>>>>>,
 }
 
 impl std::fmt::Debug for RequestDeduper {
@@ -36,10 +39,10 @@ impl RequestDeduper {
     }
 
     /// Run `f`, sharing the result with concurrent callers of the same key.
-    pub async fn dedupe<F, Fut>(&self, key: String, f: F) -> Result<(Vec<u8>, u16)>
+    pub async fn dedupe<F, Fut>(&self, key: String, f: F) -> Result<DedupeResponse>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: Future<Output = Result<(Vec<u8>, u16)>> + Send + 'static,
+        Fut: Future<Output = Result<DedupeResponse>> + Send + 'static,
     {
         let mut map = self.inflight.lock().await;
         if let Some(tx) = map.get(&key) {

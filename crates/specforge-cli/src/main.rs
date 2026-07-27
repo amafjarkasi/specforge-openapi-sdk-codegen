@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, export_spec, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, ExportOptions, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -84,6 +84,18 @@ enum Commands {
     Migrate(MigrateArgs),
     /// Analyze a spec for redundancy, unused schemas, and size issues.
     Analyze(AnalyzeArgs),
+    /// Infer an OpenAPI spec from a sample JSON request/response body.
+    Infer(InferArgs),
+    /// Verify a running API matches its OpenAPI spec by hitting endpoints.
+    Verify(VerifyArgs),
+    /// Track how a schema has evolved across git commits.
+    Evolution(EvolutionArgs),
+    /// Start a local mock HTTP server from a spec's example responses.
+    Mock(MockArgs),
+    /// Export an OpenAPI spec as a Swagger Editor-compatible bundle.
+    Export(ExportArgs),
+    /// Generate a working demo Petstore spec with realistic examples.
+    Demo(DemoArgs),
 }
 
 #[derive(Args, Debug)]
@@ -114,6 +126,11 @@ struct GenerateArgs {
     /// Include webhook handler types in the generated SDK (OpenAPI 3.1).
     #[arg(long)]
     include_webhooks: bool,
+
+    /// Comma-separated list of locale codes for i18n error messages (e.g. "en,es,fr").
+    /// When provided, the generated SDK includes localized error message files.
+    #[arg(long, value_delimiter = ',')]
+    locale: Option<Vec<String>>,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
@@ -207,6 +224,14 @@ struct InitArgs {
     /// API version.
     #[arg(long, default_value = "1.0.0")]
     version: String,
+
+    /// Default maximum retries for generated endpoints.
+    #[arg(long)]
+    retry_default: Option<u32>,
+
+    /// HTTP methods that are retryable (can be repeated).
+    #[arg(long = "retry-on", value_name = "METHOD")]
+    retry_on: Option<Vec<String>>,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Warn)]
@@ -352,6 +377,130 @@ struct AnalyzeArgs {
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
     log_level: LogLevel,
 }
+
+#[derive(Args, Debug)]
+struct InferArgs {
+    /// Path to a JSON file, or "-" to read from stdin.
+    input: String,
+
+    /// Schema / model name (default: "Inferred").
+    #[arg(long, default_value = "Inferred")]
+    name: String,
+
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// API title for the generated spec.
+    #[arg(long, default_value = "Inferred API")]
+    title: String,
+
+    /// API version for the generated spec.
+    #[arg(long, default_value = "1.0.0")]
+    version: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct VerifyArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Base URL of the running API to verify against.
+    #[arg(long)]
+    base_url: String,
+
+    /// Authorization header value (e.g. "Bearer <token>").
+    #[arg(long)]
+    auth: Option<String>,
+
+    /// Per-request timeout in milliseconds (default: 5000).
+    #[arg(long, default_value_t = 5000)]
+    timeout: u64,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum EvolutionFormat { Text, Json, Markdown }
+
+#[derive(Args, Debug)]
+struct EvolutionArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = EvolutionFormat::Text)]
+    format: EvolutionFormat,
+
+    /// Maximum number of versions to show (most recent first).
+    #[arg(long, default_value_t = 10)]
+    limit: usize,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct MockArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Port to listen on (default: random available port).
+    #[arg(long)]
+    port: Option<u16>,
+
+    /// Host to bind to (default: 127.0.0.1).
+    #[arg(long, default_value = "127.0.0.1")]
+    host: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum ExportFormat {
+    /// Swagger Editor compatible bundle (all refs inlined).
+    #[value(name = "swagger-editor")]
+    SwaggerEditor,
+}
+
+#[derive(Args, Debug)]
+struct ExportArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Export format.
+    #[arg(long, value_enum, default_value_t = ExportFormat::SwaggerEditor)]
+    format: ExportFormat,
+
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct DemoArgs {
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -370,6 +519,12 @@ fn main() -> ExitCode {
         Commands::WorkspaceInit(args) => args.log_level,
         Commands::Migrate(args) => args.log_level,
         Commands::Analyze(args) => args.log_level,
+        Commands::Infer(args) => args.log_level,
+        Commands::Verify(args) => args.log_level,
+        Commands::Evolution(args) => args.log_level,
+        Commands::Mock(args) => args.log_level,
+        Commands::Export(args) => args.log_level,
+        Commands::Demo(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -534,6 +689,61 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Commands::Infer(args) => match run_infer(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Verify(args) => match run_verify(&args) {
+            Ok(results) => {
+                let failures = results.iter().filter(|r| !r.issues.is_empty()).count();
+                if failures > 0 {
+                    ExitCode::FAILURE
+                } else {
+                    ExitCode::SUCCESS
+                }
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Evolution(args) => match run_evolution(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Mock(args) => match run_mock(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Export(args) => match run_export(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Demo(args) => match run_demo(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
@@ -607,11 +817,19 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
     );
 
     let t2 = std::time::Instant::now();
+
+    // Build i18n config if locales were specified.
+    let i18n_config = cli.locale.as_ref().map(|locales| {
+        info!("generating i18n files for locales: {}", locales.join(", "));
+        specforge_core::I18nConfig::from_locales(locales)
+    });
+
     let written = match cli.lang {
         Lang::Ts => {
             let opts = specforge_ts::GeneratorOptions {
                 out_dir: cli.out.clone(),
                 package_name: cli.package_name.clone(),
+                i18n: i18n_config.clone(),
             };
             specforge_ts::generate(&doc, &opts).context("failed to emit TypeScript SDK")?
         }
@@ -620,6 +838,7 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
                 out_dir: cli.out.clone(),
                 module_path: cli.package_name.clone(),
                 package_name: None,
+                i18n: i18n_config.clone(),
             };
             specforge_go::generate(&doc, &opts).context("failed to emit Go SDK")?
         }
@@ -627,6 +846,7 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
             let opts = specforge_rust::GeneratorOptions {
                 out_dir: cli.out.clone(),
                 crate_name: cli.package_name.clone(),
+                i18n: i18n_config.clone(),
             };
             specforge_rust::generate(&doc, &opts).context("failed to emit Rust SDK")?
         }
@@ -1241,6 +1461,7 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
                     let opts = specforge_ts::GeneratorOptions {
                         out_dir: out_path.clone(),
                         package_name: output.name.clone(),
+                        i18n: None,
                     };
                     specforge_ts::generate(&doc, &opts)
                         .with_context(|| format!("[{}] failed to emit TypeScript SDK", spec_config.name))?
@@ -1250,6 +1471,7 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
                         out_dir: out_path.clone(),
                         module_path: output.name.clone(),
                         package_name: None,
+                        i18n: None,
                     };
                     specforge_go::generate(&doc, &opts)
                         .with_context(|| format!("[{}] failed to emit Go SDK", spec_config.name))?
@@ -1258,6 +1480,7 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
                     let opts = specforge_rust::GeneratorOptions {
                         out_dir: out_path.clone(),
                         crate_name: output.name.clone(),
+                        i18n: None,
                     };
                     specforge_rust::generate(&doc, &opts)
                         .with_context(|| format!("[{}] failed to emit Rust SDK", spec_config.name))?
@@ -1352,6 +1575,109 @@ fn run_analyze(cli: &AnalyzeArgs) -> Result<()> {
     }
     Ok(())
 }
+
+fn run_infer(cli: &InferArgs) -> Result<()> {
+    // Read JSON from file or stdin.
+    let json_text = if cli.input == "-" {
+        let mut buf = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut buf)
+            .context("failed to read JSON from stdin")?;
+        buf
+    } else {
+        let path = PathBuf::from(&cli.input);
+        info!("reading sample JSON: {}", path.display());
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?
+    };
+
+    let json: serde_json::Value = serde_json::from_str(json_text.trim())
+        .context("failed to parse input as JSON")?;
+
+    info!("inferred schema for {}-key object", {
+        match &json {
+            serde_json::Value::Object(m) => m.len(),
+            serde_json::Value::Array(a) => a.len(),
+            _ => 0,
+        }
+    });
+
+    let opts = specforge_core::InferOptions {
+        schema_name: cli.name.clone(),
+        title: cli.title.clone(),
+        version: cli.version.clone(),
+    };
+
+    let spec = specforge_core::infer_openapi(&json, &opts);
+
+    let output = serde_json::to_string_pretty(&spec)
+        .context("failed to serialize inferred spec")?;
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &output)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            println!("{output}");
+        }
+    }
+
+    Ok(())
+}
+
+fn run_verify(cli: &VerifyArgs) -> Result<Vec<specforge_core::VerifyResult>> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let opts = specforge_core::VerifyOptions {
+        base_url: cli.base_url.clone(),
+        auth: cli.auth.clone(),
+        timeout_ms: cli.timeout,
+    };
+
+    info!("verifying against {}", cli.base_url);
+    let results = specforge_core::verify_api(&doc, &opts);
+
+    // Print results.
+    let mut total = 0usize;
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+
+    for result in &results {
+        total += 1;
+        let has_issues = !result.issues.is_empty();
+        if has_issues {
+            failed += 1;
+            eprintln!("FAIL  {} {} ({})", result.method, result.endpoint, result.status);
+            for issue in &result.issues {
+                eprintln!("      - {issue}");
+            }
+        } else {
+            passed += 1;
+            eprintln!("  OK  {} {} ({})", result.method, result.endpoint, result.status);
+        }
+    }
+
+    eprintln!("\n{passed}/{total} endpoint(s) passed, {failed} failed");
+
+    let json = serde_json::to_string_pretty(&results)
+        .context("failed to serialize results")?;
+    println!("{json}");
+
+    Ok(results)
+}
+
 fn print_analysis_text(report: &specforge_core::AnalysisReport) {
     eprintln!("=== Spec Bundle Analysis ===");
     eprintln!();
@@ -1537,4 +1863,117 @@ fn downgrade_value(json: &mut JsonValue) {
         }
         _ => {}
     }
+}
+
+fn run_evolution(cli: &EvolutionArgs) -> Result<()> {
+    let spec_str = cli.spec.to_str().unwrap_or("spec");
+
+    info!("tracking evolution for: {}", spec_str);
+    let mut evo = specforge_core::track_evolution(spec_str)
+        .map_err(|e| anyhow::anyhow!("{e}"))
+        .context("failed to track schema evolution")?;
+
+    // Apply limit: keep the most recent N versions.
+    if evo.versions.len() > cli.limit {
+        evo.versions = evo.versions.split_off(evo.versions.len() - cli.limit);
+    }
+
+    match cli.format {
+        EvolutionFormat::Text => {
+            print!("{}", specforge_core::evolution_format_text(&evo));
+        }
+        EvolutionFormat::Json => {
+            let json = specforge_core::evolution_format_json(&evo)
+                .context("failed to serialize evolution as JSON")?;
+            println!("{json}");
+        }
+        EvolutionFormat::Markdown => {
+            print!("{}", specforge_core::evolution_format_markdown(&evo));
+        }
+    }
+
+    Ok(())
+}
+
+fn run_mock(cli: &MockArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let mut server = specforge_core::MockServer::from_doc(&doc)
+        .host(&cli.host);
+
+    if let Some(port) = cli.port {
+        server = server.port(port);
+    }
+
+    let port = server.start().context("failed to bind mock server")?;
+
+    eprintln!("Mock server listening on http://{}:{}", cli.host, port);
+    eprintln!("Routes:");
+    for op in &doc.operations {
+        eprintln!(
+            "  {} {} -> {}",
+            op.method.upper(),
+            op.path,
+            op.operation_id,
+        );
+    }
+    eprintln!("\nPress Ctrl+C to stop.");
+
+    server.serve();
+    Ok(())
+}
+
+fn run_export(cli: &ExportArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec_text = std::fs::read_to_string(&cli.spec)
+        .with_context(|| format!("failed to read spec at {}", cli.spec.display()))?;
+
+    match cli.format {
+        ExportFormat::SwaggerEditor => {
+            let options = specforge_core::ExportOptions::default();
+            let output = specforge_core::export_spec(&spec_text, &options)
+                .context("failed to export spec for Swagger Editor")?;
+
+            match &cli.out {
+                Some(path) => {
+                    std::fs::write(path, &output)
+                        .with_context(|| format!("failed to write {}", path.display()))?;
+                    eprintln!("Wrote {}", path.display());
+                }
+                None => {
+                    println!("{output}");
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_demo(cli: &DemoArgs) -> Result<()> {
+    let output = specforge_core::generate_demo_spec();
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &output)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            println!("{output}");
+        }
+    }
+
+    Ok(())
 }

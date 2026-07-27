@@ -7,15 +7,18 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::concurrency::Semaphore;
-	use crate::dedup::RequestDeduper;
-	use crate::error::{Error, Result};
-	use crate::idempotency::{is_idempotency_candidate, new_idempotency_key, IDEMPOTENCY_HEADER};
-		use crate::middleware::{
-		    compose, BoxFuture, Middleware, MiddlewareRequest, MiddlewareResponse, NextFn, StreamMiddleware,
-		};
-	use crate::retry::{backoff_delay, is_retriable_method, RetryOptions};
-	use crate::streaming::SseStream;
+use crate::cache::ResponseCache;
+		use crate::concurrency::Semaphore;
+		use crate::ratelimit::RateLimiter;
+		use crate::telemetry::TelemetryHooks;
+		use crate::dedup::RequestDeduper;
+		use crate::error::{Error, Result};
+		use crate::idempotency::{is_idempotency_candidate, new_idempotency_key, IDEMPOTENCY_HEADER};
+			use crate::middleware::{
+			    compose, BoxFuture, Middleware, MiddlewareRequest, MiddlewareResponse, NextFn, StreamMiddleware,
+			};
+		use crate::retry::{backoff_delay, is_retriable_method, RetryOptions};
+		use crate::streaming::SseStream;
 	
 	/// Credential provider applied on every request.
 	#[derive(Clone)]
@@ -85,6 +88,11 @@ use crate::concurrency::Semaphore;
 	    }
 	}
 	
+	/// Transform response data before it reaches the application.
+	pub trait ResponseTransformer: Send + Sync {
+	    fn transform(&self, response: serde_json::Value) -> serde_json::Value;
+	}
+
 	/// HTTP client for Swagger Petstore.
 	#[derive(Clone)]
 	pub struct Client {
@@ -96,13 +104,21 @@ use crate::concurrency::Semaphore;
 	    /// Per-attempt timeout. `None` uses the underlying reqwest client default.
 	    timeout: Option<Duration>,
 	    semaphore: Option<Semaphore>,
-	    dedupe: bool,
-	    idempotency: bool,
-		    deduper: RequestDeduper,
-		    middlewares: Vec<Middleware>,
-		    stream_middlewares: Vec<StreamMiddleware>,
-		}
-	
+		    dedupe: bool,
+		    idempotency: bool,
+		    validation: bool,
+		    cache: Option<ResponseCache>,
+		    rate_limiter: Option<Arc<dyn RateLimiter>>,
+		    telemetry: Option<Arc<dyn TelemetryHooks>>,
+			    logger: Option<Arc<dyn crate::logging::Logger>>,
+			    deduper: RequestDeduper,
+			    middlewares: Vec<Middleware>,
+			    stream_middlewares: Vec<StreamMiddleware>,
+			    response_transformers: Vec<Arc<dyn ResponseTransformer>>,
+			    request_interceptors: Vec<Arc<dyn RequestInterceptor>>,
+			    response_interceptors: Vec<Arc<dyn ResponseInterceptor>>,
+			}
+
 	impl std::fmt::Debug for Client {
 	    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 	        f.debug_struct("Client")
@@ -110,13 +126,15 @@ use crate::concurrency::Semaphore;
 	            .field("auth", &self.auth)
 	            .field("retry", &self.retry)
 	            .field("timeout", &self.timeout)
-	            .field("dedupe", &self.dedupe)
-	            .field("idempotency", &self.idempotency)
-	            .field("max_concurrent", &self.semaphore.as_ref().map(|_| "set"))
-		            .field("middlewares", &self.middlewares.len())
-		            .field("stream_middlewares", &self.stream_middlewares.len())
-		            .finish()
-		    }
+		            .field("dedupe", &self.dedupe)
+			            .field("idempotency", &self.idempotency)
+			            .field("validation", &self.validation)
+			            .field("cache", &self.cache.is_some())
+			            .field("max_concurrent", &self.semaphore.as_ref().map(|_| "set"))
+			            .field("middlewares", &self.middlewares.len())
+			            .field("stream_middlewares", &self.stream_middlewares.len())
+			            .finish()
+			    }
 		}
 		
 		impl Client {
@@ -161,6 +179,17 @@ use crate::concurrency::Semaphore;
 	        B: Serialize + ?Sized,
 	    {
 	        let url = format!("{}{}", self.base_url, path);
+
+	        // Apply request interceptors before serializing the body.
+	        let body = if let Some(b) = body {
+	            let mut val = serde_json::to_value(b)?;
+	            for i in &self.request_interceptors {
+	                val = i.transform(val);
+	            }
+	            Some(val)
+	        } else {
+	            None
+	        };
 	        let body_bytes = match body {
 	            Some(b) => Some(serde_json::to_vec(b)?),
 	            None => None,
@@ -173,8 +202,49 @@ use crate::concurrency::Semaphore;
 	            None
 	        };
 	
+	        // Logger: request start.
+	        if let Some(l) = &self.logger {
+	            l.info(&format!("[request] {} {}", method.as_str(), path));
+	        }
+
+	        // Telemetry: request start.
+	        if let Some(t) = &self.telemetry {
+	            t.on_request_start(method.as_str(), path);
+	        }
+
+	        // Rate limiting: wait for permission before proceeding.
+	        if let Some(limiter) = &self.rate_limiter {
+	            limiter.acquire().await?;
+	        }
+	
 	        let query_owned: Vec<(String, String)> =
 	            query.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+	
+	        // --- ETag cache: check for GET requests ---
+	        let is_get = method == reqwest::Method::GET;
+	        let cached_entry = if is_get {
+	            if let Some(cache) = &self.cache {
+	                let entry = cache.get(&url).await;
+	                if let Some(t) = &self.telemetry {
+	                    if entry.is_some() {
+	                        if let Some(l) = &self.logger {
+	                            l.debug(&format!("[cache] HIT {} {}", method.as_str(), path));
+	                        }
+	                        t.on_cache_hit(method.as_str(), path);
+	                    } else {
+	                        if let Some(l) = &self.logger {
+	                            l.debug(&format!("[cache] MISS {} {}", method.as_str(), path));
+	                        }
+	                        t.on_cache_miss(method.as_str(), path);
+	                    }
+	                }
+	                entry
+	            } else {
+	                None
+	            }
+	        } else {
+	            None
+	        };
 	
 	        // One idempotency key for the whole retry loop.
 	        let idem_key = if self.idempotency && is_idempotency_candidate(&method) {
@@ -183,7 +253,9 @@ use crate::concurrency::Semaphore;
 	            None
 	        };
 	
-	        let (data, status) = if self.dedupe && RequestDeduper::is_safe_method(&method) {
+	        let cached_etag = cached_entry.as_ref().map(|e| e.etag.clone());
+
+	        let (data, status, resp_etag) = if self.dedupe && RequestDeduper::is_safe_method(&method) {
 	            let key = if query_owned.is_empty() {
 	                format!("{method} {url}")
 	            } else {
@@ -195,6 +267,7 @@ use crate::concurrency::Semaphore;
 	            let query_c = query_owned.clone();
 	            let body_c = body_bytes.clone();
 	            let idem_c = idem_key.clone();
+	            let inm = cached_etag.clone();
 	            self.deduper
 	                .dedupe(key, move || {
 	                    let this = this;
@@ -203,6 +276,7 @@ use crate::concurrency::Semaphore;
 	                    let query = query_c;
 	                    let body_bytes = body_c;
 	                    let idem_key = idem_c;
+		            let if_none_match = inm;
 	                    async move {
 	                        this.do_with_retry(
 	                            &method,
@@ -210,6 +284,7 @@ use crate::concurrency::Semaphore;
 	                            &query,
 	                            body_bytes.as_deref(),
 	                            idem_key.as_deref(),
+	                            if_none_match.as_deref(),
 	                        )
 	                        .await
 	                    }
@@ -222,16 +297,49 @@ use crate::concurrency::Semaphore;
 	                &query_owned,
 	                body_bytes.as_deref(),
 	                idem_key.as_deref(),
+	                cached_etag.as_deref(),
 	            )
 	            .await?
 	        };
+	
+        // --- ETag cache: handle 304 Not Modified and update on 200 ---
+        let data = if is_get {
+            if let Some(cache) = &self.cache {
+                if status == 304 {
+                    if let Some(ref entry) = cached_entry {
+                        entry.data.clone()
+                    } else {
+                        data
+                    }
+                } else if (200..300).contains(&status) && !resp_etag.is_empty() {
+                    cache.set(&url, &resp_etag, &data).await;
+                    data
+                } else {
+                    data
+                }
+            } else {
+                data
+            }
+        } else {
+            data
+        };
 	
 	        if status == 204 || data.is_empty() {
 	            return serde_json::from_str("null")
 	                .or_else(|_| serde_json::from_str("{}"))
 	                .map_err(Error::from);
 	        }
-	        Ok(serde_json::from_slice(&data)?)
+	        // Apply response transformers.
+	        let mut value: serde_json::Value = serde_json::from_slice(&data)?;
+	        for t in &self.response_transformers {
+	            value = t.transform(value);
+
+	        // Apply response interceptors.
+	        for i in &self.response_interceptors {
+	            value = i.transform(value);
+	        }
+	        }
+	        Ok(serde_json::from_value(value)?)
 	    }
 	
 	    /// Issue a streaming request (no retry). Returns the raw Response; use
@@ -243,6 +351,11 @@ use crate::concurrency::Semaphore;
 	        query: &[(&str, String)],
 	        body: Option<&[u8]>,
 	    ) -> Result<reqwest::Response> {
+	        // Rate limiting: wait for permission before proceeding.
+	        if let Some(limiter) = &self.rate_limiter {
+	            limiter.acquire().await?;
+	        }
+
 	        let url = format!("{}{}", self.base_url, path);
 	        let query_owned: Vec<(String, String)> =
 	            query.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
@@ -331,15 +444,16 @@ use crate::concurrency::Semaphore;
 	        query: &[(String, String)],
 	        body_bytes: Option<&[u8]>,
 	        idem_key: Option<&str>,
-	    ) -> Result<(Vec<u8>, u16)> {
+	        if_none_match: Option<&str>,
+	    ) -> Result<(Vec<u8>, u16, String)> {
 	        let mut last_err: Option<Error> = None;
 	        let max = self.retry.max_retries;
 	        for attempt in 0..=max {
 	            if attempt > 0 {
-	                let delay = backoff_delay(attempt - 1, &self.retry);
-	                tokio::time::sleep(delay).await;
-	            }
-	            match self.do_once(method, url, query, body_bytes, idem_key).await {
+		        let delay = backoff_delay(attempt - 1, &self.retry);
+		        tokio::time::sleep(delay).await;
+		    }
+	            let start = std::time::Instant::now(); match self.do_once(method, url, query, body_bytes, idem_key, if_none_match, start).await {
 	                Ok(v) => return Ok(v),
 	                Err(e) => {
 	                    let retriable = is_error_retriable(method, &e, &self.retry);
@@ -347,20 +461,33 @@ use crate::concurrency::Semaphore;
 	                    if !retriable || attempt == max {
 	                        break;
 	                    }
+	                    // Logger: retry notification.
+	                    if let Some(l) = &self.logger {
+	                        l.warn(&format!("[retry] {} {} error={}, attempt {}/{}", method.as_str(), url, last_err.as_ref().unwrap(), attempt + 2, max + 1));
+	                    }
+	                    // Telemetry: retry notification.
+	                    if let Some(t) = &self.telemetry {
+	                        t.on_retry(method, url, attempt + 1, &last_err.as_ref().unwrap());
+	                    }
 	                }
 	            }
 	        }
 	        Err(last_err.unwrap_or_else(|| Error::Message("request failed".into())))
 	    }
 	
-	    async fn do_once(
-	        &self,
-	        method: &reqwest::Method,
-	        url: &str,
-	        query: &[(String, String)],
-	        body_bytes: Option<&[u8]>,
-	        idem_key: Option<&str>,
-	    ) -> Result<(Vec<u8>, u16)> {
+    async fn do_once(
+        &self,
+        method: &reqwest::Method,
+        url: &str,
+        #[allow(unused_variables)]
+        start: std::time::Instant,
+        query: &[(String, String)],
+        body_bytes: Option<&[u8]>,
+        idem_key: Option<&str>,
+        if_none_match: Option<&str>,
+    ) -> Result<(Vec<u8>, u16, String)> {
+	        let _start = std::time::Instant::now();
+	
 	        // Build full URL with query for middleware visibility.
 	        let full_url = if query.is_empty() {
 	            url.to_string()
@@ -381,18 +508,24 @@ use crate::concurrency::Semaphore;
 	                HeaderValue::from_static("application/json"),
 	            );
 	        }
-	        if let Some(key) = idem_key {
-	            let name = HeaderName::from_bytes(IDEMPOTENCY_HEADER.as_bytes())
-	                .map_err(|e| Error::Message(e.to_string()))?;
-	            if !headers.contains_key(&name) {
-	                headers.insert(
-	                    name,
-	                    HeaderValue::from_str(key).map_err(|e| Error::Message(e.to_string()))?,
-	                );
-	            }
-	        }
+		        if let Some(key) = idem_key {
+		            let name = HeaderName::from_bytes(IDEMPOTENCY_HEADER.as_bytes())
+		                .map_err(|e| Error::Message(e.to_string()))?;
+		            if !headers.contains_key(&name) {
+		                headers.insert(
+		                    name,
+		                    HeaderValue::from_str(key).map_err(|e| Error::Message(e.to_string()))?,
+		                );
+		            }
+		        }
+		        if let Some(etag) = if_none_match {
+		            headers.insert(
+		                reqwest::header::IF_NONE_MATCH,
+		                HeaderValue::from_str(etag).map_err(|e| Error::Message(e.to_string()))?,
+		            );
+		        }
 	
-	        let mw_req = MiddlewareRequest {
+		        let mw_req = MiddlewareRequest {
 	            method: method.clone(),
 	            url: full_url.clone(),
 	            headers,
@@ -431,14 +564,36 @@ use crate::concurrency::Semaphore;
 	        let handler = compose(&self.middlewares, dispatch);
 	        let mw_res = handler(mw_req).await?;
 	
+	        let etag = mw_res.headers
+	            .get("etag")
+	            .and_then(|v| v.to_str().ok())
+	            .unwrap_or("")
+	            .to_string();
 	        if !(200..300).contains(&mw_res.status) {
+	            // Pass through 304 for cache handling upstream.
+	            if mw_res.status == 304 {
+		        return Ok((mw_res.body, mw_res.status, etag));
+		    }
+	            // Telemetry: request error.
+	            if let Some(t) = &self.telemetry {
+	                t.on_request_error(method, url, _start.elapsed(), &format!("HTTP {}", mw_res.status));
+	            }
 	            return Err(Error::Http {
 	                status: mw_res.status,
 	                body: String::from_utf8_lossy(&mw_res.body).into_owned(),
 	                url: full_url,
 	            });
 	        }
-	        Ok((mw_res.body, mw_res.status))
+	        // Logger: response received.
+	        if let Some(l) = &self.logger {
+	            l.info(&format!("[response] {} {} -> {}", method.as_str(), url, mw_res.status));
+	        }
+
+	        // Telemetry: successful request.
+	        if let Some(t) = &self.telemetry {
+	            t.on_request_end(method, url, _start.elapsed(), mw_res.status);
+	        }
+	        Ok((mw_res.body, mw_res.status, etag))
 	    }
 	}
 	
@@ -481,14 +636,23 @@ use crate::concurrency::Semaphore;
 	    retry: RetryOptions,
 	    timeout: Option<Duration>,
 	    max_concurrent: Option<usize>,
-	    dedupe: bool,
-	    idempotency: bool,
-		    middlewares: Vec<Middleware>,
-		    stream_middlewares: Vec<StreamMiddleware>,
-		    /// Seeded from the first API-key security scheme in the spec, if any.
-	    #[allow(dead_code)]
-	    default_api_key_header: String,
-	}
+		    dedupe: bool,
+		    idempotency: bool,
+		    validation: bool,
+		    cache: Option<ResponseCache>,
+		    rate_limiter: Option<Arc<dyn RateLimiter>>,
+		    telemetry: Option<Arc<dyn TelemetryHooks>>,
+			    middlewares: Vec<Middleware>,
+			    stream_middlewares: Vec<StreamMiddleware>,
+			    /// Seeded from the first API-key security scheme in the spec, if any.
+		    #[allow(dead_code)]
+		    default_api_key_header: String,
+		    response_transformers: Vec<Arc<dyn ResponseTransformer>>,
+		    request_interceptors: Vec<Arc<dyn RequestInterceptor>>,
+		    response_interceptors: Vec<Arc<dyn ResponseInterceptor>>,
+		    /// Injected HTTP client. When `None`, `build()` creates a default one.
+		    http_client: Option<reqwest::Client>,
+		}
 	
 	impl std::fmt::Debug for ClientBuilder {
 	    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -498,15 +662,17 @@ use crate::concurrency::Semaphore;
 	            .field("retry", &self.retry)
 	            .field("timeout", &self.timeout)
 	            .field("max_concurrent", &self.max_concurrent)
-	            .field("dedupe", &self.dedupe)
-	            .field("idempotency", &self.idempotency)
-	            .field("middlewares", &self.middlewares.len())
-	            .finish()
-	    }
-	}
-	
-	impl ClientBuilder {
-	    pub fn new() -> Self {
+		            .field("dedupe", &self.dedupe)
+			            .field("idempotency", &self.idempotency)
+			            .field("validation", &self.validation)
+			            .field("cache", &self.cache.is_some())
+			            .field("middlewares", &self.middlewares.len())
+			            .finish()
+			    }
+			}
+
+			impl ClientBuilder {
+		    pub fn new() -> Self {
 	        Self {
 	            base_url: "http://petstore.swagger.io/v1".to_string(),
 	            auth: Auth::None,
@@ -514,12 +680,20 @@ use crate::concurrency::Semaphore;
 	            retry: RetryOptions::default(),
 	            timeout: Some(Duration::from_secs(30)),
 	            max_concurrent: None,
-	            dedupe: true,
-	            idempotency: true,
+		    dedupe: true,
+		    idempotency: true,
+		    validation: false,
+		    cache: None,
+		    rate_limiter: None,
+		    telemetry: None,
+		            response_transformers: Vec::new(),
+			    request_interceptors: Vec::new(),
+			    response_interceptors: Vec::new(),
 		            middlewares: Vec::new(),
 		            stream_middlewares: Vec::new(),
-		            default_api_key_header: "".to_string(),
-	        }
+			            default_api_key_header: "".to_string(),
+		            http_client: None,
+		        }
 	    }
 	
 	    pub fn base_url(mut self, url: impl Into<String>) -> Self {
@@ -570,10 +744,39 @@ use crate::concurrency::Semaphore;
 	        self
 	    }
 	
-	    pub fn idempotency(mut self, on: bool) -> Self {
-	        self.idempotency = on;
-	        self
-	    }
+		    pub fn idempotency(mut self, on: bool) -> Self {
+		        self.idempotency = on;
+		        self
+		    }
+
+		    pub fn validation(mut self, on: bool) -> Self {
+		        self.validation = on;
+		        self
+		    }
+
+		    /// Enable GET response caching with ETag/conditional requests.
+		    pub fn cache_ttl(mut self, ttl: Duration) -> Self {
+		        self.cache = Some(ResponseCache::new(ttl));
+		        self
+		    }
+
+		    /// Set a rate limiter applied before each request.
+		    pub fn rate_limiter(mut self, limiter: Arc<dyn RateLimiter>) -> Self {
+		        self.rate_limiter = Some(limiter);
+		        self
+		    }
+
+		    /// Set telemetry hooks for request lifecycle observability.
+		    pub fn telemetry(mut self, hooks: impl crate::telemetry::TelemetryHooks + 'static) -> Self {
+		        self.telemetry = Some(Arc::new(hooks));
+		        self
+		    }
+
+		    /// Set a structured logger for SDK lifecycle events.
+		    pub fn logger(mut self, logger: impl crate::logging::Logger + 'static) -> Self {
+		        self.logger = Some(Arc::new(logger));
+		        self
+		    }
 	
 		    pub fn middleware(mut self, mw: Middleware) -> Self {
 		        self.middlewares.push(mw);
@@ -584,11 +787,39 @@ use crate::concurrency::Semaphore;
 		        self.stream_middlewares.push(mw);
 		        self
 		    }
+
+		    /// Add a response transformer applied after deserialization.
+		    pub fn response_transformer(mut self, t: impl ResponseTransformer + 'static) -> Self {
+		        self.response_transformers.push(Arc::new(t));
+		        self
+		    }
+
+	    /// Register a request interceptor applied before each request body is serialized.
+	    pub fn request_interceptor(mut self, i: impl RequestInterceptor + 'static) -> Self {
+	        self.request_interceptors.push(Arc::new(i));
+	        self
+	    }
+
+		    /// Register a response interceptor applied after each response body is deserialized.
+		    pub fn response_interceptor(mut self, i: impl ResponseInterceptor + 'static) -> Self {
+		        self.response_interceptors.push(Arc::new(i));
+		        self
+		    }
+
+			    /// Inject a custom `reqwest::Client` (e.g. for testing with `wiremock`).
+		    /// When set, `build()` skips creating a default client.
+		    pub fn http_client(mut self, client: reqwest::Client) -> Self {
+		        self.http_client = Some(client);
+		        self
+		    }
 		
 		    pub fn build(self) -> Result<Client> {
-	        let http = reqwest::Client::builder()
-	            .user_agent("specforge-rust-sdk")
-	            .build()?;
+	        let http = match self.http_client {
+	            Some(c) => c,
+	            None => reqwest::Client::builder()
+	                .user_agent("specforge-rust-sdk")
+	                .build()?,
+	        };
 	        Ok(Client {
 	            base_url: self.base_url,
 	            http,
@@ -597,11 +828,19 @@ use crate::concurrency::Semaphore;
 	            retry: self.retry,
 	            timeout: self.timeout,
 	            semaphore: self.max_concurrent.map(Semaphore::new),
-	            dedupe: self.dedupe,
-	            idempotency: self.idempotency,
-		            deduper: RequestDeduper::new(),
+		            dedupe: self.dedupe,
+		            idempotency: self.idempotency,
+		            validation: self.validation,
+			            cache: self.cache,
+			            rate_limiter: self.rate_limiter,
+			    telemetry: self.telemetry,
+			    logger: self.logger,
+			            deduper: RequestDeduper::new(),
 		            middlewares: self.middlewares,
 		            stream_middlewares: self.stream_middlewares,
+		            response_transformers: self.response_transformers,
+			    request_interceptors: self.request_interceptors,
+			    response_interceptors: self.response_interceptors,
 		        })
 	    }
 	}

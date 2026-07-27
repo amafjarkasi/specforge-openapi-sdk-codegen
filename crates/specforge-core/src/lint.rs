@@ -221,6 +221,96 @@ fn check_deprecated_operations(_doc: &Document, _config: &LintConfig, _diags: &m
     //   }
 }
 
+// ─── Swagger Editor compatibility ───────────────────────────────────────────
+
+/// Run lints specifically for Swagger Editor compatibility.
+///
+/// This runs the standard lints plus additional checks required for
+/// compatibility with Swagger Editor and other visual spec editors:
+///
+/// - All operations must have an `operationId`
+/// - All schemas must have descriptions
+/// - No external `$ref` pointers outside `#/components/`
+///
+/// The `raw_spec` parameter is the parsed JSON value of the OpenAPI spec
+/// (used for the external `$ref` check).
+pub fn lint_swagger_editor(
+    doc: &Document,
+    raw_spec: Option<&serde_json::Value>,
+) -> Vec<Diagnostic> {
+    let config = LintConfig::swagger_editor_profile();
+    let mut diags = lint_with_config(doc, &config);
+
+    // Check for external $ref pointers if raw spec is available.
+    if let Some(spec) = raw_spec {
+        check_external_refs(spec, &mut diags);
+    }
+
+    diags
+}
+
+/// Check that all `$ref` pointers reference components within the spec.
+///
+/// External refs (to other files) are not supported by Swagger Editor
+/// when loading a single-file bundle. This function walks the raw JSON
+/// spec and flags any `$ref` that doesn't point to `#/components/...`.
+fn check_external_refs(spec: &serde_json::Value, diags: &mut Vec<Diagnostic>) {
+    let mut ref_paths = Vec::new();
+    collect_ref_paths(spec, &mut ref_paths, "");
+
+    for (path, reference) in ref_paths {
+        if !reference.starts_with("#/") {
+            diags.push(Diagnostic {
+                severity: Severity::Error,
+                message: format!(
+                    "external $ref not supported by Swagger Editor: {:?}",
+                    reference
+                ),
+                path: path.trim_start_matches('.').to_string(),
+            });
+        } else if !reference.starts_with("#/components/") {
+            diags.push(Diagnostic {
+                severity: Severity::Warning,
+                message: format!(
+                    "$ref outside components may not resolve in Swagger Editor: {:?}",
+                    reference
+                ),
+                path: path.trim_start_matches('.').to_string(),
+            });
+        }
+    }
+}
+
+/// Recursively collect all `$ref` values from a JSON tree with their paths.
+fn collect_ref_paths(
+    value: &serde_json::Value,
+    refs: &mut Vec<(String, String)>,
+    current_path: &str,
+) {
+    match value {
+        serde_json::Value::Object(obj) => {
+            if let Some(ref_val) = obj.get("$ref").and_then(|v| v.as_str()) {
+                refs.push((current_path.to_string(), ref_val.to_string()));
+            }
+            for (key, val) in obj {
+                let child_path = if current_path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", current_path, key)
+                };
+                collect_ref_paths(val, refs, &child_path);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for (i, val) in arr.iter().enumerate() {
+                let child_path = format!("{}[{}]", current_path, i);
+                collect_ref_paths(val, refs, &child_path);
+            }
+        }
+        _ => {}
+    }
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Walk all operations and collect every schema name reachable via types.

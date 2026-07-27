@@ -175,6 +175,66 @@ impl LintConfig {
         }
         Self::default()
     }
+
+    /// Create a lint profile for Swagger Editor compatibility.
+    ///
+    /// This enables all rules that are required or recommended for
+    /// compatibility with Swagger Editor and other visual spec editors:
+    ///
+    /// - `missing-operation-id` (error): All operations must have an operationId
+    /// - `missing-schema-description` (warning): All schemas should have descriptions
+    /// - `missing-response-description` (warning): All responses should have descriptions
+    /// - `missing-operation-summary` (warning): All operations should have summaries
+    /// - `duplicate-operation-ids` (error): No duplicate operationIds
+    /// - `unused-schema` (warning): No unused schemas
+    /// - `path-trailing-slash` (warning): No trailing slashes on paths
+    /// - `deprecated-operation` (warning): Flag deprecated operations
+    pub fn swagger_editor_profile() -> Self {
+        Self {
+            rules: vec![
+                LintRule {
+                    name: "duplicate-operation-ids".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Error,
+                },
+                LintRule {
+                    name: "missing-response-description".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+                LintRule {
+                    name: "missing-operation-summary".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+                LintRule {
+                    name: "unused-schema".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+                LintRule {
+                    name: "missing-operation-id".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Error,
+                },
+                LintRule {
+                    name: "missing-schema-description".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+                LintRule {
+                    name: "path-trailing-slash".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+                LintRule {
+                    name: "deprecated-operation".into(),
+                    enabled: true,
+                    severity: RuleSeverity::Warning,
+                },
+            ],
+        }
+    }
 }
 
 #[cfg(test)]

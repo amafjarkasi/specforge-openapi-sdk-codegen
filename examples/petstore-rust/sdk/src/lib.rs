@@ -3,23 +3,32 @@
 //! Generated OpenAPI client.
 
 pub mod api;
+pub mod cache;
 pub mod client;
 pub mod concurrency;
 pub mod dedup;
 pub mod error;
 pub mod idempotency;
+pub mod logging;
 pub mod middleware;
 pub mod models;
 pub mod paginate;
+pub mod ratelimit;
 pub mod retry;
 pub mod streaming;
+pub mod telemetry;
+pub mod validate;
 
-pub use client::{Auth, Client, ClientBuilder};
+pub use client::{Auth, Client, ClientBuilder, ResponseTransformer};
+pub use interceptors::{RequestInterceptor, ResponseInterceptor};
 pub use concurrency::Semaphore;
 pub use dedup::RequestDeduper;
 pub use error::{Error, Result};
-pub use idempotency::{{is_idempotency_candidate, new_idempotency_key, IDEMPOTENCY_HEADER}};
-pub use middleware::{{Middleware, MiddlewareRequest, MiddlewareResponse, StreamMiddleware}};
+pub use idempotency::{is_idempotency_candidate, new_idempotency_key, IDEMPOTENCY_HEADER};
+pub use logging::{ConsoleLogger, Logger, NoopLogger};
+pub use middleware::{Middleware, MiddlewareRequest, MiddlewareResponse, StreamMiddleware};
 pub use paginate::{cursor_paginate, offset_paginate, CursorPage, OffsetPage};
+pub use ratelimit::{RateLimiter, SlidingWindow, TokenBucket};
 pub use retry::RetryOptions;
-pub use streaming::{{ServerSentEvent, SseStream}};
+pub use telemetry::{MetricsCollector, TelemetryHooks};
+pub use streaming::{ServerSentEvent, SseStream};

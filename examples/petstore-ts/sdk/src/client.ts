@@ -9,6 +9,20 @@ import { Semaphore, createSemaphore, UNLIMITED } from "./concurrency";
 import { RequestDeduper } from "./dedup";
 import { IDEMPOTENCY_HEADER, isIdempotencyCandidate, newIdempotencyKey } from "./idempotency";
 import { Middleware, MiddlewareRequest, composeMiddleware } from "./middleware";
+import { validateRequest, validateResponse, type SchemaType, type ValidationError } from "./validate";
+import { ResponseCache } from "./cache";
+import { type Logger, ConsoleLogger } from "./logging";
+import { type RequestInterceptor, type ResponseInterceptor } from "./interceptors";
+
+/**
+ * Transform response data before it reaches the application. Transformers are
+ * applied in order after response validation (when enabled) and before the
+ * value is returned to the caller.
+ */
+export interface ResponseTransformer {
+  /** Return a new value derived from `response`, or `response` unchanged. */
+  transform(response: unknown): unknown;
+}
 
 export interface ApiClientOptions {
   /** Override the spec's base URL. Defaults to `http://petstore.swagger.io/v1`. */
@@ -31,6 +45,20 @@ export interface ApiClientOptions {
   fetch?: typeof fetch;
   /** Extra default headers merged onto every request. */
   defaultHeaders?: Record<string, string>;
+  /** Enable runtime request/response validation against the OpenAPI schema. Default false. */
+  validate?: boolean;
+  /** Pre-configured ResponseCache instance. Takes precedence over `cacheTtlMs`. */
+  cache?: ResponseCache;
+  /** Enable GET response caching with ETag/conditional requests. Sets the TTL in ms. */
+  cacheTtlMs?: number;
+  /** Response transformers applied after validation, in order. */
+  responseTransformers?: ResponseTransformer[];
+  /** Structured logger for SDK lifecycle events (requests, retries, cache). */
+  logger?: Logger;
+  /** Request interceptors applied before each request body is serialized. */
+  requestInterceptors?: RequestInterceptor[];
+  /** Response interceptors applied after each response body is deserialized. */
+  responseInterceptors?: ResponseInterceptor[];
 }
 
 /**
@@ -54,6 +82,18 @@ export class ApiClient {
   private readonly useDedupe: boolean;
   private readonly useIdempotency: boolean;
   private middlewares: Middleware[] = [];
+  /** When true, operations validate request/response bodies against the schema. */
+  readonly validate: boolean;
+  /** Optional response cache for GET requests with ETag support. */
+  readonly cache?: ResponseCache;
+  /** Response transformers applied after validation, in order. */
+  private readonly responseTransformers: ResponseTransformer[];
+  /** Structured logger for SDK lifecycle events. */
+  private readonly logger: Logger;
+  /** Request interceptors applied before each request body is serialized. */
+  private readonly requestInterceptors: RequestInterceptor[];
+  /** Response interceptors applied after each response body is deserialized. */
+  private readonly responseInterceptors: ResponseInterceptor[];
 
   constructor(opts: ApiClientOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? "http://petstore.swagger.io/v1").replace(/\/$/, "");
@@ -67,6 +107,12 @@ export class ApiClient {
     this.deduper = new RequestDeduper();
     this.useDedupe = opts.dedupe ?? true;
     this.useIdempotency = opts.idempotency ?? true;
+    this.validate = opts.validate ?? false;
+    this.cache = opts.cache ?? (opts.cacheTtlMs !== undefined ? new ResponseCache(opts.cacheTtlMs) : undefined);
+    this.responseTransformers = opts.responseTransformers ?? [];
+    this.logger = opts.logger ?? new ConsoleLogger();
+    this.requestInterceptors = opts.requestInterceptors ?? [];
+    this.responseInterceptors = opts.responseInterceptors ?? [];
     if (opts.middleware) for (const m of opts.middleware) this.middlewares.push(m);
   }
 
@@ -88,20 +134,63 @@ export class ApiClient {
     }
     const url = this.baseUrl + path + (requestOptions?.query ? "?" + encodeQuery(requestOptions.query) : "");
 
+    // --- ETag cache: check for GET requests before dispatching ---
+    const isGet = method.toUpperCase() === "GET";
+    const cachedEntry = isGet && this.cache ? this.cache.get(url) : undefined;
+    if (cachedEntry) {
+      this.logger.debug(`[cache] HIT ${method} ${path}`);
+    } else if (isGet && this.cache) {
+      this.logger.debug(`[cache] MISS ${method} ${path}`);
+    }
+    const mergedHeaders: Record<string, string> | undefined =
+      cachedEntry
+        ? { ...requestOptions?.headers, "If-None-Match": cachedEntry.etag }
+        : requestOptions?.headers;
+
     // The core dispatch loop (retry-aware). Split out so dedup can memoize it.
     const dispatch = async (): Promise<Response> => {
       const release = await this.semaphore.acquire();
       try {
-        return await this.dispatchWithRetry(method, url, requestOptions);
+        return await this.dispatchWithRetry(method, url, { ...requestOptions, headers: mergedHeaders });
       } finally {
         release();
       }
     };
 
+    let response: Response;
     if (this.useDedupe) {
-      return this.deduper.dedupe(method, url, dispatch);
+      response = await this.deduper.dedupe(method, url, dispatch);
+    } else {
+      response = await dispatch();
     }
-    return dispatch();
+
+    // --- ETag cache: handle 304 Not Modified and update on 200 ---
+    if (isGet && this.cache) {
+      if (response.status === 304 && cachedEntry) {
+        // Return cached data as a synthetic Response.
+        return new Response(JSON.stringify(cachedEntry.data), {
+          status: 200,
+          statusText: "OK (cached)",
+          headers: { "content-type": "application/json", "x-cache": "HIT" },
+        });
+      }
+      if (response.ok) {
+        const etag = response.headers.get("etag");
+        if (etag) {
+          // Buffer the body so we can both return it and cache it.
+          const cloned = response.clone();
+          const body = await cloned.text();
+          try {
+            this.cache.set(url, etag, JSON.parse(body));
+          } catch {
+            // Non-JSON body — cache the raw text.
+            this.cache.set(url, etag, body);
+          }
+        }
+      }
+    }
+
+    return response;
   }
 
   /** Retry loop around a single attempt. Holds a semaphore slot while running. */
@@ -110,7 +199,9 @@ export class ApiClient {
     url: string,
     requestOptions: RequestOptions | undefined,
   ): Promise<Response> {
-    const maxRetries = this.retry.maxRetries;
+    const perCallRetry = requestOptions?.retry;
+    const maxRetries = perCallRetry?.maxRetries ?? this.retry.maxRetries;
+    const retryable = perCallRetry?.retryable ?? isRetriableMethod(method);
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       // Per-attempt headers: fresh copy + auth + idempotency key on first try.
       const headers: Record<string, string> = { ...this.defaultHeaders, ...requestOptions?.headers };
@@ -131,6 +222,8 @@ export class ApiClient {
       // If the caller aborts, propagate to our controller too.
       const onCallerAbort = callerSignal ? () => ownController?.abort() : undefined;
       callerSignal?.addEventListener("abort", onCallerAbort!, { once: true });
+
+      this.logger.info(`[request] ${method} ${url}${attempt > 0 ? ` (attempt ${attempt + 1})` : ""}`);
 
       // Build the request descriptor for middleware.
       const mwReq: MiddlewareRequest = {
@@ -156,13 +249,17 @@ export class ApiClient {
         if (timer) clearTimeout(timer);
         callerSignal?.removeEventListener("abort", onCallerAbort!);
 
-        if (response.ok) return response;
+        if (response.ok) {
+          this.logger.info(`[response] ${method} ${url} -> ${response.status}`);
+          return response;
+        }
 
         const shouldRetry =
           attempt < maxRetries &&
-          isRetriableMethod(method) &&
+          retryable &&
           this.retry.retryOnStatuses.includes(response.status);
         if (shouldRetry) {
+          this.logger.warn(`[retry] ${method} ${url} status=${response.status}, attempt ${attempt + 2}/${maxRetries + 1}`);
           await sleep(backoffDelay(attempt, this.retry));
           continue;
         }
@@ -178,7 +275,8 @@ export class ApiClient {
         if (e instanceof DOMException && e.name === "AbortError") {
           throw timeoutError(Date.now() - startedAt);
         }
-        if (attempt < maxRetries && isRetriableMethod(method)) {
+        if (attempt < maxRetries && retryable) {
+          this.logger.warn(`[retry] ${method} ${url} error=${(e as Error)?.message}, attempt ${attempt + 2}/${maxRetries + 1}`);
           await sleep(backoffDelay(attempt, this.retry));
           continue;
         }
@@ -190,8 +288,22 @@ export class ApiClient {
 
   /** Convenience: request + parse JSON body. Throws typed errors on !ok. */
   async requestJson<T>(method: string, path: string, requestOptions?: RequestOptions): Promise<T> {
-    const response = await this.request(method, path, requestOptions);
-    return (await parseBody(response)) as T;
+    // Apply request interceptors to the body before sending.
+    let body = requestOptions?.body;
+    for (const interceptor of this.requestInterceptors) {
+      body = interceptor.transform(body);
+    }
+    const interceptedOptions = requestOptions ? { ...requestOptions, body } : undefined;
+    const response = await this.request(method, path, interceptedOptions);
+    let result = (await parseBody(response)) as T;
+    // Apply response interceptors after parsing.
+    for (const interceptor of this.responseInterceptors) {
+      result = interceptor.transform(result) as T;
+    }
+    for (const t of this.responseTransformers) {
+      result = t.transform(result) as T;
+    }
+    return result;
   }
 }
 
@@ -211,6 +323,7 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Caller-provided cancellation signal. Aborting rejects the promise. */
   signal?: AbortSignal;
+  retry?: { maxRetries?: number; retryable?: boolean };
 }
 
 /** URL-encode a query record, skipping undefined/null. Array values repeat the
