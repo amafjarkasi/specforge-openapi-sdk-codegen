@@ -141,7 +141,8 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | **Telemetry** | Request metrics, error tracking, cache hit/miss | Monitor SDK performance |
 | **i18n** | Localized error messages (8 locales) | International error handling |
 | **Interceptors** | Request/response body transformers | Post-process data without middleware |
-| **Dependency injection** | Custom HTTP client injection (Go `WithHTTPClient`, Rust `.http_client()`) | Test with mock HTTP clients |
+| **Dependency injection** | `ServiceContainer` for all 3 SDKs (HTTP client, cache, rate limiter, logger, telemetry) | Test with mock HTTP clients |
+| **Validation middleware** | Auto-validate all requests/responses against the spec | Catch contract violations without manual validation |
 
 ### Language-specific highlights
 
@@ -207,10 +208,11 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge evolution` | Track schema changes over git commits |
 | `specforge infer` | Generate an OpenAPI spec from sample JSON |
 | `specforge verify` | Validate a running API against the spec |
+| `specforge changelog` | Auto-generate CHANGELOG from spec changes |
 
 ### Quality gates
 
-- **208+ unit tests** across core, emitters, and CLI
+- **221 unit tests** across core, emitters, and CLI
 - **Regression suite** on petstore (vendored) + GitHub / Stripe / Kubernetes / Atlassian / OpenAI (large real-world specs)
 - **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
