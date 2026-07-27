@@ -82,6 +82,8 @@ enum Commands {
     WorkspaceInit(WorkspaceInitArgs),
     /// Compare two spec versions and generate a migration guide.
     Migrate(MigrateArgs),
+    /// Analyze a spec for redundancy, unused schemas, and size issues.
+    Analyze(AnalyzeArgs),
 }
 
 #[derive(Args, Debug)]
@@ -340,6 +342,16 @@ struct MigrateArgs {
     log_level: LogLevel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum AnalyzeFormat { Text, Json, Markdown }
+#[derive(Args, Debug)]
+struct AnalyzeArgs {
+    spec: PathBuf,
+    #[arg(long, value_enum, default_value_t = AnalyzeFormat::Text)]
+    format: AnalyzeFormat,
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -357,6 +369,7 @@ fn main() -> ExitCode {
         Commands::Workspace(args) => args.log_level,
         Commands::WorkspaceInit(args) => args.log_level,
         Commands::Migrate(args) => args.log_level,
+        Commands::Analyze(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -506,6 +519,14 @@ fn main() -> ExitCode {
             }
         },
         Commands::Migrate(args) => match run_migrate(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Analyze(args) => match run_analyze(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
@@ -1302,6 +1323,51 @@ fn run_migrate(cli: &MigrateArgs) -> Result<()> {
     Ok(())
 }
 
+
+fn run_analyze(cli: &AnalyzeArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec).with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+    info!("resolved: {} schemas, {} operations", doc.schemas.models.len(), doc.operations.len());
+    let report = specforge_core::analyze_spec(&doc);
+    match cli.format {
+        AnalyzeFormat::Json => { println!("{}", serde_json::to_string_pretty(&report).context("failed to serialize")?); }
+        AnalyzeFormat::Markdown => { print_analysis_markdown(&report); }
+        AnalyzeFormat::Text => { print_analysis_text(&report); }
+    }
+    Ok(())
+}
+fn print_analysis_text(report: &specforge_core::AnalysisReport) {
+    eprintln!("=== Spec Bundle Analysis ===");
+    eprintln!();
+    eprintln!("Schemas:     {}", report.total_schemas);
+    eprintln!("Operations:  {}", report.total_operations);
+    eprintln!("IR size:     {:.1} KB", report.total_size_bytes as f64 / 1024.0);
+    eprintln!();
+    if !report.unused_schemas.is_empty() { eprintln!("Unused schemas ({}):", report.unused_schemas.len()); for name in &report.unused_schemas { eprintln!("  - {name}"); } eprintln!(); }
+    if !report.duplicate_schemas.is_empty() { eprintln!("Duplicate schemas ({} pair(s)):", report.duplicate_schemas.len()); for (a, b) in &report.duplicate_schemas { eprintln!("  - {a} <-> {b}"); } eprintln!(); }
+    if !report.large_schemas.is_empty() { eprintln!("Large schemas (>20 properties):"); for (name, count) in &report.large_schemas { eprintln!("  - {name}: {count} properties"); } eprintln!(); }
+    if !report.deep_refs.is_empty() { eprintln!("Deep reference chains:"); for (name, depth) in &report.deep_refs { eprintln!("  - {name}: depth {depth}"); } eprintln!(); }
+    if report.recommendations.is_empty() { eprintln!("No issues found. Spec looks healthy."); }
+    else { eprintln!("Recommendations ({}):", report.recommendations.len()); for (i, rec) in report.recommendations.iter().enumerate() { eprintln!("  {}. {rec}", i + 1); } }
+}
+fn print_analysis_markdown(report: &specforge_core::AnalysisReport) {
+    println!("# Spec Bundle Analysis");
+    println!();
+    println!("| Metric | Value |");
+    println!("|--------|-------|");
+    println!("| Schemas | {} |", report.total_schemas);
+    println!("| Operations | {} |", report.total_operations);
+    println!("| IR size | {:.1} KB |", report.total_size_bytes as f64 / 1024.0);
+    println!();
+    if !report.unused_schemas.is_empty() { println!("## Unused Schemas ({})", report.unused_schemas.len()); println!(); for name in &report.unused_schemas { println!("- `{name}`"); } println!(); }
+    if !report.duplicate_schemas.is_empty() { println!("## Duplicate Schemas ({} pair(s))", report.duplicate_schemas.len()); println!(); for (a, b) in &report.duplicate_schemas { println!("- `{a}` <-> `{b}`"); } println!(); }
+    if !report.large_schemas.is_empty() { println!("## Large Schemas (>20 properties)"); println!(); for (name, count) in &report.large_schemas { println!("- `{name}`: {count} properties"); } println!(); }
+    if !report.deep_refs.is_empty() { println!("## Deep Reference Chains"); println!(); for (name, depth) in &report.deep_refs { println!("- `{name}`: depth {depth}"); } println!(); }
+    if !report.recommendations.is_empty() { println!("## Recommendations"); println!(); for (i, rec) in report.recommendations.iter().enumerate() { println!("{}. {rec}", i + 1); } }
+    else { println!("No issues found. Spec looks healthy."); }
+}
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.
 fn upgrade_30_to_31(json: &mut JsonValue) {
     match json {

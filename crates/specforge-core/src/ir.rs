@@ -66,6 +66,10 @@ pub enum Scalar {
     Integer64,
     Float,
     Boolean,
+    /// `format: base64` encoded binary data.
+    Base64,
+    /// Raw binary data (`type: string, format: binary`).
+    Binary,
 }
 
 /// OpenAPI `discriminator` metadata for a `oneOf`/`anyOf` composition.

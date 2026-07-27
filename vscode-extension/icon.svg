@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Fox head with forge theme -->
+  <rect width="128" height="128" rx="20" fill="#1a0f0a"/>
+  <ellipse cx="64" cy="64" rx="40" ry="36" fill="#ea580c"/>
+  <!-- Eyes -->
+  <ellipse cx="52" cy="56" rx="5" ry="6" fill="#fef3c7"/>
+  <ellipse cx="76" cy="56" rx="5" ry="6" fill="#fef3c7"/>
+  <circle cx="53" cy="56" r="3" fill="#1e293b"/>
+  <circle cx="77" cy="56" r="3" fill="#1e293b"/>
+  <!-- Goggles -->
+  <circle cx="52" cy="48" r="8" fill="none" stroke="#94a3b8" stroke-width="2.5"/>
+  <circle cx="76" cy="48" r="8" fill="none" stroke="#94a3b8" stroke-width="2.5"/>
+  <!-- Forge mark -->
+  <circle cx="64" cy="85" r="6" fill="#fbbf24"/>
+  <path d="M64 79v12M58 85h12" stroke="#1a0f0a" stroke-width="2" stroke-linecap="round"/>
+</svg>
