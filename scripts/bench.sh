@@ -30,6 +30,14 @@ bench() {
   rm -rf "$out"
 }
 
+bench_profile() {
+  local spec="$1" lang="$2" name="$3" label="$4"
+  local out
+  out=$(mktemp -d)
+  "$BIN" generate "$spec" -o "$out" -l "$lang" -n "$name" --profile 2>&1
+  rm -rf "$out"
+}
+
 echo "=== specforge generation benchmarks ==="
 echo ""
 
@@ -48,5 +56,15 @@ if [[ -f "$STRIPE" ]]; then
   bench "$STRIPE" rust "bench_stripe_sdk" "stripe"
   echo ""
 fi
+
+echo "=== Profile: GitHub API spec ==="
+if [[ -f "$GITHUB" ]]; then
+  bench_profile "$GITHUB" ts "@bench/github-profile" "github"
+  echo ""
+fi
+
+echo "=== Profile: petstore ==="
+bench_profile "fixtures/petstore.yaml" ts "@bench/petstore-profile" "petstore"
+echo ""
 
 echo "done."

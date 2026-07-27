@@ -86,6 +86,16 @@ fn package_json(doc: &Document, opts: &GeneratorOptions) -> String {
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     }},
+    "./api": {{
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js",
+      "require": "./dist/api/index.cjs"
+    }},
+    "./api/*": {{
+      "types": "./dist/api/*.d.ts",
+      "import": "./dist/api/*.js",
+      "require": "./dist/api/*.cjs"
+    }},
     "./package.json": "./package.json"
   }},
   "files": ["dist", "src"],
@@ -139,8 +149,12 @@ fn tsup_config() -> String {
 
 // Dual ESM/CJS output with type declarations. ESM is the primary format for
 // tree-shaking; CJS keeps older consumers working.
+//
+// Two entry points: the root barrel (client + models) and the API barrel
+// (convenience re-export of all tag modules). Consumers can also import
+// individual tag files directly (e.g. "sdk/api/Pets") for maximum tree-shaking.
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ["src/index.ts", "src/api/index.ts"],
   format: ["esm", "cjs"],
   dts: true,
   sourcemap: true,

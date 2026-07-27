@@ -10,6 +10,7 @@
 //! (not failed) when the network is unavailable. The petstore fixture is
 //! vendored and always runs.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 /// A fixture: a human name, and either a vendored path or a download URL.
@@ -427,4 +428,74 @@ fn assert_cargo_check(dir: &Path) -> Result<(), String> {
             String::from_utf8_lossy(&online.stderr)
         ))
     }
+}
+
+/// Helper: collect the relative file paths produced by a generate run.
+fn generated_files(dir: &Path) -> BTreeSet<String> {
+    fn walk(dir: &Path, base: &Path, out: &mut BTreeSet<String>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, base, out);
+            } else {
+                let rel = path.strip_prefix(base).unwrap().to_string_lossy().to_string();
+                out.insert(rel);
+            }
+        }
+    }
+    let mut set = BTreeSet::new();
+    walk(dir, dir, &mut set);
+    set
+}
+
+#[test]
+fn profile_flag_does_not_affect_output() {
+    let f = &FIXTURES[0];
+    let path = spec_path(f).expect("petstore is vendored");
+
+    // Generate without --profile.
+    let out_normal = std::env::temp_dir().join("specforge-profile-test-normal");
+    let _ = std::fs::remove_dir_all(&out_normal);
+    let status = std::process::Command::new("cargo")
+        .args([
+            "run", "-q", "-p", "specforge-cli", "--", "generate",
+            path.to_str().unwrap(),
+            "-o", out_normal.to_str().unwrap(),
+            "-l", "ts",
+        ])
+        .output()
+        .expect("run generate without --profile");
+    assert!(status.status.success(), "generate without --profile failed:\n{}", String::from_utf8_lossy(&status.stderr));
+
+    // Generate with --profile.
+    let out_profile = std::env::temp_dir().join("specforge-profile-test-profile");
+    let _ = std::fs::remove_dir_all(&out_profile);
+    let status = std::process::Command::new("cargo")
+        .args([
+            "run", "-q", "-p", "specforge-cli", "--", "generate",
+            path.to_str().unwrap(),
+            "-o", out_profile.to_str().unwrap(),
+            "-l", "ts",
+            "--profile",
+        ])
+        .output()
+        .expect("run generate with --profile");
+    assert!(status.status.success(), "generate with --profile failed:\n{}", String::from_utf8_lossy(&status.stderr));
+
+    // Profile output goes to stderr, verify it contains expected keys.
+    let stderr = String::from_utf8_lossy(&status.stderr);
+    assert!(stderr.contains("Profile:"), "expected 'Profile:' in stderr, got:\n{stderr}");
+    assert!(stderr.contains("parse:"), "expected 'parse:' in stderr, got:\n{stderr}");
+    assert!(stderr.contains("resolve:"), "expected 'resolve:' in stderr, got:\n{stderr}");
+    assert!(stderr.contains("emit:"), "expected 'emit:' in stderr, got:\n{stderr}");
+    assert!(stderr.contains("total:"), "expected 'total:' in stderr, got:\n{stderr}");
+
+    // Both runs must produce the same set of files.
+    let files_normal = generated_files(&out_normal);
+    let files_profile = generated_files(&out_profile);
+    assert_eq!(
+        files_normal, files_profile,
+        "--profile changed the set of generated files:\nnormal: {files_normal:?}\nprofile: {files_profile:?}"
+    );
 }

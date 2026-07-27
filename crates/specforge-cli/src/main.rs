@@ -381,10 +381,14 @@ fn main() -> ExitCode {
 fn run_generate(cli: GenerateArgs) -> Result<usize> {
     let start = std::time::Instant::now();
 
-    info!("reading spec: {}", cli.spec.display());
+    // Resolve the spec path: if it's a directory, use --version to find the right file.
+    let spec_path = resolve_spec_path(&cli.spec, cli.version.as_deref())
+        .context("failed to resolve spec path")?;
+
+    info!("reading spec: {}", spec_path.display());
     let t0 = std::time::Instant::now();
-    let spec = parse_file(&cli.spec)
-        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+    let spec = parse_file(&spec_path)
+        .with_context(|| format!("failed to parse spec at {}", spec_path.display()))?;
     let parse_time = t0.elapsed();
 
     info!("resolving document into IR");
@@ -585,14 +589,21 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
         return Ok(());
     }
 
+    let start = std::time::Instant::now();
+
     let spec_path = cli.spec.as_ref().context("a spec file is required (or use --schema)")?;
     info!("reading spec: {}", spec_path.display());
+    let t0 = std::time::Instant::now();
     let spec = parse_file(spec_path)
         .with_context(|| format!("failed to parse spec at {}", spec_path.display()))?;
+    let parse_time = t0.elapsed();
 
     info!("resolving document into IR");
+    let t1 = std::time::Instant::now();
     let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+    let resolve_time = t1.elapsed();
 
+    let t2 = std::time::Instant::now();
     if cli.stream {
         // NDJSON streaming mode: header, then one line per schema, then one per operation.
         let header = serde_json::json!({
@@ -632,6 +643,16 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
             .context("failed to serialize IR to JSON")?;
         println!("{json}");
     }
+    let serialize_time = t2.elapsed();
+
+    if cli.profile {
+        eprintln!("Profile:");
+        eprintln!("  parse:     {parse_time:?}");
+        eprintln!("  resolve:   {resolve_time:?}");
+        eprintln!("  serialize: {serialize_time:?}");
+        eprintln!("  total:     {:?}", start.elapsed());
+    }
+
     Ok(())
 }
 
@@ -790,6 +811,44 @@ fn run_test(cli: &TestArgs) -> Result<usize> {
 
     eprintln!("Wrote {}", path.display());
     Ok(1)
+}
+
+fn run_versions(cli: VersionsArgs) -> Result<()> {
+    let path = &cli.spec;
+
+    if path.is_file() {
+        // Single file: show its version from the info block.
+        info!("reading spec: {}", path.display());
+        let spec = parse_file(path)
+            .with_context(|| format!("failed to parse spec at {}", path.display()))?;
+        eprintln!("version: {}", spec.info.version);
+        eprintln!("file:    {}", path.display());
+        return Ok(());
+    }
+
+    if !path.is_dir() {
+        bail!("path does not exist: {}", path.display());
+    }
+
+    info!("scanning directory: {}", path.display());
+    let versions = scan_versions(path);
+
+    if versions.is_empty() {
+        bail!("no OpenAPI spec files found in {}", path.display());
+    }
+
+    // Print a table: version | file
+    let max_ver_len = versions.iter().map(|v| v.version.len()).max().unwrap_or(7);
+    let ver_header = "VERSION";
+    let file_header = "FILE";
+    eprintln!("{:<width$}  {}", ver_header, file_header, width = max_ver_len.max(ver_header.len()));
+    eprintln!("{:-<width$}  {:-<40}", "", "", width = max_ver_len.max(ver_header.len()));
+    for info in &versions {
+        eprintln!("{:<width$}  {}", info.version, info.path.display(), width = max_ver_len.max(ver_header.len()));
+    }
+
+    eprintln!("\n{} version(s) found", versions.len());
+    Ok(())
 }
 
 fn run_convert(cli: &ConvertArgs) -> Result<()> {
