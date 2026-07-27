@@ -251,6 +251,7 @@ mod tests {
             security: vec![],
             schemas: SchemaRegistry { models: schema_map },
             operations: ops,
+            webhooks: vec![],
         }
     }
 

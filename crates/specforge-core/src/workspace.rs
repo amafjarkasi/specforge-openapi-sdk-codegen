@@ -34,7 +34,7 @@ pub struct WorkspaceOutput {
     /// Output directory (relative to the workspace config file).
     pub out: String,
     /// Optional package / module / crate name.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 

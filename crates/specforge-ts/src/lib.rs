@@ -21,7 +21,7 @@ pub mod util;
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
-use specforge_core::Document;
+use specforge_core::{Document, Webhook};
 
 use crate::util::path_str;
 
@@ -63,6 +63,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     // Operations — one file per tag.
     files.extend(operations::collect(doc, &opts.out_dir)?);
 
+    // Webhooks — handler types (only if webhooks are present).
+    if !doc.webhooks.is_empty() {
+        files.extend(collect_webhooks(&doc.webhooks, &opts.out_dir)?);
+    }
+
     // Barrel index (root exports client + models only; API tags are tree-shakeable).
     files.extend(collect_index(doc, &opts.out_dir)?);
 
@@ -84,6 +89,52 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let mut written = written;
     written.sort();
     Ok(written)
+}
+
+/// Collect `src/webhooks.ts` content for webhook handler types.
+fn collect_webhooks(
+    webhooks: &[Webhook],
+    out_dir: &Path,
+) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+    let src = out_dir.join("src");
+    let mut body = String::from("/* eslint-disable */\n// Generated webhook types. DO NOT EDIT.\n\n");
+
+    // Payload interfaces for each webhook.
+    for wh in webhooks {
+        let payload_name = format!("{}WebhookPayload", name::pascal(&wh.name));
+        if let Some(d) = &wh.description {
+            body.push_str(&format!("/**\n * {}\n */\n", d));
+        } else if let Some(s) = &wh.summary {
+            body.push_str(&format!("/**\n * {}\n */\n", s));
+        }
+        if let Some(rb) = &wh.request_body {
+            let ts_type = types::render(&rb.ty);
+            body.push_str(&format!("export type {payload_name} = {ts_type};\n\n"));
+        } else {
+            body.push_str(&format!("export type {payload_name} = unknown;\n\n"));
+        }
+    }
+
+    // Generic WebhookHandler type.
+    body.push_str("/**\n * A webhook handler receives a typed payload and returns void (or a Promise<void>).\n */\n");
+    body.push_str("export type WebhookHandler<T> = (payload: T) => Promise<void> | void;\n\n");
+
+    // Factory function for each webhook.
+    for wh in webhooks {
+        let payload_name = format!("{}WebhookPayload", name::pascal(&wh.name));
+        let factory_name = name::camel(&format!("create_{}_webhook_handler", wh.name));
+        body.push_str(&format!(
+            "/**\n * Create a typed handler for the `{}` webhook.\n */\n",
+            wh.name
+        ));
+        body.push_str(&format!(
+            "export function {factory_name}(handler: WebhookHandler<{payload_name}>): WebhookHandler<{payload_name}> {{\n  return handler;\n}}\n\n"
+        ));
+    }
+
+    let path = src.join("webhooks.ts");
+    let rel = path_str(&path, out_dir);
+    Ok(vec![(rel, path, body)])
 }
 
 /// Collect `src/index.ts` content for parallel writing.
@@ -130,6 +181,10 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     for (_, model) in doc.schemas.iter() {
         let name = name::pascal(model.name());
         body.push_str(&format!("export * from \"./models/{name}\";\n"));
+    }
+    // Webhooks.
+    if !doc.webhooks.is_empty() {
+        body.push_str("export * from \"./webhooks\";\n");
     }
     body.push('\n');
 

@@ -76,6 +76,12 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let models = opts.out_dir.join("models.go");
     files.push((rel(&models, &opts.out_dir), models, emit_models(&pkg, doc)));
 
+    // Webhooks — handler types (only if webhooks are present).
+    if !doc.webhooks.is_empty() {
+        let webhooks = opts.out_dir.join("webhooks.go");
+        files.push((rel(&webhooks, &opts.out_dir), webhooks, emit_webhooks(&pkg, doc)));
+    }
+
     // Group ops by tag.
     let mut by_tag: BTreeMap<String, Vec<&Operation>> = BTreeMap::new();
     for op in &doc.operations {
@@ -693,8 +699,14 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		idemKey = NewIdempotencyKey()
 	}}
 
+	var respETag string
+
 	run := func() ([]byte, int, error) {{
-		return c.doWithRetry(ctx, method, u, bodyBytes, body != nil, idemKey)
+		d, s, e, err := c.doWithRetry(ctx, method, u, bodyBytes, body != nil, idemKey)
+		if err == nil {{
+			respETag = e
+		}}
+		return d, s, err
 	}}
 
 	var data []byte
@@ -724,15 +736,9 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 			// Return cached data.
 			data = cachedEntry.Data
 			status = http.StatusOK
-		}} else if status >= 200 && status < 300 {{
-			if etag := ""; true {{
-				// The ETag is not returned to us in the current API; we store
-				// what we can from the middleware response. For now we skip
-				// caching when no ETag is available (the server didn't send one).
-			}}
-			// NOTE: ETag extraction from response headers is handled at the
-			// middleware level. The cache is populated when the server returns
-			// an ETag header — see the middleware integration for details.
+		}} else if status >= 200 && status < 300 && respETag != "" {{
+			// Store response in cache for future conditional requests.
+			c.Cache.Set(u, respETag, data)
 		}}
 	}}
 
@@ -780,7 +786,7 @@ func (c *Client) DoStream(ctx context.Context, method, path string, query url.Va
 	return c.doOnceStream(ctx, method, u, bodyBytes, body != nil, idemKey)
 }}
 
-func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, error) {{
+func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, string, error) {{
 	retry := c.Retry
 	if retry.MaxRetries == 0 && retry.BaseDelay == 0 && len(retry.RetryOnStatuses) == 0 {{
 		retry = DefaultRetryOptions()
@@ -794,21 +800,21 @@ func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []
 			select {{
 			case <-ctx.Done():
 				timer.Stop()
-				return nil, 0, ctx.Err()
+				return nil, 0, "", ctx.Err()
 			case <-timer.C:
 			}}
 		}}
 
-		data, status, err := c.doOnce(ctx, method, u, bodyBytes, hasBody, idemKey)
+		data, status, etag, err := c.doOnce(ctx, method, u, bodyBytes, hasBody, idemKey)
 		if err == nil {{
-			return data, status, nil
+			return data, status, etag, nil
 		}}
 		lastErr = err
 		if !isRetriable(method, err, retry) || attempt == retry.MaxRetries {{
-			return nil, 0, err
+			return nil, 0, "", err
 		}}
 	}}
-	return nil, 0, lastErr
+	return nil, 0, "", lastErr
 }}
 
 func (c *Client) buildHeaders(ctx context.Context, method, u string, hasBody bool, idemKey string) (http.Header, error) {{
@@ -842,7 +848,7 @@ func (c *Client) buildHeaders(ctx context.Context, method, u string, hasBody boo
 	return tmp.Header, nil
 }}
 
-func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, error) {{
+func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) ([]byte, int, string, error) {{
 	reqCtx := ctx
 	var cancel context.CancelFunc
 	timeout := c.Timeout
@@ -859,7 +865,7 @@ func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte,
 
 	headers, err := c.buildHeaders(reqCtx, method, u, hasBody, idemKey)
 	if err != nil {{
-		return nil, 0, err
+		return nil, 0, "", err
 	}}
 
 	mwReq := &MiddlewareRequest{{
@@ -893,12 +899,17 @@ func (c *Client) doOnce(ctx context.Context, method, u string, bodyBytes []byte,
 
 	mwRes, err := handler(reqCtx, mwReq)
 	if err != nil {{
-		return nil, 0, err
+		return nil, 0, "", err
 	}}
+	etag := mwRes.Header.Get("Etag")
 	if mwRes.StatusCode < 200 || mwRes.StatusCode >= 300 {{
-		return nil, 0, &APIError{{StatusCode: mwRes.StatusCode, Body: mwRes.Body, URL: u}}
+		// Pass through 304 as-is so DoJSON can handle it.
+		if mwRes.StatusCode == http.StatusNotModified {{
+			return mwRes.Body, mwRes.StatusCode, etag, nil
+		}}
+		return nil, 0, "", &APIError{{StatusCode: mwRes.StatusCode, Body: mwRes.Body, URL: u}}
 	}}
-	return mwRes.Body, mwRes.StatusCode, nil
+	return mwRes.Body, mwRes.StatusCode, etag, nil
 }}
 
 func (c *Client) doOnceStream(ctx context.Context, method, u string, bodyBytes []byte, hasBody bool, idemKey string) (*http.Response, error) {{
@@ -2293,6 +2304,44 @@ fn emit_union_from_json(union_name: &str, arms: &[&str]) -> String {
         "\treturn nil, fmt.Errorf(\"no matching {union_name} arm\")\n"
     ));
     out.push_str("}\n");
+    out
+}
+
+// ─── webhooks.go ─────────────────────────────────────────────────────────────
+
+fn emit_webhooks(pkg: &str, doc: &Document) -> String {
+    let mut out = String::new();
+    out.push_str("// Code generated by specforge. DO NOT EDIT.\n\n");
+    out.push_str(&format!("package {pkg}\n\n"));
+
+    // Payload structs for each webhook.
+    for wh in &doc.webhooks {
+        let name = export_ident(&format!("{}WebhookPayload", pascal(&wh.name)));
+        if let Some(d) = &wh.description {
+            out.push_str(&go_doc(d, ""));
+        } else if let Some(s) = &wh.summary {
+            out.push_str(&go_doc(s, ""));
+        }
+        if let Some(rb) = &wh.request_body {
+            let go_ty = render_type(&rb.ty);
+            out.push_str(&format!("type {name} = {go_ty}\n\n"));
+        } else {
+            out.push_str(&format!("type {name} = any\n\n"));
+        }
+    }
+
+    // WebhookHandler function type.
+    out.push_str("// WebhookHandler is a function that handles a webhook payload.\n");
+    if doc.webhooks.len() == 1 {
+        let wh = &doc.webhooks[0];
+        let payload_ty = export_ident(&format!("{}WebhookPayload", pascal(&wh.name)));
+        out.push_str(&format!("type WebhookHandler func(payload {payload_ty}) error\n"));
+    } else {
+        // Multiple webhooks: use a generic any-based handler.
+        out.push_str("type WebhookHandler func(payload any) error\n");
+    }
+    out.push('\n');
+
     out
 }
 

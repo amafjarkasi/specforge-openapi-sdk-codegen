@@ -27,11 +27,11 @@ pub use testgen::{generate_tests, TestGenOptions, TestLang};
 pub use ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response,
-    Scalar, SchemaRegistry, SecurityScheme, Type,
+    Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
 };
 pub use lint::{Diagnostic, Severity};
 pub use lint_config::{LintConfig, LintRule, RuleSeverity};
-pub use resolve::resolve;
-pub use spec::{detect_31_features, parse_bytes, parse_file, parse_str, resolve_spec_path, scan_versions, Spec31Features, VersionInfo};
+pub use resolve::{resolve, resolve_with_webhooks};
+pub use spec::{detect_31_features, parse_bytes, parse_bytes_full, parse_file, parse_file_full, parse_str, parse_str_full, resolve_spec_path, scan_versions, ParsedSpec, Spec31Features, VersionInfo};
 pub use validate::{validate, ValidationError};
 pub use workspace::{init_workspace, WorkspaceConfig, WorkspaceInitResult, WorkspaceOutput, WorkspaceRunResult, WorkspaceSpec};

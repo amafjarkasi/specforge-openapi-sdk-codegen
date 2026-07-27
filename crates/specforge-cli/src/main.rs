@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, init_workspace, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {

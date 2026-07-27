@@ -644,6 +644,7 @@ mod tests {
             base_url: Some("http://localhost:3000".to_string()),
             security: vec![],
             schemas,
+            webhooks: vec![],
             operations: vec![Operation {
                 operation_id: "listPets".to_string(),
                 method: HttpMethod::Get,

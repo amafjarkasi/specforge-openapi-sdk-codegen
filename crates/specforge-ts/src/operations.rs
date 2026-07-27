@@ -451,6 +451,7 @@ mod tests {
             security: vec![],
             schemas: SchemaRegistry::default(),
             operations: vec![],
+            webhooks: vec![],
         };
         let file = emit_tag_file(&doc, "Pets", &[&op()]);
         assert!(file.contains("export class PetsApi"));
