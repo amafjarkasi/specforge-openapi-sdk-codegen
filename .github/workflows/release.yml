@@ -51,7 +51,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
@@ -86,7 +86,7 @@ jobs:
           cd ../../..
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: specforge-${{ matrix.target }}
           path: specforge-${{ github.ref_name }}-${{ matrix.target }}.*
@@ -100,7 +100,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true

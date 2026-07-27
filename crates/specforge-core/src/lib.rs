@@ -18,6 +18,7 @@ pub mod resolve;
 pub mod spec;
 pub mod testgen;
 pub mod validate;
+pub mod workspace;
 
 pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
@@ -33,3 +34,4 @@ pub use lint_config::{LintConfig, LintRule, RuleSeverity};
 pub use resolve::resolve;
 pub use spec::{detect_31_features, parse_bytes, parse_file, parse_str, resolve_spec_path, scan_versions, Spec31Features, VersionInfo};
 pub use validate::{validate, ValidationError};
+pub use workspace::{init_workspace, WorkspaceConfig, WorkspaceInitResult, WorkspaceOutput, WorkspaceRunResult, WorkspaceSpec};

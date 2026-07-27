@@ -38,7 +38,7 @@ jobs:
           node-version: "22"
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
@@ -50,7 +50,7 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Cache OpenAPI fixtures
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: target/spec-cache
           key: ${{ runner.os }}-spec-cache-v1
@@ -104,7 +104,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index
