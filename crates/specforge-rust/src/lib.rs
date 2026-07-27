@@ -1460,6 +1460,8 @@ use crate::concurrency::Semaphore;
 			    /// Seeded from the first API-key security scheme in the spec, if any.
 		    #[allow(dead_code)]
 		    default_api_key_header: String,
+		    /// Injected HTTP client. When `None`, `build()` creates a default one.
+		    http_client: Option<reqwest::Client>,
 		}}
 	
 	impl std::fmt::Debug for ClientBuilder {{
@@ -1493,6 +1495,7 @@ use crate::concurrency::Semaphore;
 			            middlewares: Vec::new(),
 			            stream_middlewares: Vec::new(),
 			            default_api_key_header: {api_key_header_lit}.to_string(),
+		            http_client: None,
 		        }}
 	    }}
 	
@@ -1563,11 +1566,21 @@ use crate::concurrency::Semaphore;
 		        self.stream_middlewares.push(mw);
 		        self
 		    }}
+
+		    /// Inject a custom `reqwest::Client` (e.g. for testing with `wiremock`).
+		    /// When set, `build()` skips creating a default client.
+		    pub fn http_client(mut self, client: reqwest::Client) -> Self {{
+		        self.http_client = Some(client);
+		        self
+		    }}
 		
 		    pub fn build(self) -> Result<Client> {{
-	        let http = reqwest::Client::builder()
-	            .user_agent("specforge-rust-sdk")
-	            .build()?;
+	        let http = match self.http_client {{
+	            Some(c) => c,
+	            None => reqwest::Client::builder()
+	                .user_agent("specforge-rust-sdk")
+	                .build()?,
+	        }};
 	        Ok(Client {{
 	            base_url: self.base_url,
 	            http,

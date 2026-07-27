@@ -12,7 +12,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 rust-version = "1.75"
 license = "MIT"
@@ -37,11 +37,11 @@ clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Internal crates
-specforge-core = { path = "crates/specforge-core", version = "0.7.0" }
-specforge-ts = { path = "crates/specforge-ts", version = "0.7.0" }
-specforge-go = { path = "crates/specforge-go", version = "0.7.0" }
-specforge-rust = { path = "crates/specforge-rust", version = "0.7.0" }
-specforge-plugin = { path = "crates/specforge-plugin", version = "0.7.0" }
+specforge-core = { path = "crates/specforge-core", version = "0.8.0" }
+specforge-ts = { path = "crates/specforge-ts", version = "0.8.0" }
+specforge-go = { path = "crates/specforge-go", version = "0.8.0" }
+specforge-rust = { path = "crates/specforge-rust", version = "0.8.0" }
+specforge-plugin = { path = "crates/specforge-plugin", version = "0.8.0" }
 tempfile = "3"
 
 [profile.release]

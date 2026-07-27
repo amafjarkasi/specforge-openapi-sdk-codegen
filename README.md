@@ -12,7 +12,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust%20%7C%20WASM-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.7.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.8.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -322,6 +322,7 @@ Commands:
   emit       Emit the resolved IR as JSON (for external emitters / plugins)
   init       Scaffold a new minimal OpenAPI spec
   convert    Convert between OpenAPI 3.0 and 3.1
+  merge      Merge multiple OpenAPI spec files into one
   docs       Generate static HTML API documentation
   test       Generate mock server tests for generated SDKs
   versions   List API versions in a spec directory
@@ -772,6 +773,13 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.8.0** — DI, merge, 3.1 expansion:
+
+- [x] Rust `http_client()` builder for dependency injection in tests  
+- [x] `specforge merge` — combine multiple spec files into one  
+- [x] OpenAPI 3.1 expanded: `const`, `dependentRequired`, `prefixItems`  
+- [x] 3.1 feature detection (`detect_31_features()`)  
+
 **v0.7.0** — tree-shaking, versioning, profiling:
 
 - [x] Tree-shakeable TS API modules (per-tag imports, `src/api/index.ts` barrel)  
@@ -840,9 +848,9 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] Generated SDK dependency injection for testing  
-- [ ] Spec composition (merge multiple spec files)  
-- [ ] OpenAPI 3.1 full native support (replace preprocessing layer)  
+- [ ] Generated SDK caching layer (ETags, conditional requests)  
+- [ ] Spec webhooks support (OpenAPI 3.1 webhooks)  
+- [ ] Multi-spec workspace generation  
 
 ---
 

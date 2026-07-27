@@ -171,6 +171,64 @@ fn downgrade_value(json: &mut JsonValue) {
                 }
             }
 
+            // Convert `const` → `enum: [value]`.
+            // In 3.1, `const` restricts to a single exact value; in 3.0 the
+            // equivalent is a single-element `enum`.
+            if let Some(const_val) = obj.remove("const") {
+                obj.insert("enum".to_string(), JsonValue::Array(vec![const_val]));
+            }
+
+            // Convert `dependentRequired` → merge into `required`.
+            // In 3.1, `dependentRequired` maps property names to arrays of
+            // additional required properties. In 3.0 we flatten all of them
+            // into the top-level `required` array (lossy but workable).
+            if let Some(dep_req) = obj.remove("dependentRequired") {
+                if let Some(dep_map) = dep_req.as_object() {
+                    let mut extra: Vec<String> = Vec::new();
+                    for deps in dep_map.values() {
+                        if let Some(arr) = deps.as_array() {
+                            for v in arr {
+                                if let Some(s) = v.as_str() {
+                                    extra.push(s.to_string());
+                                }
+                            }
+                        }
+                    }
+                    if !extra.is_empty() {
+                        let required = obj
+                            .entry("required".to_string())
+                            .or_insert_with(|| JsonValue::Array(vec![]));
+                        if let Some(req_arr) = required.as_array_mut() {
+                            for dep in extra {
+                                let dep_json = JsonValue::String(dep);
+                                if !req_arr.contains(&dep_json) {
+                                    req_arr.push(dep_json);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Convert `prefixItems` → `items` (tuple validation → array items).
+            // In 3.1, `prefixItems` is an array of schemas for positional
+            // validation. In 3.0, `items` is a single schema (or
+            // `items` + `additionalItems`). We take the first prefix item
+            // as the `items` schema — a best-effort approximation.
+            if let Some(prefix) = obj.remove("prefixItems") {
+                if let Some(arr) = prefix.as_array() {
+                    if arr.len() == 1 {
+                        // Single prefix item: use directly as `items`.
+                        obj.insert("items".to_string(), arr[0].clone());
+                    } else if arr.len() > 1 {
+                        // Multiple prefix items: use `items` as an array
+                        // (supported by some validators) or fall back to first.
+                        // openapiv3 doesn't support array `items`, so use first.
+                        obj.insert("items".to_string(), arr[0].clone());
+                    }
+                }
+            }
+
             // Recurse into all values.
             for val in obj.values_mut() {
                 downgrade_value(val);
@@ -357,6 +415,84 @@ pub fn resolve_spec_path(path: &Path, version: Option<&str>) -> Result<PathBuf, 
         "version {version_str:?} not found; available versions: {}",
         available.join(", ")
     )))
+}
+
+/// Features detected in an OpenAPI 3.1 spec that have no direct 3.0 equivalent.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Spec31Features {
+    /// `type: ["string", "null"]` — array type values.
+    pub uses_type_array: bool,
+    /// `$ref` with sibling properties (description, summary, etc.).
+    pub uses_ref_siblings: bool,
+    /// `const` keyword for single-value constraints.
+    pub uses_const: bool,
+    /// `prefixItems` for tuple validation.
+    pub uses_prefix_items: bool,
+    /// `dependentRequired` for conditional required fields.
+    pub uses_dependent_required: bool,
+    /// Numeric `exclusiveMinimum` / `exclusiveMaximum` (3.1 style).
+    pub uses_numeric_exclusive_bounds: bool,
+}
+
+/// Walk a raw JSON value and detect which OpenAPI 3.1-specific features are
+/// used. This is a lightweight scan that does not perform full schema parsing.
+pub fn detect_31_features(json: &JsonValue) -> Spec31Features {
+    let mut features = Spec31Features::default();
+    detect_31_features_walk(json, &mut features);
+    features
+}
+
+fn detect_31_features_walk(json: &JsonValue, features: &mut Spec31Features) {
+    match json {
+        JsonValue::Object(obj) => {
+            // Check for array type values.
+            if let Some(type_val) = obj.get("type") {
+                if type_val.is_array() {
+                    features.uses_type_array = true;
+                }
+            }
+
+            // Check for $ref with siblings.
+            if obj.contains_key("$ref") && obj.len() > 1 {
+                features.uses_ref_siblings = true;
+            }
+
+            // Check for const keyword.
+            if obj.contains_key("const") {
+                features.uses_const = true;
+            }
+
+            // Check for prefixItems.
+            if obj.contains_key("prefixItems") {
+                features.uses_prefix_items = true;
+            }
+
+            // Check for dependentRequired.
+            if obj.contains_key("dependentRequired") {
+                features.uses_dependent_required = true;
+            }
+
+            // Check for numeric exclusive bounds.
+            for field in &["exclusiveMinimum", "exclusiveMaximum"] {
+                if let Some(val) = obj.get(*field) {
+                    if val.is_number() {
+                        features.uses_numeric_exclusive_bounds = true;
+                    }
+                }
+            }
+
+            // Recurse.
+            for val in obj.values() {
+                detect_31_features_walk(val, features);
+            }
+        }
+        JsonValue::Array(arr) => {
+            for val in arr {
+                detect_31_features_walk(val, features);
+            }
+        }
+        _ => {}
+    }
 }
 
 #[cfg(test)]
@@ -723,5 +859,332 @@ components:
         let result = resolve_spec_path(dir.path(), Some("v1"));
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), file);
+    }
+
+    // ── const keyword tests ────────────────────────────────────────────
+
+    #[test]
+    fn const_to_enum_single_value() {
+        let mut json = serde_json::json!({
+            "type": "string",
+            "const": "active"
+        });
+        downgrade_value(&mut json);
+        assert!(json.get("const").is_none(), "const should be removed");
+        let en = json["enum"].as_array().unwrap();
+        assert_eq!(en.len(), 1);
+        assert_eq!(en[0], "active");
+    }
+
+    #[test]
+    fn const_to_enum_numeric_value() {
+        let mut json = serde_json::json!({
+            "type": "integer",
+            "const": 42
+        });
+        downgrade_value(&mut json);
+        let en = json["enum"].as_array().unwrap();
+        assert_eq!(en.len(), 1);
+        assert_eq!(en[0], 42);
+    }
+
+    #[test]
+    fn const_to_enum_null_value() {
+        let mut json = serde_json::json!({
+            "const": null
+        });
+        downgrade_value(&mut json);
+        let en = json["enum"].as_array().unwrap();
+        assert_eq!(en.len(), 1);
+        assert!(en[0].is_null());
+    }
+
+    #[test]
+    fn const_to_enum_object_value() {
+        let mut json = serde_json::json!({
+            "const": { "status": "ok" }
+        });
+        downgrade_value(&mut json);
+        let en = json["enum"].as_array().unwrap();
+        assert_eq!(en.len(), 1);
+        assert_eq!(en[0], serde_json::json!({ "status": "ok" }));
+    }
+
+    #[test]
+    fn const_full_pipeline() {
+        let yaml = r#"
+openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Status:
+      type: string
+      const: "active"
+"#;
+        let result = parse_str(yaml);
+        assert!(result.is_ok(), "should parse spec with const: {:?}", result.err());
+    }
+
+    // ── dependentRequired tests ────────────────────────────────────────
+
+    #[test]
+    fn dependent_required_merges_into_required() {
+        let mut json = serde_json::json!({
+            "type": "object",
+            "required": ["name"],
+            "dependentRequired": {
+                "name": ["email", "phone"],
+                "address": ["zip"]
+            }
+        });
+        downgrade_value(&mut json);
+        assert!(json.get("dependentRequired").is_none(), "dependentRequired should be removed");
+        let req = json["required"].as_array().unwrap();
+        assert!(req.contains(&serde_json::json!("name")));
+        assert!(req.contains(&serde_json::json!("email")));
+        assert!(req.contains(&serde_json::json!("phone")));
+        assert!(req.contains(&serde_json::json!("zip")));
+        assert_eq!(req.len(), 4); // no duplicates
+    }
+
+    #[test]
+    fn dependent_required_no_existing_required() {
+        let mut json = serde_json::json!({
+            "type": "object",
+            "dependentRequired": {
+                "name": ["email"]
+            }
+        });
+        downgrade_value(&mut json);
+        let req = json["required"].as_array().unwrap();
+        assert_eq!(req.len(), 1);
+        assert_eq!(req[0], "email");
+    }
+
+    #[test]
+    fn dependent_required_deduplicates() {
+        let mut json = serde_json::json!({
+            "type": "object",
+            "required": ["email"],
+            "dependentRequired": {
+                "name": ["email"]
+            }
+        });
+        downgrade_value(&mut json);
+        let req = json["required"].as_array().unwrap();
+        // "email" should appear only once.
+        assert_eq!(req.iter().filter(|v| *v == "email").count(), 1);
+    }
+
+    #[test]
+    fn dependent_required_full_pipeline() {
+        let yaml = r#"
+openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - name
+      dependentRequired:
+        name:
+          - email
+          - phone
+"#;
+        let result = parse_str(yaml);
+        assert!(result.is_ok(), "should parse spec with dependentRequired: {:?}", result.err());
+    }
+
+    // ── prefixItems tests ──────────────────────────────────────────────
+
+    #[test]
+    fn prefix_items_single_to_items() {
+        let mut json = serde_json::json!({
+            "type": "array",
+            "prefixItems": [
+                { "type": "number" }
+            ]
+        });
+        downgrade_value(&mut json);
+        assert!(json.get("prefixItems").is_none(), "prefixItems should be removed");
+        assert_eq!(json["items"]["type"], "number");
+    }
+
+    #[test]
+    fn prefix_items_multiple_to_first_items() {
+        let mut json = serde_json::json!({
+            "type": "array",
+            "prefixItems": [
+                { "type": "number" },
+                { "type": "string" }
+            ]
+        });
+        downgrade_value(&mut json);
+        assert!(json.get("prefixItems").is_none());
+        // Falls back to first prefix item.
+        assert_eq!(json["items"]["type"], "number");
+    }
+
+    #[test]
+    fn prefix_items_empty_is_noop() {
+        let mut json = serde_json::json!({
+            "type": "array",
+            "prefixItems": []
+        });
+        downgrade_value(&mut json);
+        assert!(json.get("prefixItems").is_none());
+        assert!(json.get("items").is_none());
+    }
+
+    #[test]
+    fn prefix_items_full_pipeline() {
+        let yaml = r#"
+openapi: "3.1.0"
+info:
+  title: Test
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    Coordinate:
+      type: array
+      prefixItems:
+        - type: number
+        - type: number
+"#;
+        let result = parse_str(yaml);
+        assert!(result.is_ok(), "should parse spec with prefixItems: {:?}", result.err());
+    }
+
+    // ── type array with multiple types test ────────────────────────────
+
+    #[test]
+    fn type_array_multiple_types_no_null() {
+        let mut json = serde_json::json!({
+            "type": ["string", "integer"]
+        });
+        downgrade_value(&mut json);
+        // With multiple non-null types and no null, we leave it as-is
+        // (no good 3.0 equivalent).
+        assert!(json["type"].is_array());
+    }
+
+    #[test]
+    fn type_array_multiple_types_with_null() {
+        let mut json = serde_json::json!({
+            "type": ["string", "integer", "null"]
+        });
+        downgrade_value(&mut json);
+        // Multiple non-null types + null: can't simplify to single type.
+        assert!(json["type"].is_array());
+    }
+
+    // ── detect_31_features tests ───────────────────────────────────────
+
+    #[test]
+    fn detect_features_type_array() {
+        let json = serde_json::json!({
+            "openapi": "3.1.0",
+            "info": { "title": "T", "version": "1" },
+            "components": {
+                "schemas": {
+                    "A": { "type": ["string", "null"] }
+                }
+            }
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_type_array);
+        assert!(!f.uses_const);
+    }
+
+    #[test]
+    fn detect_features_const() {
+        let json = serde_json::json!({
+            "openapi": "3.1.0",
+            "info": { "title": "T", "version": "1" },
+            "components": {
+                "schemas": {
+                    "Status": { "const": "active" }
+                }
+            }
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_const);
+        assert!(!f.uses_type_array);
+    }
+
+    #[test]
+    fn detect_features_ref_siblings() {
+        let json = serde_json::json!({
+            "$ref": "#/components/schemas/Pet",
+            "description": "A pet"
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_ref_siblings);
+    }
+
+    #[test]
+    fn detect_features_prefix_items() {
+        let json = serde_json::json!({
+            "prefixItems": [{ "type": "number" }]
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_prefix_items);
+    }
+
+    #[test]
+    fn detect_features_dependent_required() {
+        let json = serde_json::json!({
+            "dependentRequired": { "name": ["email"] }
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_dependent_required);
+    }
+
+    #[test]
+    fn detect_features_numeric_exclusive_bounds() {
+        let json = serde_json::json!({
+            "exclusiveMinimum": 5
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_numeric_exclusive_bounds);
+    }
+
+    #[test]
+    fn detect_features_none() {
+        let json = serde_json::json!({
+            "openapi": "3.0.3",
+            "info": { "title": "T", "version": "1" },
+            "paths": {}
+        });
+        let f = detect_31_features(&json);
+        assert_eq!(f, Spec31Features::default());
+    }
+
+    #[test]
+    fn detect_features_multiple() {
+        let json = serde_json::json!({
+            "openapi": "3.1.0",
+            "info": { "title": "T", "version": "1" },
+            "components": {
+                "schemas": {
+                    "A": { "type": ["string", "null"], "const": "x" },
+                    "B": { "prefixItems": [{ "type": "number" }] }
+                }
+            }
+        });
+        let f = detect_31_features(&json);
+        assert!(f.uses_type_array);
+        assert!(f.uses_const);
+        assert!(f.uses_prefix_items);
+        assert!(!f.uses_ref_siblings);
+        assert!(!f.uses_dependent_required);
     }
 }

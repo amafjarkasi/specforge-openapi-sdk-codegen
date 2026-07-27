@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-07-27
+
+### Added
+
+#### Core
+- **OpenAPI 3.1 expanded** — `const` → `enum: [value]`, `dependentRequired` merged into `required`, `prefixItems` → `items`. Upgraded 3.0→3.1 now converts `enum: [value]` → `const`. 31 new tests.
+- **3.1 feature detection** — `detect_31_features()` reports which 3.1 features are used in a spec.
+- **Spec composition** — New `merge` module. `specforge merge` combines multiple spec files (paths, schemas, security schemes). Later specs override on conflict.
+
+#### Rust emitter
+- **Dependency injection** — `ClientBuilder::http_client(reqwest::Client)` for injecting custom HTTP clients in tests.
+
+#### CLI
+- **`specforge merge`** — Merge multiple OpenAPI spec files into one. `--format json|yaml`, `--out FILE`.
+
 ## [0.7.0] — 2026-07-27
 
 ### Added
@@ -192,6 +207,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.8.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.8.0
 [0.7.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.7.0
 [0.6.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.6.0
 [0.5.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.5.0

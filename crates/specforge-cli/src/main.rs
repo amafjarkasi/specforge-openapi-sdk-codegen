@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, lint, lint_config, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -74,6 +74,8 @@ enum Commands {
     Test(TestArgs),
     /// List all API versions found in a spec directory or show a file's version.
     Versions(VersionsArgs),
+    /// Merge multiple OpenAPI spec files into one.
+    Merge(MergeArgs),
 }
 
 #[derive(Args, Debug)]
@@ -255,6 +257,24 @@ struct VersionsArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct MergeArgs {
+    /// Paths to OpenAPI spec files to merge (can specify multiple).
+    #[arg(required = true)]
+    specs: Vec<PathBuf>,
+
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Output format: json or yaml.
+    #[arg(long, default_value = "yaml")]
+    format: String,
+
+    #[arg(short = 'v', long, value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -268,6 +288,7 @@ fn main() -> ExitCode {
         Commands::Docs(args) => args.log_level,
         Commands::Test(args) => args.log_level,
         Commands::Versions(args) => args.log_level,
+        Commands::Merge(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -368,6 +389,14 @@ fn main() -> ExitCode {
             }
         },
         Commands::Versions(args) => match run_versions(args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Merge(args) => match run_merge(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
@@ -923,6 +952,46 @@ fn run_convert(cli: &ConvertArgs) -> Result<()> {
     Ok(())
 }
 
+fn run_merge(cli: &MergeArgs) -> Result<()> {
+    let mut values = Vec::new();
+    for path in &cli.specs {
+        info!("reading spec: {}", path.display());
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read spec at {}", path.display()))?;
+        let val: serde_json::Value = if path.extension().map_or(false, |e| e == "json") {
+            serde_json::from_str(&text)
+                .with_context(|| format!("failed to parse {} as JSON", path.display()))?
+        } else {
+            serde_yaml::from_str(&text)
+                .with_context(|| format!("failed to parse {} as YAML", path.display()))?
+        };
+        values.push(val);
+    }
+
+    info!("merging {} spec(s)", values.len());
+    let merged = merge_specs(&values)?;
+
+    let output = match cli.format.as_str() {
+        "json" => serde_json::to_string_pretty(&merged)
+            .context("failed to serialize merged spec as JSON")?,
+        _ => serde_yaml::to_string(&merged)
+            .context("failed to serialize merged spec as YAML")?,
+    };
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &output)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            println!("{output}");
+        }
+    }
+
+    Ok(())
+}
+
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.
 fn upgrade_30_to_31(json: &mut JsonValue) {
     match json {
@@ -953,6 +1022,18 @@ fn upgrade_30_to_31(json: &mut JsonValue) {
                                 obj.insert(field.to_string(), limit);
                             }
                         }
+                    }
+                }
+            }
+
+            // Convert single-element `enum: [value]` → `const: value`.
+            // In 3.0, a single-value constraint is expressed as `enum: [X]`;
+            // in 3.1, `const` is the idiomatic equivalent.
+            if let Some(enum_val) = obj.get("enum").cloned() {
+                if let Some(arr) = enum_val.as_array() {
+                    if arr.len() == 1 {
+                        obj.insert("const".to_string(), arr[0].clone());
+                        obj.remove("enum");
                     }
                 }
             }
@@ -1007,6 +1088,49 @@ fn downgrade_value(json: &mut JsonValue) {
                 if let Some(val) = obj.get(*field).cloned() {
                     if val.is_number() {
                         obj.insert(field.to_string(), JsonValue::Bool(true));
+                    }
+                }
+            }
+
+            // Convert `const` → `enum: [value]`.
+            if let Some(const_val) = obj.remove("const") {
+                obj.insert("enum".to_string(), JsonValue::Array(vec![const_val]));
+            }
+
+            // Convert `dependentRequired` → merge into `required`.
+            if let Some(dep_req) = obj.remove("dependentRequired") {
+                if let Some(dep_map) = dep_req.as_object() {
+                    let mut extra: Vec<String> = Vec::new();
+                    for deps in dep_map.values() {
+                        if let Some(arr) = deps.as_array() {
+                            for v in arr {
+                                if let Some(s) = v.as_str() {
+                                    extra.push(s.to_string());
+                                }
+                            }
+                        }
+                    }
+                    if !extra.is_empty() {
+                        let required = obj
+                            .entry("required".to_string())
+                            .or_insert_with(|| JsonValue::Array(vec![]));
+                        if let Some(req_arr) = required.as_array_mut() {
+                            for dep in extra {
+                                let dep_json = JsonValue::String(dep);
+                                if !req_arr.contains(&dep_json) {
+                                    req_arr.push(dep_json);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Convert `prefixItems` → `items` (tuple → array).
+            if let Some(prefix) = obj.remove("prefixItems") {
+                if let Some(arr) = prefix.as_array() {
+                    if !arr.is_empty() {
+                        obj.insert("items".to_string(), arr[0].clone());
                     }
                 }
             }
