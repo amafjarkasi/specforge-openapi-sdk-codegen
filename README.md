@@ -231,6 +231,43 @@ Every generated SDK is a **complete, production-ready client** — not just type
 - **Cross-compiled releases**: 5 targets (linux amd64/arm64, macOS Intel/Apple Silicon, Windows)
 - **Production hardening**: thread safety audit, unwrap/expect audit, SDK integration tests, stability enforcement
 
+### VS Code Extension
+
+The [specforge VS Code extension](vscode-extension/) provides a complete IDE experience for OpenAPI development:
+
+| Feature | What it does |
+|---------|--------------|
+| **Generate SDK** | Pick language (TS/Go/Rust), generate to output directory |
+| **Check Spec** | Validate spec with `--strict` mode |
+| **Diff Spec** | Compare two spec versions side-by-side |
+| **Preview IR** | View resolved intermediate representation as JSON |
+| **Analyze Spec** | Find unused schemas, duplicates, optimization opportunities |
+| **Security Analysis** | Audit auth requirements across all operations |
+| **Show Dependency Graph** | Mermaid visualization of schema relationships |
+| **Generate Docs** | Static HTML documentation site |
+| **Generate Tests** | Mock server tests from spec examples |
+| **Merge Specs** | Combine multiple spec files into one |
+| **Migrate** | Generate migration guide between spec versions |
+| **Mock Server** | Start local mock server from spec examples |
+| **Export** | Swagger Editor compatible output |
+| **Infer** | Generate OpenAPI spec from sample JSON |
+| **Verify** | Validate running API against spec |
+| **Evolution** | Track schema changes over git commits |
+
+**IDE integration:**
+- Auto-validate specs on save (configurable)
+- Context menus (right-click YAML/JSON files)
+- Keyboard shortcuts (`Ctrl+Shift+G` generate, `Ctrl+Shift+V` check)
+- Status bar with mock server indicator
+- Output channel for all CLI output
+- Progress notifications for long operations
+- Interactive pickers for language, format, and version
+
+**Quick start:**
+1. Install the extension from the `vscode-extension/` directory
+2. Open a folder containing an OpenAPI spec
+3. Press `Ctrl+Shift+G` to generate an SDK
+
 ---
 
 ## Quick start
