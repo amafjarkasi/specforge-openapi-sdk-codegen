@@ -529,7 +529,21 @@
     transition: border-color 0.2s;
   }
   .cli-item:hover { border-color: rgba(249,115,22,0.2); }
-  .cli-item .cmd { color: var(--accent); font-weight: 600; }
+  .cli-item .cmd { 
+    color: var(--accent); font-weight: 700; 
+    font-size: 1.05rem;
+    display: inline-block;
+    background: rgba(249,115,22,0.08);
+    border-left: 3px solid var(--accent);
+    padding: 0.3rem 0.8rem;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.01em;
+  }
+  .cli-item:hover .cmd {
+    background: rgba(249,115,22,0.14);
+    border-left-color: var(--accent2);
+  }
   .cli-item .desc { color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; margin-top: 0.3rem; }
 
   /* ══════════════════════════════════════════════════════════════
@@ -537,14 +551,19 @@
      ══════════════════════════════════════════════════════════════ */
   .install-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem;
+    max-width: 100%;
+    overflow-x: hidden;
+    width: 100%;
   }
   .install-card {
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 2rem;
+    overflow: hidden;
+    min-width: 0;
   }
   .install-card h3 {
     font-size: 1.2rem; font-weight: 700; margin-bottom: 0.3rem;
@@ -563,11 +582,21 @@
     font-size: 0.9rem;
     color: var(--green);
     font-family: 'JetBrains Mono', monospace;
-    overflow-x: auto;
+    overflow: hidden;
     position: relative;
     line-height: 1.8;
+    width: 100%;
+    box-sizing: border-box;
   }
-  .install-code code { color: inherit; white-space: pre; display: block; }
+  .install-code code { 
+    color: inherit; 
+    white-space: pre-wrap; 
+    display: block;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    width: 100%;
+    box-sizing: border-box;
+  }
   .install-code .cm { color: #475569; font-style: italic; }
   .copy-btn {
     position: absolute; top: 0.6rem; right: 0.6rem;
@@ -598,6 +627,12 @@
   /* ══════════════════════════════════════════════════════════════
      RESPONSIVE
      ══════════════════════════════════════════════════════════════ */
+  @media (max-width: 1024px) {
+    section { padding: 5rem 1.5rem; }
+    .pricing-grid { grid-template-columns: 1fr; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
+    .vs-grid { grid-template-columns: 1fr; }
+  }
   @media (max-width: 768px) {
     .nav-inner { padding: 0 1rem; }
     .nav-links { gap: 1.2rem; }
@@ -607,6 +642,9 @@
     .features-grid { grid-template-columns: 1fr; }
     .runtime-grid { grid-template-columns: 1fr; }
     .install-grid { grid-template-columns: 1fr; }
+    .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .vs-grid { grid-template-columns: 1fr; }
     .pipeline { flex-direction: column; }
     .pipeline .arrow { transform: rotate(90deg); }
     .cli-grid { grid-template-columns: 1fr; }
@@ -622,6 +660,10 @@
       padding: 1.5rem; gap: 1.2rem;
       border-bottom: 1px solid var(--border);
     }
+    .waitlist-box { padding: 2rem 1.2rem; }
+    .waitlist-form { flex-direction: column; }
+    .waitlist-form input { min-width: auto; width: 100%; }
+    .waitlist-form button { width: 100%; }
   }
   @media (max-width: 480px) {
     .hero .cta-row { flex-direction: column; align-items: center; }
@@ -682,7 +724,7 @@
      ══════════════════════════════════════════════════════════════ */
   .vs-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
   }
   .vs-item {
@@ -1518,30 +1560,31 @@ git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen
      PRICING / WAITLIST
      ══════════════════════════════════════════════════════════════ -->
 <section id="pricing">
-  <h2 class="reveal">Open Source. Plans for Teams.</h2>
+  <h2 class="reveal">Free for Personal Use. Plans for Teams.</h2>
   <p class="section-desc reveal">
-    Free forever for open source. Cloud features for teams shipping SDKs at scale.
+    Full CLI free for private and non-commercial projects. Upgrade for commercial use, CI automation, and team features.
   </p>
 
   <div class="pricing-grid reveal">
     <div class="pricing-card">
-      <div class="plan-name">Open Source</div>
+      <div class="plan-name">Open Source CLI</div>
       <div class="plan-price">Free</div>
-      <div class="plan-desc">Full CLI, forever. MIT licensed.</div>
+      <div class="plan-desc">Full CLI for private and non-commercial use. Love it? Upgrade for commercial projects.</div>
       <ul>
         <li>All 12 CLI commands</li>
         <li>TypeScript, Go, Rust emitters</li>
         <li>WASM plugin SDK</li>
         <li>Community support</li>
-        <li>Private &amp; commercial use</li>
+        <li>Private &amp; non-commercial use</li>
       </ul>
     </div>
 
     <div class="pricing-card featured">
       <div class="plan-name">Cloud Pro</div>
       <div class="plan-price">$29<span style="font-size:1rem;-webkit-text-fill-color:var(--dim);">/mo</span></div>
-      <div class="plan-desc">For teams automating SDK generation in CI.</div>
+      <div class="plan-desc">For commercial projects and teams automating SDK generation in CI.</div>
       <ul>
+        <li>Commercial use license</li>
         <li class="coming">GitHub App — auto-regenerate on spec change</li>
         <li class="coming">Private spec hosting &amp; registry</li>
         <li class="coming">Breaking change gates on PRs</li>

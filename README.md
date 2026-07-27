@@ -970,6 +970,22 @@ Guidelines:
 
 MIT © specforge contributors
 
+### Commercial Use
+
+specforge is released under the **MIT License**, which permits commercial use, modification, distribution, and private use without restriction. You are free to:
+
+- Use specforge in proprietary commercial products
+- Include specforge in closed-source commercial applications
+- Sell products built with or powered by specforge
+- Use specforge in enterprise internal tools
+- Modify specforge for commercial purposes
+
+**No attribution is required** in the MIT license, though attribution is appreciated.
+
+**No copyleft restrictions** — unlike GPL, the MIT license does not require you to open-source your own code when using specforge.
+
+**Commercial support** is available by contacting the maintainers at [specforge.deepwhaleai.com](https://specforge.deepwhaleai.com).
+
 ---
 
 <p align="center">
