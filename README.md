@@ -4,7 +4,8 @@
 
 <p align="center">
   <strong>Forge production-ready client SDKs from OpenAPI 3.x specs.</strong><br/>
-  One language-neutral IR. Emitters for <b>TypeScript</b>, <b>Go</b>, and <b>Rust</b>.
+  One language-neutral IR. Emitters for <b>TypeScript</b>, <b>Go</b>, <b>Rust</b>, and <b>WASM</b>.<br/>
+  With runtime validation, documentation generation, and a plugin system.
 </p>
 
 <p align="center">
