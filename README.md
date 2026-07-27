@@ -174,12 +174,16 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge emit` | Dump the resolved IR as JSON (for external tools) |
 | `specforge init` | Scaffold a new OpenAPI spec with a `/health` endpoint |
 | `specforge convert` | Convert between OpenAPI 3.0 and 3.1 |
+| `specforge merge` | Merge multiple spec files into one |
+| `specforge migrate` | Generate a migration guide between two spec versions |
 | `specforge docs` | Generate a static HTML API documentation site |
 | `specforge test` | Generate mock server tests from spec examples |
+| `specforge versions` | List API versions in a spec directory |
+| `specforge workspace` | Generate SDKs for all specs in a workspace config |
 
 ### Quality gates
 
-- **123+ unit tests** across core, emitters, and CLI
+- **169+ unit tests** across core, emitters, and CLI
 - **Regression suite** on petstore (vendored) + GitHub / Stripe (large real-world specs)
 - **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
@@ -323,6 +327,7 @@ Commands:
   init            Scaffold a new minimal OpenAPI spec
   convert         Convert between OpenAPI 3.0 and 3.1
   merge           Merge multiple OpenAPI spec files into one
+  migrate         Generate a migration guide between two spec versions
   docs            Generate static HTML API documentation
   test            Generate mock server tests for generated SDKs
   versions        List API versions in a spec directory
@@ -447,6 +452,22 @@ Options:
 ```
 
 Lists all API versions found in a directory. Supports flat (`v1.yaml`, `v2.yaml`) and nested (`v1/openapi.yaml`, `v2/openapi.yaml`) conventions. Use with `specforge generate specs/ --version v2` to generate for a specific version.
+
+### `specforge migrate`
+
+```text
+specforge migrate [OPTIONS] <OLD> <NEW>
+
+Arguments:
+  <OLD>   Path to the old (baseline) OpenAPI spec
+  <NEW>   Path to the new OpenAPI spec
+
+Options:
+  -o, --out <FILE>          Output file (default: stdout)
+  -v, --log-level <LEVEL>   error|warn|info|debug|trace [default: info]
+```
+
+Generates a migration guide in Markdown format comparing two spec versions. Lists deprecated operations, removed operations, new required parameters, and schema changes.
 
 ---
 

@@ -70,6 +70,12 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let cache = opts.out_dir.join("cache.go");
     files.push((rel(&cache, &opts.out_dir), cache, emit_cache(&pkg)));
 
+    let ratelimit = opts.out_dir.join("ratelimit.go");
+    files.push((rel(&ratelimit, &opts.out_dir), ratelimit, emit_ratelimit(&pkg)));
+
+    let telemetry = opts.out_dir.join("telemetry.go");
+    files.push((rel(&telemetry, &opts.out_dir), telemetry, emit_telemetry(&pkg)));
+
     let validate = opts.out_dir.join("validate.go");
     files.push((rel(&validate, &opts.out_dir), validate, emit_validate(&pkg, doc)));
 
@@ -309,6 +315,13 @@ fn emit_enum(e: &EnumModel) -> String {
     let mut out = String::new();
     if let Some(d) = &e.description {
         out.push_str(&go_doc(d, ""));
+        if d.to_lowercase().contains("deprecated") {
+            if let Some(alt) = go_schema_deprecation_alternative(d) {
+                out.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+            } else {
+                out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
+            }
+        }
     }
     out.push_str(&format!("type {name} string\n\n"));
     out.push_str("const (\n");
@@ -328,6 +341,13 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
     let mut out = String::new();
     if let Some(d) = &o.description {
         out.push_str(&go_doc(d, ""));
+        if d.to_lowercase().contains("deprecated") {
+            if let Some(alt) = go_schema_deprecation_alternative(d) {
+                out.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+            } else {
+                out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
+            }
+        }
     }
 
     // oneOf/anyOf root → interface + marker method, plus discriminator helpers.
@@ -526,6 +546,10 @@ type Client struct {{
 	Validation bool
 	// Cache enables GET response caching with ETag/conditional requests. Nil = disabled.
 	Cache *ResponseCache
+	// RateLimiter controls request throughput. Nil = no rate limiting.
+	RateLimiter RateLimiter
+	// Telemetry provides hooks for request lifecycle observability.
+	Telemetry TelemetryHooks
 	// Middleware runs around each HTTP attempt (after auth headers are applied).
 	Middleware []Middleware
 	// StreamMiddleware runs before streaming requests (header-only modifications).
@@ -647,6 +671,18 @@ func (c *Client) WithCache(ttl time.Duration) *Client {{
 	return c
 }}
 
+// WithRateLimiter sets a rate limiter applied before each request.
+func (c *Client) WithRateLimiter(limiter RateLimiter) *Client {{
+	c.RateLimiter = limiter
+	return c
+}}
+
+// WithTelemetry sets telemetry hooks for request lifecycle observability.
+func (c *Client) WithTelemetry(hooks TelemetryHooks) *Client {{
+	c.Telemetry = hooks
+	return c
+}}
+
 // WithHTTPClient replaces the underlying *http.Client.
 func (c *Client) WithHTTPClient(hc *http.Client) *Client {{
 	c.HTTPClient = hc
@@ -682,6 +718,19 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		defer c.sem.Release()
 	}}
 
+	// Rate limiting: wait for permission before proceeding.
+	if c.RateLimiter != nil {{
+		if err := c.RateLimiter.Acquire(ctx); err != nil {{
+			return err
+		}}
+	}}
+
+	// Telemetry: request start.
+	startTime := time.Now()
+	if c.Telemetry != nil {{
+		c.Telemetry.OnRequestStart(method, path)
+	}}
+
 	// --- ETag cache: check for GET requests ---
 	isGet := strings.ToUpper(method) == "GET"
 	var cachedEntry CacheEntry
@@ -690,6 +739,11 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 		cachedEntry, hasCache = c.Cache.Get(u)
 		if hasCache {{
 			c.Header.Set("If-None-Match", cachedEntry.ETag)
+			if c.Telemetry != nil {{
+				c.Telemetry.OnCacheHit(method, path)
+			}}
+		}} else if c.Telemetry != nil {{
+			c.Telemetry.OnCacheMiss(method, path)
 		}}
 	}}
 
@@ -727,7 +781,15 @@ func (c *Client) DoJSON(ctx context.Context, method, path string, query url.Valu
 	}}
 
 	if err != nil {{
+		if c.Telemetry != nil {{
+			c.Telemetry.OnRequestError(method, path, time.Since(startTime).Milliseconds(), err)
+		}}
 		return err
+	}}
+
+	// Telemetry: successful response.
+	if c.Telemetry != nil {{
+		c.Telemetry.OnRequestEnd(method, path, time.Since(startTime).Milliseconds(), status)
 	}}
 
 	// --- ETag cache: handle 304 Not Modified and update on 200 ---
@@ -779,6 +841,12 @@ func (c *Client) DoStream(ctx context.Context, method, path string, query url.Va
 		// should set MaxConcurrent carefully for streams.
 		defer c.sem.Release()
 	}}
+	// Rate limiting: wait for permission before proceeding.
+	if c.RateLimiter != nil {{
+		if err := c.RateLimiter.Acquire(ctx); err != nil {{
+			return nil, err
+		}}
+	}}
 	var idemKey string
 	if c.Idempotency && IsIdempotencyCandidate(method) {{
 		idemKey = NewIdempotencyKey()
@@ -812,6 +880,10 @@ func (c *Client) doWithRetry(ctx context.Context, method, u string, bodyBytes []
 		lastErr = err
 		if !isRetriable(method, err, retry) || attempt == retry.MaxRetries {{
 			return nil, 0, "", err
+		}}
+		// Telemetry: retry notification.
+		if c.Telemetry != nil {{
+			c.Telemetry.OnRetry(method, u, attempt+1, err)
 		}}
 	}}
 	return nil, 0, "", lastErr
@@ -1637,6 +1709,243 @@ func (c *ResponseCache) Len() int {{
     )
 }
 
+// ─── ratelimit.go ────────────────────────────────────────────────────────────
+
+fn emit_ratelimit(pkg: &str) -> String {
+    format!(
+        r#"// Code generated by specforge. DO NOT EDIT.
+
+package {pkg}
+
+import (
+	"context"
+	"sync"
+	"time"
+)
+
+// RateLimiter controls request throughput. The client calls Acquire before each
+// request; the call blocks until the request is allowed to proceed.
+type RateLimiter interface {{
+	Acquire(ctx context.Context) error
+}}
+
+// TokenBucket implements a token-bucket rate limiter. Tokens refill at a constant
+// rate up to a maximum. Each request consumes one token; when empty, Acquire
+// blocks until a token is available.
+type TokenBucket struct {{
+	mu         sync.Mutex
+	tokens     float64
+	maxTokens  float64
+	refillRate float64 // tokens per second
+	lastRefill time.Time
+}}
+
+// NewTokenBucket creates a token bucket with the given burst capacity and refill rate (tokens/sec).
+func NewTokenBucket(maxTokens int, refillRate float64) *TokenBucket {{
+	return &TokenBucket{{
+		tokens:     float64(maxTokens),
+		maxTokens:  float64(maxTokens),
+		refillRate: refillRate,
+		lastRefill: time.Now(),
+	}}
+}}
+
+// Acquire blocks until a token is available or ctx is cancelled.
+func (tb *TokenBucket) Acquire(ctx context.Context) error {{
+	tb.mu.Lock()
+	defer tb.mu.Unlock()
+	tb.refill()
+	for tb.tokens < 1 {{
+		// Wait for a refill.
+		tb.mu.Unlock()
+		select {{
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}}
+		tb.mu.Lock()
+		tb.refill()
+	}}
+	tb.tokens -= 1
+	return nil
+}}
+
+func (tb *TokenBucket) refill() {{
+	now := time.Now()
+	elapsed := now.Sub(tb.lastRefill).Seconds()
+	tb.tokens = minFloat(tb.maxTokens, tb.tokens+elapsed*tb.refillRate)
+	tb.lastRefill = now
+}}
+
+// SlidingWindow implements a sliding-window rate limiter. Allows at most
+// maxRequests within any rolling window. When the limit is reached, Acquire
+// blocks until the oldest request in the window expires.
+type SlidingWindow struct {{
+	mu          sync.Mutex
+	requests    []time.Time
+	maxRequests int
+	window      time.Duration
+}}
+
+// NewSlidingWindow creates a sliding window limiter with the given max requests and window duration.
+func NewSlidingWindow(maxRequests int, window time.Duration) *SlidingWindow {{
+	return &SlidingWindow{{
+		maxRequests: maxRequests,
+		window:      window,
+	}}
+}}
+
+// Acquire blocks until a request slot is available or ctx is cancelled.
+func (sw *SlidingWindow) Acquire(ctx context.Context) error {{
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	sw.evict()
+	for len(sw.requests) >= sw.maxRequests {{
+		// Wait until the oldest request expires.
+		oldest := sw.requests[0]
+		wait := sw.window - time.Since(oldest)
+		sw.mu.Unlock()
+		select {{
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
+		}}
+		sw.mu.Lock()
+		sw.evict()
+	}}
+	sw.requests = append(sw.requests, time.Now())
+	return nil
+}}
+
+func (sw *SlidingWindow) evict() {{
+	cutoff := time.Now().Add(-sw.window)
+	n := 0
+	for _, t := range sw.requests {{
+		if t.After(cutoff) {{
+			break
+		}}
+		n++
+	}}
+	sw.requests = sw.requests[n:]
+}}
+
+func minFloat(a, b float64) float64 {{
+	if a < b {{
+		return a
+	}}
+	return b
+}}
+"#,
+        pkg = pkg,
+    )
+}
+
+// ─── telemetry.go ────────────────────────────────────────────────────────────
+
+fn emit_telemetry(pkg: &str) -> String {
+    format!(
+        r#"// Code generated by specforge. DO NOT EDIT.
+
+package {pkg}
+
+import (
+	"sync"
+	"time"
+)
+
+// TelemetryHooks provides callbacks for observing the SDK request lifecycle.
+// Implement any subset; nil hooks are never called.
+type TelemetryHooks interface {{
+	// OnRequestStart fires just before the request is dispatched.
+	OnRequestStart(method, path string)
+	// OnRequestEnd fires after a successful response (2xx) with the elapsed duration.
+	OnRequestEnd(method, path string, durationMs int64, status int)
+	// OnRequestError fires when a request fails (network, timeout, non-retriable HTTP error).
+	OnRequestError(method, path string, durationMs int64, err error)
+	// OnRetry fires before a retry attempt (after backoff sleep).
+	OnRetry(method, path string, attempt int, err error)
+	// OnCacheHit fires when a GET request is served from the response cache.
+	OnCacheHit(method, path string)
+	// OnCacheMiss fires when a GET request misses the cache and goes to the network.
+	OnCacheMiss(method, path string)
+}}
+
+// MetricsCollector is a built-in TelemetryHooks implementation that tracks
+// request counts, errors, durations, and retries.
+type MetricsCollector struct {{
+	RequestCount  int64
+	ErrorCount    int64
+	TotalDuration time.Duration
+	RetryCount    int64
+	mu            sync.Mutex
+}}
+
+// NewMetricsCollector creates an empty MetricsCollector.
+func NewMetricsCollector() *MetricsCollector {{
+	return &MetricsCollector{{}}
+}}
+
+func (m *MetricsCollector) OnRequestStart(method, path string) {{
+	m.mu.Lock()
+	m.RequestCount++
+	m.mu.Unlock()
+}}
+
+func (m *MetricsCollector) OnRequestEnd(method, path string, durationMs int64, status int) {{
+	m.mu.Lock()
+	m.TotalDuration += time.Duration(durationMs) * time.Millisecond
+	if status >= 400 {{
+		m.ErrorCount++
+	}}
+	m.mu.Unlock()
+}}
+
+func (m *MetricsCollector) OnRequestError(method, path string, durationMs int64, err error) {{
+	m.mu.Lock()
+	m.ErrorCount++
+	m.TotalDuration += time.Duration(durationMs) * time.Millisecond
+	m.mu.Unlock()
+}}
+
+func (m *MetricsCollector) OnRetry(method, path string, attempt int, err error) {{
+	m.mu.Lock()
+	m.RetryCount++
+	m.mu.Unlock()
+}}
+
+func (m *MetricsCollector) OnCacheHit(method, path string)  {{}}
+func (m *MetricsCollector) OnCacheMiss(method, path string) {{}}
+
+// Metrics is a snapshot of collected metrics.
+type Metrics struct {{
+	RequestCount  int64
+	ErrorCount    int64
+	TotalDuration time.Duration
+	AvgDuration   time.Duration
+	RetryCount    int64
+}}
+
+// GetMetrics returns a snapshot of the collected metrics.
+func (m *MetricsCollector) GetMetrics() Metrics {{
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	avg := time.Duration(0)
+	if m.RequestCount > 0 {{
+		avg = m.TotalDuration / time.Duration(m.RequestCount)
+	}}
+	return Metrics{{
+		RequestCount:  m.RequestCount,
+		ErrorCount:    m.ErrorCount,
+		TotalDuration: m.TotalDuration,
+		AvgDuration:   avg,
+		RetryCount:    m.RetryCount,
+	}}
+}}
+"#,
+        pkg = pkg,
+    )
+}
+
 // ─── validate.go ─────────────────────────────────────────────────────────────
 
 fn emit_validate(pkg: &str, doc: &Document) -> String {
@@ -1903,6 +2212,14 @@ fn emit_method(op: &Operation) -> String {
             op.method.upper(),
             op.path
         ));
+    }
+    // Deprecation notice.
+    if is_operation_deprecated(op) {
+        if let Some(alt) = go_deprecation_alternative(op) {
+            body.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+        } else {
+            body.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
+        }
     }
     body.push_str(&format!(
         "func (c *Client) {name}({}) {} {{\n",
@@ -2346,6 +2663,80 @@ fn emit_webhooks(pkg: &str, doc: &Document) -> String {
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+
+/// Check if an operation is deprecated (summary or description mentions "deprecated").
+fn is_operation_deprecated(op: &Operation) -> bool {
+    if let Some(summary) = &op.summary {
+        if summary.to_lowercase().contains("deprecated") {
+            return true;
+        }
+    }
+    if let Some(desc) = &op.description {
+        if desc.to_lowercase().contains("deprecated") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Extract a suggested alternative from the operation's deprecation text.
+fn go_deprecation_alternative(op: &Operation) -> Option<String> {
+    let text = op
+        .summary
+        .as_deref()
+        .or(op.description.as_deref())
+        .unwrap_or("");
+    let lower = text.to_lowercase();
+    if let Some(pos) = lower.find("use ") {
+        let after = &text[pos + 4..];
+        if let Some(end) = after.to_lowercase().find(" instead") {
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    for pattern in &["replaced by ", "replaced with "] {
+        if let Some(pos) = lower.find(pattern) {
+            let after = &text[pos + pattern.len()..];
+            let end = after
+                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .unwrap_or(after.len());
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Extract a suggested alternative from schema deprecation text.
+fn go_schema_deprecation_alternative(desc: &str) -> Option<String> {
+    let lower = desc.to_lowercase();
+    if let Some(pos) = lower.find("use ") {
+        let after = &desc[pos + 4..];
+        if let Some(end) = after.to_lowercase().find(" instead") {
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    for pattern in &["replaced by ", "replaced with "] {
+        if let Some(pos) = lower.find(pattern) {
+            let after = &desc[pos + pattern.len()..];
+            let end = after
+                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .unwrap_or(after.len());
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    None
+}
 
 fn go_doc(text: &str, pad: &str) -> String {
     text.lines()

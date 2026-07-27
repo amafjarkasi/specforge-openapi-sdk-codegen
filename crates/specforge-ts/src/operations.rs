@@ -314,6 +314,7 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
     };
 
     // Doc comment.
+    let is_deprecated = is_operation_deprecated(op);
     let mut doc = String::new();
     if let Some(s) = &op.summary {
         doc.push_str(&format!("/**\n * {s}\n"));
@@ -323,6 +324,13 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
     if let Some(d) = &op.description {
         for line in d.lines() {
             doc.push_str(&format!(" * {line}\n"));
+        }
+    }
+    if is_deprecated {
+        if let Some(alt) = deprecation_alternative(op) {
+            doc.push_str(&format!(" * @deprecated Use {alt} instead.\n"));
+        } else {
+            doc.push_str(" * @deprecated This operation is deprecated.\n");
         }
     }
     doc.push_str(" */\n");
@@ -365,6 +373,55 @@ fn schema_name(ty: &Type) -> Option<String> {
         Type::Map { value, .. } => schema_name(value),
         _ => None,
     }
+}
+
+/// Check if an operation is deprecated (summary or description mentions "deprecated").
+fn is_operation_deprecated(op: &Operation) -> bool {
+    if let Some(summary) = &op.summary {
+        if summary.to_lowercase().contains("deprecated") {
+            return true;
+        }
+    }
+    if let Some(desc) = &op.description {
+        if desc.to_lowercase().contains("deprecated") {
+            return true;
+        }
+    }
+    false
+}
+
+/// Extract a suggested alternative from the operation's deprecation text.
+fn deprecation_alternative(op: &Operation) -> Option<String> {
+    let text = op
+        .summary
+        .as_deref()
+        .or(op.description.as_deref())
+        .unwrap_or("");
+    let lower = text.to_lowercase();
+    // "use X instead"
+    if let Some(pos) = lower.find("use ") {
+        let after = &text[pos + 4..];
+        if let Some(end) = after.to_lowercase().find(" instead") {
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    // "replaced by X"
+    for pattern in &["replaced by ", "replaced with "] {
+        if let Some(pos) = lower.find(pattern) {
+            let after = &text[pos + pattern.len()..];
+            let end = after
+                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .unwrap_or(after.len());
+            let alt = after[..end].trim();
+            if !alt.is_empty() {
+                return Some(alt.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Pick the success-body type for an operation: the body of the lowest 2xx,

@@ -7,6 +7,7 @@
 //! The IR is the only thing downstream emitters are allowed to see. They never
 //! import `openapiv3`, so swapping the parser later won't ripple into emitters.
 
+pub mod deprecation;
 pub mod diff;
 pub mod docs;
 pub mod error;
@@ -20,6 +21,7 @@ pub mod testgen;
 pub mod validate;
 pub mod workspace;
 
+pub use deprecation::{find_deprecations, generate_migration_guide, DeprecationInfo, DeprecationKind};
 pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
 pub use merge::merge_specs;

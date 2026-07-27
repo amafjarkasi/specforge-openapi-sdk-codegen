@@ -80,6 +80,8 @@ enum Commands {
     Workspace(WorkspaceArgs),
     /// Generate a workspace config by scanning a directory for spec files.
     WorkspaceInit(WorkspaceInitArgs),
+    /// Compare two spec versions and generate a migration guide.
+    Migrate(MigrateArgs),
 }
 
 #[derive(Args, Debug)]
@@ -124,6 +126,10 @@ struct CheckArgs {
     /// Treat warnings as errors.
     #[arg(long)]
     strict: bool,
+
+    /// List all deprecated operations and schemas found in the spec.
+    #[arg(long)]
+    deprecations: bool,
 
     /// Disable a lint rule (can be repeated).
     #[arg(long = "disable", value_name = "RULE")]
@@ -317,6 +323,23 @@ struct WorkspaceInitArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct MigrateArgs {
+    /// Path to the old (baseline) OpenAPI spec.
+    old: PathBuf,
+
+    /// Path to the new OpenAPI spec.
+    new: PathBuf,
+
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -333,6 +356,7 @@ fn main() -> ExitCode {
         Commands::Merge(args) => args.log_level,
         Commands::Workspace(args) => args.log_level,
         Commands::WorkspaceInit(args) => args.log_level,
+        Commands::Migrate(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -475,6 +499,14 @@ fn main() -> ExitCode {
                 );
                 ExitCode::SUCCESS
             }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Migrate(args) => match run_migrate(&args) {
+            Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
                 let _ = warn!("{e:#}");
@@ -659,6 +691,19 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
             eprintln!(
                 "\n{warnings} warning(s)",
             );
+        }
+    }
+
+    // Deprecation scan.
+    if cli.deprecations {
+        let deprecations = specforge_core::find_deprecations(&doc);
+        if deprecations.is_empty() {
+            eprintln!("\nno deprecations found");
+        } else {
+            eprintln!("\nDeprecations ({}):\n", deprecations.len());
+            for dep in &deprecations {
+                eprintln!("  {dep}");
+            }
         }
     }
 
@@ -1217,6 +1262,44 @@ fn run_workspace_init(cli: &WorkspaceInitArgs) -> Result<specforge_core::Workspa
     }
 
     Ok(result)
+}
+
+fn run_migrate(cli: &MigrateArgs) -> Result<()> {
+    info!("reading old spec: {}", cli.old.display());
+    let old_spec = parse_file(&cli.old)
+        .with_context(|| format!("failed to parse old spec at {}", cli.old.display()))?;
+    let old_doc = resolve(&old_spec).context("failed to resolve old spec")?;
+
+    info!("reading new spec: {}", cli.new.display());
+    let new_spec = parse_file(&cli.new)
+        .with_context(|| format!("failed to parse new spec at {}", cli.new.display()))?;
+    let new_doc = resolve(&new_spec).context("failed to resolve new spec")?;
+
+    let old_version = if old_spec.info.version.is_empty() {
+        "old".to_string()
+    } else {
+        old_spec.info.version.clone()
+    };
+    let new_version = if new_spec.info.version.is_empty() {
+        "new".to_string()
+    } else {
+        new_spec.info.version.clone()
+    };
+
+    let guide = specforge_core::generate_migration_guide(&old_doc, &new_doc, &old_version, &new_version);
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &guide)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            println!("{guide}");
+        }
+    }
+
+    Ok(())
 }
 
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.

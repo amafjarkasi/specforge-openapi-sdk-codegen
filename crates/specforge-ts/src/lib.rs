@@ -175,7 +175,9 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     body.push_str("export * from \"./auth\";\n");
     body.push_str("export * from \"./retry\";\n");
     body.push_str("export * from \"./paginate\";\n");
-    body.push_str("export * from \"./validate\";\n\n");
+    body.push_str("export * from \"./validate\";\n");
+    body.push_str("export * from \"./ratelimit\";\n");
+    body.push_str("export * from \"./telemetry\";\n\n");
 
     // Models.
     for (_, model) in doc.schemas.iter() {
