@@ -887,11 +887,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 - [x] Multi-platform CI (Linux, macOS, Windows)  
 - [x] Richer generated READMEs (errors, pagination, concurrency, middleware, streaming)  
 
-**Next up:**
-
-- [ ] SDK observability dashboard (real-time metrics visualization)  
-- [ ] OpenAPI 3.1 native parser (replace preprocessing layer)  
-- [ ] Spec security scheme analysis  
+**All roadmap items completed through v1.2.0.**
 
 ---
 
