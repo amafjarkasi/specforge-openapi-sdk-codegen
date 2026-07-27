@@ -1,5 +1,6 @@
 //! specforge-core
 pub mod analyzer;
+pub mod changelog;
 pub mod dashboard;
 pub mod deprecation;
 pub mod demo;
@@ -31,7 +32,7 @@ pub use error::{ResolveError, SpecError};
 pub use i18n::I18nConfig;
 pub use merge::merge_specs;
 pub use testgen::{generate_tests, TestGenOptions, TestLang};
-pub use ir::{Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod, Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook};
+pub use ir::{Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod, IR_VERSION, Model, ObjectModel, Operation, Parameter, ParamLocation, Property, RequestBody, Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook};
 pub use demo::generate_demo_spec;
 pub use lint::{lint_swagger_editor, Diagnostic, Severity};
 pub use lint_config::{LintConfig, LintRule, RuleSeverity};
@@ -39,6 +40,7 @@ pub use resolve::{resolve, resolve_with_webhooks};
 pub use spec::{detect_31_features, parse_bytes, parse_bytes_full, parse_file, parse_file_full, parse_str, parse_str_full, resolve_spec_path, scan_versions, ParsedSpec, Spec31Features, VersionInfo};
 pub use validate::{validate, ValidationError};
 pub use workspace::{init_workspace, WorkspaceConfig, WorkspaceInitResult, WorkspaceOutput, WorkspaceRunResult, WorkspaceSpec};
+pub use changelog::{generate_changelog, ChangelogOptions};
 pub use analyzer::{analyze_spec, AnalysisReport};
 pub use graph::{generate_graph, GraphFormat};
 pub use dashboard::generate_dashboard;

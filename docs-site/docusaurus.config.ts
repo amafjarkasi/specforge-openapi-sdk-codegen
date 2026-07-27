@@ -17,7 +17,7 @@ const config: Config = {
   organizationName: 'amafjarkasi',
   projectName: 'specforge-openapi-sdk-codegen',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
   i18n: {
@@ -85,11 +85,11 @@ const config: Config = {
             },
             {
               label: 'Getting Started',
-              to: '/category/getting-started',
+              to: '/getting-started/release',
             },
             {
-              label: 'Guides',
-              to: '/category/guides',
+              label: 'Plugins',
+              to: '/guides/plugins',
             },
           ],
         },

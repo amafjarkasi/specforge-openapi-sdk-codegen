@@ -66,6 +66,7 @@ fn generate_and_report(
             let opts = specforge_ts::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 package_name: Some(format!("@perf/{label}")),
+                i18n: None,
             };
             specforge_ts::generate(doc, &opts).expect("{label}: ts emit failed")
         }
@@ -74,6 +75,7 @@ fn generate_and_report(
                 out_dir: out.path().to_path_buf(),
                 module_path: Some(format!("github.com/perf/{label}-go")),
                 package_name: None,
+                i18n: None,
             };
             specforge_go::generate(doc, &opts).expect("{label}: go emit failed")
         }
@@ -81,6 +83,7 @@ fn generate_and_report(
             let opts = specforge_rust::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 crate_name: Some(format!("perf_{label}_sdk")),
+                i18n: None,
             };
             specforge_rust::generate(doc, &opts).expect("{label}: rust emit failed")
         }

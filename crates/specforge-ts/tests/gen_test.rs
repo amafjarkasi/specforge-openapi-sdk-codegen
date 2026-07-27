@@ -45,3 +45,29 @@ fn generate_with_i18n() {
     println!("=== TS i18n verification PASSED ===");
     for line in content.lines().take(50) { println!("  {line}"); }
 }
+
+#[test]
+fn generate_version_file() {
+    let spec_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+    let ts_dir = tempfile::tempdir().unwrap();
+    let opts = specforge_ts::GeneratorOptions {
+        out_dir: ts_dir.path().to_path_buf(),
+        package_name: None,
+        i18n: None,
+    };
+    let _files = specforge_ts::generate(&doc, &opts).expect("emit TS");
+
+    // Verify specforge-version.json exists and has correct content.
+    let version_file = ts_dir.path().join("specforge-version.json");
+    assert!(version_file.exists(), "specforge-version.json not found");
+    let content = std::fs::read_to_string(&version_file).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&content).expect("valid JSON");
+    assert_eq!(v["ir_version"], specforge_core::IR_VERSION);
+    assert!(v["specforge_version"].is_string(), "specforge_version should be a string");
+    assert!(v["spec_version"].is_string(), "spec_version should be a string");
+    assert!(v["generated_at"].is_string(), "generated_at should be a string");
+    println!("=== TS specforge-version.json verification PASSED ===");
+    println!("Content:\n{content}");
+}

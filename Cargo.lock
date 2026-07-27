@@ -1288,6 +1288,7 @@ name = "specforge-go"
 version = "0.8.0"
 dependencies = [
  "rayon",
+ "serde_json",
  "specforge-core",
  "tempfile",
  "thiserror",
@@ -1315,6 +1316,7 @@ name = "specforge-rust"
 version = "0.8.0"
 dependencies = [
  "rayon",
+ "serde_json",
  "specforge-core",
  "tempfile",
  "thiserror",
@@ -1327,6 +1329,7 @@ version = "0.8.0"
 dependencies = [
  "indexmap",
  "rayon",
+ "serde_json",
  "specforge-core",
  "tempfile",
  "thiserror",

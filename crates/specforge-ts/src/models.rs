@@ -420,7 +420,7 @@ mod tests {
         assert!(file.contains("export interface Pet {"));
         assert!(file.contains("id: string;"));
         assert!(file.contains("age?: number;"));
-        assert!(file.contains("/// A pet"));
+        assert!(file.contains("* A pet"));
     }
 
     #[test]

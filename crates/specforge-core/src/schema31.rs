@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Schema31 {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "type")]
     pub ty: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "$schema")]
     pub schema: Option<String>,

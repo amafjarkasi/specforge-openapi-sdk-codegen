@@ -176,6 +176,7 @@ fn petstore_generates_full_sdk() {
     let opts = specforge_ts::GeneratorOptions {
         out_dir: out.clone(),
         package_name: Some("@regression/petstore".into()),
+        i18n: None,
     };
     let written = specforge_ts::generate(&doc, &opts).expect("petstore emits");
     assert!(written.len() > 10, "expected multiple files, got {}", written.len());
@@ -203,6 +204,7 @@ fn petstore_generates_go_sdk() {
         out_dir: out.clone(),
         module_path: Some("github.com/example/petstore-go".into()),
         package_name: None,
+        i18n: None,
     };
     let written = specforge_go::generate(&doc, &opts).expect("petstore go emits");
     assert!(written.iter().any(|p| p == "go.mod"), "missing go.mod: {written:?}");
@@ -230,6 +232,7 @@ fn petstore_generates_rust_sdk() {
     let opts = specforge_rust::GeneratorOptions {
         out_dir: out.clone(),
         crate_name: Some("petstore_sdk".into()),
+        i18n: None,
     };
     let written = specforge_rust::generate(&doc, &opts).expect("petstore rust emits");
     assert!(
@@ -298,6 +301,7 @@ fn generate_and_compile_go(f: &Fixture, module: &str) {
         out_dir: out.clone(),
         module_path: Some(module.into()),
         package_name: None,
+        i18n: None,
     };
     let written = specforge_go::generate(&doc, &opts)
         .unwrap_or_else(|e| panic!("{} go: emit failed: {e}", f.name));
@@ -342,6 +346,7 @@ fn generate_and_compile_rust(f: &Fixture, crate_name: &str) {
     let opts = specforge_rust::GeneratorOptions {
         out_dir: out.clone(),
         crate_name: Some(crate_name.into()),
+        i18n: None,
     };
     let written = specforge_rust::generate(&doc, &opts)
         .unwrap_or_else(|e| panic!("{} rust: emit failed: {e}", f.name));

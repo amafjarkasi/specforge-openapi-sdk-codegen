@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, export_spec, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, ExportOptions, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -96,6 +96,8 @@ enum Commands {
     Export(ExportArgs),
     /// Generate a working demo Petstore spec with realistic examples.
     Demo(DemoArgs),
+    /// Generate a CHANGELOG.md from an OpenAPI spec.
+    Changelog(ChangelogArgs),
 }
 
 #[derive(Args, Debug)]
@@ -131,6 +133,14 @@ struct GenerateArgs {
     /// When provided, the generated SDK includes localized error message files.
     #[arg(long, value_delimiter = ',')]
     locale: Option<Vec<String>>,
+
+    /// Auto-generate CHANGELOG.md in the output directory.
+    #[arg(long)]
+    changelog: bool,
+
+    /// Previous spec to diff against for changelog generation (used with --changelog).
+    #[arg(long = "changelog-previous")]
+    changelog_previous: Option<PathBuf>,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
@@ -501,6 +511,28 @@ struct DemoArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct ChangelogArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Override version (default: from spec info.version).
+    #[arg(long)]
+    version: Option<String>,
+
+    /// Previous spec for diff.
+    #[arg(long)]
+    previous: Option<PathBuf>,
+
+    /// Output file (default: CHANGELOG.md in current directory).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -525,6 +557,7 @@ fn main() -> ExitCode {
         Commands::Mock(args) => args.log_level,
         Commands::Export(args) => args.log_level,
         Commands::Demo(args) => args.log_level,
+        Commands::Changelog(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -744,6 +777,14 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Commands::Changelog(args) => match run_changelog(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
@@ -853,7 +894,23 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
     };
     let emit_time = t2.elapsed();
 
-    if written.is_empty() {
+    let mut file_count = written.len();
+
+    // Auto-generate CHANGELOG.md if --changelog is set.
+    if cli.changelog {
+        let changelog_opts = ChangelogOptions {
+            version: cli.version.clone(),
+            previous_spec: cli.changelog_previous.as_ref().map(|p| p.display().to_string()),
+        };
+        let changelog_content = generate_changelog(&doc, &changelog_opts);
+        let changelog_path = cli.out.join("CHANGELOG.md");
+        std::fs::write(&changelog_path, &changelog_content)
+            .with_context(|| format!("failed to write {}", changelog_path.display()))?;
+        info!("wrote {}", changelog_path.display());
+        file_count += 1;
+    }
+
+    if file_count == 0 {
         bail!("emitter wrote zero files");
     }
 
@@ -863,7 +920,7 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
         eprintln!("  total:   {:?}", start.elapsed());
     }
 
-    Ok(written.len())
+    Ok(file_count)
 }
 
 fn run_check(cli: &CheckArgs) -> Result<bool> {
@@ -1972,6 +2029,38 @@ fn run_demo(cli: &DemoArgs) -> Result<()> {
         }
         None => {
             println!("{output}");
+        }
+    }
+
+    Ok(())
+}
+
+fn run_changelog(cli: &ChangelogArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    let opts = ChangelogOptions {
+        version: cli.version.clone(),
+        previous_spec: cli.previous.as_ref().map(|p| p.display().to_string()),
+    };
+
+    let output = generate_changelog(&doc, &opts);
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &output)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            let default_path = std::path::PathBuf::from("CHANGELOG.md");
+            std::fs::write(&default_path, &output)
+                .with_context(|| format!("failed to write {}", default_path.display()))?;
+            eprintln!("Wrote {}", default_path.display());
         }
     }
 

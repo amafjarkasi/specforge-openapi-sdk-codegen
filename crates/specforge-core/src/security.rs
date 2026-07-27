@@ -99,13 +99,13 @@ mod tests {
     use super::*;
     #[test]
     fn analyze_empty_doc() {
-        let doc = Document { title: "T".into(), version: "1".into(), base_url: None, security: vec![], schemas: Default::default(), operations: vec![], webhooks: vec![] };
+        let doc = Document { ir_version: crate::ir::IR_VERSION.to_string(), title: "T".into(), version: "1".into(), base_url: None, security: vec![], schemas: Default::default(), operations: vec![], webhooks: vec![] };
         let r = analyze_security(&doc); assert!(r.schemes.is_empty()); assert_eq!(r.issues.len(), 1);
     }
     #[test]
     fn analyze_bearer() {
         use crate::ir::Operation;
-        let doc = Document { title: "T".into(), version: "1".into(), base_url: None, security: vec![SecurityScheme::HttpBearer], schemas: Default::default(),
+        let doc = Document { ir_version: crate::ir::IR_VERSION.to_string(), title: "T".into(), version: "1".into(), base_url: None, security: vec![SecurityScheme::HttpBearer], schemas: Default::default(),
             operations: vec![ Operation { operation_id: "list".into(), method: crate::ir::HttpMethod::Get, path: "/items".into(), tag: None, summary: None, description: None, parameters: vec![], request_body: None, responses: vec![], retry_policy: None } ], webhooks: vec![] };
         let r = analyze_security(&doc); assert_eq!(r.schemes[0].kind, "bearer");
     }

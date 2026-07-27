@@ -19,7 +19,7 @@ use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
-    Response, RetryPolicy, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
+    Response, RetryPolicy, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
 };
 
 /// Load and fully resolve a parsed OpenAPI document into the IR.
@@ -49,6 +49,7 @@ pub fn resolve_with_webhooks(
     };
 
     Ok(Document {
+        ir_version: IR_VERSION.to_string(),
         title: spec.info.title.clone(),
         version: spec.info.version.clone(),
         base_url,

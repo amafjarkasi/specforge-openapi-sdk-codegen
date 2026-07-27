@@ -39,6 +39,15 @@ pub struct GeneratorOptions {
 /// Generate the full SDK into `opts.out_dir`. Returns the list of files written
 /// (relative paths), in deterministic order. Files are written in parallel using rayon.
 pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<String>> {
+    // IR version compatibility check.
+    if doc.ir_version != specforge_core::IR_VERSION {
+        eprintln!(
+            "Warning: IR version {} may not be fully supported by this emitter (expected {}).",
+            doc.ir_version,
+            specforge_core::IR_VERSION
+        );
+    }
+
     // Ensure the output root exists before any sub-emitter writes into it.
     std::fs::create_dir_all(&opts.out_dir)?;
 
@@ -81,6 +90,9 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
 
     // API convenience barrel (re-exports all tags for callers who want everything).
     files.extend(collect_api_index(doc, &opts.out_dir)?);
+
+    // specforge-version.json — version metadata for the generated SDK.
+    files.push(collect_version_file(doc, &opts.out_dir));
 
     // Write all files in parallel.
     let written: Vec<String> = files
@@ -266,9 +278,11 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
     body.push_str("export * from \"./retry\";\n");
     body.push_str("export * from \"./paginate\";\n");
     body.push_str("export * from \"./validate\";\n");
+    body.push_str("export * from \"./validation-middleware\";\n");
     body.push_str("export * from \"./ratelimit\";\n");
     body.push_str("export * from \"./telemetry\";\n");
-    body.push_str("export * from \"./logging\";\n\n");
+    body.push_str("export * from \"./logging\";\n");
+    body.push_str("export * from \"./service_container\";\n\n");
 
     // Models.
     for (_, model) in doc.schemas.iter() {
@@ -366,4 +380,68 @@ fn collect_api_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(Str
     let path = api_dir.join("index.ts");
     let rel = path_str(&path, out_dir);
     Ok(vec![(rel, path, body)])
+}
+
+/// Collect `specforge-version.json` — version metadata for the generated SDK.
+fn collect_version_file(doc: &Document, out_dir: &Path) -> (String, PathBuf, String) {
+    let content = format!(
+        r#"{{"specforge_version":"{}","ir_version":"{}","spec_version":"{}","generated_at":"{}"}}"#,
+        env!("CARGO_PKG_VERSION"),
+        doc.ir_version,
+        doc.version,
+        chrono_free_timestamp(),
+    );
+    let path = out_dir.join("specforge-version.json");
+    let rel = path_str(&path, out_dir);
+    (rel, path, content)
+}
+
+/// Generate an ISO 8601 timestamp without pulling in chrono.
+fn chrono_free_timestamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    // Simple UTC date conversion (no leap seconds needed for approx timestamp).
+    let days = secs / 86400;
+    let time_of_day = secs % 86400;
+    let hours = time_of_day / 3600;
+    let minutes = (time_of_day % 3600) / 60;
+    let seconds = time_of_day % 60;
+
+    // Civil date from days since epoch.
+    let mut y = 1970i64;
+    let mut remaining = days as i64;
+    loop {
+        let days_in_year = if is_leap(y) { 366 } else { 365 };
+        if remaining < days_in_year {
+            break;
+        }
+        remaining -= days_in_year;
+        y += 1;
+    }
+    let leap = is_leap(y);
+    let month_days: [i64; 12] = [
+        31,
+        if leap { 29 } else { 28 },
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+    ];
+    let mut m = 1u32;
+    for &md in &month_days {
+        if remaining < md {
+            break;
+        }
+        remaining -= md;
+        m += 1;
+    }
+    let d = remaining + 1;
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        y, m, d, hours, minutes, seconds
+    )
+}
+
+fn is_leap(y: i64) -> bool {
+    (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
 }

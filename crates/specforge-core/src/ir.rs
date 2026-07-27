@@ -63,5 +63,18 @@ pub struct Webhook { pub name: String, pub method: HttpMethod, pub path: String,
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum SecurityScheme { HttpBearer, ApiKey { header: String } }
 
+/// The current IR schema version. Increment this when breaking IR changes are made.
+pub const IR_VERSION: &str = "1.0";
+
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct Document { pub title: String, pub version: String, pub base_url: Option<String>, pub security: Vec<SecurityScheme>, pub schemas: SchemaRegistry, pub operations: Vec<Operation>, pub webhooks: Vec<Webhook> }
+pub struct Document {
+    /// IR schema version for compatibility checks.
+    pub ir_version: String,
+    pub title: String,
+    pub version: String,
+    pub base_url: Option<String>,
+    pub security: Vec<SecurityScheme>,
+    pub schemas: SchemaRegistry,
+    pub operations: Vec<Operation>,
+    pub webhooks: Vec<Webhook>,
+}

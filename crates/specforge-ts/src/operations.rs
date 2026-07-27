@@ -497,6 +497,7 @@ mod tests {
     fn emits_a_method_per_operation() {
         use specforge_core::SchemaRegistry;
         let doc = Document {
+            ir_version: specforge_core::IR_VERSION.to_string(),
             title: "Test".into(),
             version: "1.0.0".into(),
             base_url: None,

@@ -341,6 +341,7 @@ mod tests {
 
     fn empty_doc() -> Document {
         Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
             title: String::new(),
             version: String::new(),
             base_url: None,

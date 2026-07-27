@@ -34,6 +34,15 @@ pub struct GeneratorOptions {
 /// Generate a Rust SDK crate into `opts.out_dir`. Returns relative paths written.
 /// Files are written in parallel using rayon.
 pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<String>> {
+    // IR version compatibility check.
+    if doc.ir_version != specforge_core::IR_VERSION {
+        eprintln!(
+            "Warning: IR version {} may not be fully supported by this emitter (expected {}).",
+            doc.ir_version,
+            specforge_core::IR_VERSION
+        );
+    }
+
     let src = opts.out_dir.join("src");
     let api = src.join("api");
     std::fs::create_dir_all(&api)?;
@@ -90,6 +99,9 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let validate = src.join("validate.rs");
     files.push((rel(&validate, &opts.out_dir), validate, emit_validate(doc)));
 
+    let validation_middleware = src.join("validation_middleware.rs");
+    files.push((rel(&validation_middleware, &opts.out_dir), validation_middleware, emit_validation_middleware()));
+
     let models = src.join("models.rs");
     files.push((rel(&models, &opts.out_dir), models, emit_models(doc)));
 
@@ -131,6 +143,9 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
 
     let readme = opts.out_dir.join("README.md");
     files.push((rel(&readme, &opts.out_dir), readme, emit_readme(doc, &crate_name)));
+
+    // specforge-version.json — version metadata for the generated SDK.
+    files.push(collect_version_file(doc, &opts.out_dir));
 
     // Write all files in parallel.
     let written: Vec<String> = files
@@ -436,6 +451,7 @@ pub mod concurrency;
 pub mod dedup;
 pub mod error;
 pub mod idempotency;
+pub mod interceptors;
 pub mod logging;
 pub mod middleware;
 pub mod models;
@@ -445,6 +461,7 @@ pub mod retry;
 pub mod streaming;
 pub mod telemetry;
 pub mod validate;
+pub mod validation_middleware;
 "#,
     );
 
@@ -455,7 +472,7 @@ pub mod validate;
 
     out.push_str(
         r#"
-pub use client::{Auth, Client, ClientBuilder, ResponseTransformer};
+pub use client::{Auth, Client, ClientBuilder, ResponseTransformer, ServiceContainer};
 pub use interceptors::{RequestInterceptor, ResponseInterceptor};
 pub use concurrency::Semaphore;
 pub use dedup::RequestDeduper;
@@ -468,6 +485,7 @@ pub use ratelimit::{RateLimiter, SlidingWindow, TokenBucket};
 pub use retry::RetryOptions;
 pub use telemetry::{MetricsCollector, TelemetryHooks};
 pub use streaming::{ServerSentEvent, SseStream};
+pub use validation_middleware::{validation_middleware, EndpointSchema, RouteSchemaMap};
 "#,
     );
 
@@ -1369,6 +1387,7 @@ use serde::Serialize;
 
 use crate::cache::ResponseCache;
 		use crate::concurrency::Semaphore;
+		use crate::interceptors::{{RequestInterceptor, ResponseInterceptor}};
 		use crate::ratelimit::RateLimiter;
 		use crate::telemetry::TelemetryHooks;
 		use crate::dedup::RequestDeduper;
@@ -1380,6 +1399,77 @@ use crate::cache::ResponseCache;
 		use crate::retry::{{backoff_delay, is_retriable_method, RetryOptions}};
 		use crate::streaming::SseStream;
 	
+	/// Typed service container grouping all DI-able SDK dependencies.
+	/// Create one with `ServiceContainer::new()`, override fields, then pass
+	/// to `ClientBuilder::service_container()` to apply them all at once.
+	#[derive(Clone)]
+	pub struct ServiceContainer {{
+	    pub http_client: reqwest::Client,
+	    pub cache: Option<ResponseCache>,
+	    pub rate_limiter: Option<Arc<dyn RateLimiter>>,
+	    pub logger: Option<Arc<dyn crate::logging::Logger>>,
+	    pub telemetry: Option<Arc<dyn TelemetryHooks>>,
+	}}
+
+	impl ServiceContainer {{
+	    /// Create a new container with sensible defaults (default reqwest client,
+	    /// console logger, no cache/rate limiter/telemetry).
+	    pub fn new() -> Self {{
+	        Self {{
+	            http_client: reqwest::Client::builder()
+	                .user_agent("specforge-rust-sdk")
+	                .build()
+	                .expect("failed to build default HTTP client"),
+	            cache: None,
+	            rate_limiter: None,
+	            logger: None,
+	            telemetry: None,
+	        }}
+	    }}
+
+	    /// Set a custom HTTP client, replacing the default.
+	    pub fn http_client(mut self, client: reqwest::Client) -> Self {{
+	        self.http_client = client;
+	        self
+	    }}
+
+	    /// Enable response caching with the given TTL.
+	    pub fn cache_ttl(mut self, ttl: std::time::Duration) -> Self {{
+	        self.cache = Some(ResponseCache::new(ttl));
+	        self
+	    }}
+
+	    /// Set a pre-configured response cache.
+	    pub fn cache(mut self, cache: ResponseCache) -> Self {{
+	        self.cache = Some(cache);
+	        self
+	    }}
+
+	    /// Set a rate limiter.
+	    pub fn rate_limiter(mut self, limiter: impl RateLimiter + 'static) -> Self {{
+	        self.rate_limiter = Some(Arc::new(limiter));
+	        self
+	    }}
+
+	    /// Set a structured logger.
+	    pub fn logger(mut self, logger: impl crate::logging::Logger + 'static) -> Self {{
+	        self.logger = Some(Arc::new(logger));
+	        self
+	    }}
+
+	    /// Set telemetry hooks.
+	    pub fn telemetry(mut self, hooks: impl TelemetryHooks + 'static) -> Self {{
+	        self.telemetry = Some(Arc::new(hooks));
+	        self
+	    }}
+	}}
+
+	impl Default for ServiceContainer {{
+	    fn default() -> Self {{
+	        Self::new()
+	    }}
+	}}
+
 	/// Credential provider applied on every request.
 	#[derive(Clone)]
 	pub enum Auth {{
@@ -2172,7 +2262,27 @@ use crate::cache::ResponseCache;
 		        self.http_client = Some(client);
 		        self
 		    }}
-		
+
+		    /// Apply a [`ServiceContainer`] to configure all DI-able services at once.
+		    /// Non-None container values override the builder defaults; individual
+		    /// builder methods called afterward take final precedence.
+		    pub fn service_container(mut self, sc: ServiceContainer) -> Self {{
+		        self.http_client = Some(sc.http_client);
+		        if let Some(cache) = sc.cache {{
+		            self.cache = Some(cache);
+		        }}
+		        if let Some(limiter) = sc.rate_limiter {{
+		            self.rate_limiter = Some(limiter);
+		        }}
+		        if let Some(logger) = sc.logger {{
+		            self.logger = Some(logger);
+		        }}
+		        if let Some(telemetry) = sc.telemetry {{
+		            self.telemetry = Some(telemetry);
+		        }}
+		        self
+		    }}
+
 		    pub fn build(self) -> Result<Client> {{
 	        let http = match self.http_client {{
 	            Some(c) => c,
@@ -2429,6 +2539,159 @@ fn value_type_name(v: &Value) -> &'static str {
     }
 
     out
+}
+
+// ─── validation_middleware.rs ────────────────────────────────────────────────
+
+fn emit_validation_middleware() -> String {
+    r#"// Code generated by specforge. DO NOT EDIT.
+
+//! Automatic request/response validation middleware that intercepts all
+//! requests and validates bodies against the OpenAPI schema.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use serde_json::Value;
+
+use crate::error::{Error, Result};
+use crate::middleware::{Middleware, MiddlewareRequest, MiddlewareResponse, NextFn};
+use crate::validate::ValidationError;
+
+/// Schema descriptor for an endpoint's request and/or response body validator.
+pub struct EndpointSchema {
+    /// Validator function for the request body. None means no validation.
+    pub request_body: Option<fn(&Value) -> Result<(), Vec<ValidationError>>>,
+    /// Validator function for the response body. None means no validation.
+    pub response_body: Option<fn(&Value) -> Result<(), Vec<ValidationError>>>,
+}
+
+/// Route schema map keyed by "METHOD /path/pattern".
+/// Patterns use `{param}` placeholders for path segments.
+pub type RouteSchemaMap = HashMap<String, EndpointSchema>;
+
+/// Check if `actual_path` matches the `pattern` path.
+/// Pattern segments wrapped in `{...}` are treated as wildcards.
+fn matches_path(pattern: &str, actual_path: &str) -> bool {
+    let pattern_segments: Vec<&str> = pattern.trim_matches('/').split('/').filter(|s| !s.is_empty()).collect();
+    let actual_segments: Vec<&str> = actual_path.trim_matches('/').split('/').filter(|s| !s.is_empty()).collect();
+    if pattern_segments.len() != actual_segments.len() {
+        return false;
+    }
+    for (ps, as_) in pattern_segments.iter().zip(actual_segments.iter()) {
+        if ps.starts_with('{') && ps.ends_with('}') {
+            continue; // wildcard
+        }
+        if ps != as_ {
+            return false;
+        }
+    }
+    true
+}
+
+/// Create a validation middleware that intercepts all requests and validates
+/// request/response bodies against the OpenAPI schema.
+///
+/// # Usage
+///
+/// ```ignore
+/// use std::collections::HashMap;
+/// use sdk::validation_middleware::{validation_middleware, EndpointSchema, RouteSchemaMap};
+/// use sdk::validate::validate_pet;
+///
+/// let mut schemas: RouteSchemaMap = HashMap::new();
+/// schemas.insert(
+///     "POST /pets".to_string(),
+///     EndpointSchema {
+///         request_body: Some(validate_pet),
+///         response_body: Some(validate_pet),
+///     },
+/// );
+/// schemas.insert(
+///     "GET /pets/{petId}".to_string(),
+///     EndpointSchema {
+///         request_body: None,
+///         response_body: Some(validate_pet),
+///     },
+/// );
+///
+/// client.use_middleware(validation_middleware(schemas));
+/// ```
+pub fn validation_middleware(schemas: RouteSchemaMap) -> Middleware {
+    let schemas = Arc::new(schemas);
+    Arc::new(move |req: MiddlewareRequest, next: NextFn| {
+        let schemas = Arc::clone(&schemas);
+        Box::pin(async move {
+            let method = req.method.as_str().to_uppercase();
+            let path = req.url.split('?').next().unwrap_or("").to_string();
+
+            // Find a matching route schema.
+            let route_key = format!("{} {}", method, path);
+            let endpoint_schema = schemas.get(&route_key).or_else(|| {
+                schemas.iter().find_map(|(pattern, schema)| {
+                    let space_idx = pattern.find(' ')?;
+                    let pattern_method = pattern[..space_idx].to_uppercase();
+                    let pattern_path = &pattern[space_idx + 1..];
+                    if pattern_method == method && matches_path(pattern_path, &path) {
+                        Some(schema)
+                    } else {
+                        None
+                    }
+                })
+            });
+
+            // Validate request body if a schema is defined.
+            if let Some(schema) = endpoint_schema {
+                if let Some(validator) = schema.request_body {
+                    if let Some(body_bytes) = &req.body {
+                        if !body_bytes.is_empty() {
+                            if let Ok(body) = serde_json::from_slice::<Value>(body_bytes) {
+                                if let Err(errors) = validator(&body) {
+                                    let msg: Vec<String> = errors.iter().map(|e| format!("{}: {}", e.path, e.message)).collect();
+                                    return Err(Error::Message(format!(
+                                        "[validation] {} {} request body: {}",
+                                        method, path, msg.join("; ")
+                                    )));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Proceed with the request.
+            let resp = next(req).await?;
+
+            // Validate response body if a schema is defined.
+            if let Some(schema) = endpoint_schema {
+                if let Some(validator) = schema.response_body {
+                    if resp.status >= 200 && resp.status < 300 && !resp.body.is_empty() {
+                        let is_json = resp.headers
+                            .get("content-type")
+                            .and_then(|v| v.to_str().ok())
+                            .map(|ct| ct.contains("application/json"))
+                            .unwrap_or(false);
+                        if is_json {
+                            if let Ok(body) = serde_json::from_slice::<Value>(&resp.body) {
+                                if let Err(errors) = validator(&body) {
+                                    let msg: Vec<String> = errors.iter().map(|e| format!("{}: {}", e.path, e.message)).collect();
+                                    return Err(Error::Message(format!(
+                                        "[validation] {} {} response {}: {}",
+                                        method, path, resp.status, msg.join("; ")
+                                    )));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(resp)
+        })
+    })
+}
+"#
+    .to_string()
 }
 
 // ─── webhooks.rs ────────────────────────────────────────────────────────────
@@ -3455,4 +3718,66 @@ _Do not edit generated files directly._
         title = doc.title,
         crate_name = crate_name,
     )
+}
+
+/// Collect `specforge-version.json` — version metadata for the generated SDK.
+fn collect_version_file(doc: &Document, out_dir: &Path) -> (String, PathBuf, String) {
+    let content = format!(
+        r#"{{"specforge_version":"{}","ir_version":"{}","spec_version":"{}","generated_at":"{}"}}"#,
+        env!("CARGO_PKG_VERSION"),
+        doc.ir_version,
+        doc.version,
+        chrono_free_timestamp(),
+    );
+    let path = out_dir.join("specforge-version.json");
+    let rel = rel(&path, out_dir);
+    (rel, path, content)
+}
+
+/// Generate an ISO 8601 timestamp without pulling in chrono.
+fn chrono_free_timestamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let days = secs / 86400;
+    let time_of_day = secs % 86400;
+    let hours = time_of_day / 3600;
+    let minutes = (time_of_day % 3600) / 60;
+    let seconds = time_of_day % 60;
+
+    let mut y = 1970i64;
+    let mut remaining = days as i64;
+    loop {
+        let days_in_year = if is_leap(y) { 366 } else { 365 };
+        if remaining < days_in_year {
+            break;
+        }
+        remaining -= days_in_year;
+        y += 1;
+    }
+    let leap = is_leap(y);
+    let month_days: [i64; 12] = [
+        31,
+        if leap { 29 } else { 28 },
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+    ];
+    let mut m = 1u32;
+    for &md in &month_days {
+        if remaining < md {
+            break;
+        }
+        remaining -= md;
+        m += 1;
+    }
+    let d = remaining + 1;
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        y, m, d, hours, minutes, seconds
+    )
+}
+
+fn is_leap(y: i64) -> bool {
+    (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
 }

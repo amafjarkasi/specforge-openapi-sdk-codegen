@@ -483,6 +483,7 @@ mod tests {
             schema_map.insert(k, v);
         }
         Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
             title: "Test".into(),
             version: "1.0.0".into(),
             base_url: None,

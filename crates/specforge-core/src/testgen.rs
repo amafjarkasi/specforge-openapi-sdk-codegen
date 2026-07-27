@@ -646,6 +646,7 @@ mod tests {
         );
 
         Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
             title: "Test API".to_string(),
             version: "1.0.0".to_string(),
             base_url: Some("http://localhost:3000".to_string()),

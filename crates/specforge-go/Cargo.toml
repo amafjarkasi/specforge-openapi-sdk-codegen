@@ -10,6 +10,7 @@ repository.workspace = true
 [dependencies]
 specforge-core.workspace = true
 rayon.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
