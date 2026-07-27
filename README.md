@@ -824,7 +824,44 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
-**v1.0.0** — rate limiting, telemetry, deprecation, website:
+**v1.3.0** — production-ready milestone:
+
+- [x] All tests green — **221 passing** (core 204 + TS 17)  
+- [x] 21 test fixtures (0.02MB to 14MB, 4 OpenAPI versions)  
+- [x] Stability enforcement — IR version + `specforge-version.json` in generated SDKs  
+- [x] SDK integration tests — validate TS/Go/Rust against mock servers  
+- [x] Thread safety audit — no deadlocks or race conditions  
+- [x] Unwrap/expect audit — production code audited for panics  
+- [x] SDK changelog generation (`specforge changelog`)  
+- [x] ServiceContainer for TS/Go/Rust DI  
+- [x] Spec validation middleware  
+
+**v1.2.0** — mock server, logging, i18n, interceptors:
+
+- [x] `specforge mock` — local mock server from spec examples  
+- [x] SDK logging hooks (Logger interface, ConsoleLogger, NoopLogger)  
+- [x] i18n support (8 locales, `--locale en,es` flag)  
+- [x] Request/response interceptors for all 3 SDKs  
+- [x] Response transformers for post-processing  
+- [x] `specforge export` — Swagger Editor compatible output  
+- [x] `specforge demo` — realistic Petstore spec with examples  
+- [x] `specforge evolution` — schema change tracking over git  
+- [x] `specforge infer` — generate OpenAPI from sample JSON  
+- [x] `specforge verify` — validate running APIs against spec  
+
+**v1.1.0** — dashboard, 3.1 parser, security, graph:
+
+- [x] `specforge dashboard` — HTML metrics visualization with Chart.js  
+- [x] OpenAPI 3.1 native parser (`Schema31`, `parse_31()`, unsupported feature warnings)  
+- [x] `specforge security` — auth analysis (text/JSON/markdown output)  
+- [x] `specforge graph` — Mermaid/DOT dependency diagrams  
+- [x] `specforge analyze` — unused schemas, duplicates, large models, recommendations  
+- [x] contentMediaType/contentEncoding support (`Scalar::Base64`, `Scalar::Binary`)  
+- [x] Per-operation retry policies (`x-retry` extensions)  
+- [x] Diff improvements — markdown/JSON/color output, inline schema diffs  
+- [x] JSDoc/docstrings from spec descriptions in generated code  
+
+**v1.0.0** — production-ready milestone:
 
 - [x] SDK rate limiting — token bucket + sliding window (TS/Go/Rust)  
 - [x] Telemetry hooks — request metrics, error tracking, cache hit/miss  
@@ -915,7 +952,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 - [x] Multi-platform CI (Linux, macOS, Windows)  
 - [x] Richer generated READMEs (errors, pagination, concurrency, middleware, streaming)  
 
-**All roadmap items completed through v1.2.0.**
+**All roadmap items completed through v1.3.0. Production-ready.**
 
 ---
 
