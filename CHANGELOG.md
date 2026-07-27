@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-07-27
+
+### Added
+
+#### Core
+- **Spec validation** — New `validate` module with 51 unit tests. Validates JSON values against IR Type definitions (scalars, enums, arrays, maps, references, compositions). Returns `ValidationError` with JSON-pointer paths.
+- **WASM plugin SDK** — `specforge-plugin` crate with `Plugin` trait, `GeneratedFile`/`PluginResult` types, and `export_plugin!` macro for WASM targets.
+- **Example plugin** — `examples/plugin-example/` — `ReadmePlugin` that generates a README from the IR.
+
+#### Web UI
+- **`web-ui/index.html`** — Self-contained single-page app for browsing IR: schema tree, operations tab, IR JSON viewer, stats dashboard. Dark forge-themed. No build step.
+
+#### Docs
+- **`PLUGINS.md`** — How to build WASM emitter plugins (protocol, build steps, example).
+
 ## [0.3.0] — 2026-07-26
 
 ### Added
@@ -131,6 +146,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.4.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.4.0
 [0.3.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.3.0
 [0.2.2]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.2
 [0.2.1]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.2.1

@@ -429,6 +429,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "specforge-plugin"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "specforge-plugin-example"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "specforge-plugin",
+]
+
+[[package]]
 name = "specforge-rust"
 version = "0.3.0"
 dependencies = [

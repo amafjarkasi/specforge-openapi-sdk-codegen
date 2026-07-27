@@ -11,7 +11,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.3.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.4.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -591,6 +591,14 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.4.0** — plugins, web UI, validation:
+
+- [x] WASM plugin SDK (`specforge-plugin` crate + `export_plugin!` macro)  
+- [x] Example WASM plugin (`examples/plugin-example/`)  
+- [x] Web UI for browsing IR (`web-ui/index.html`)  
+- [x] Spec validation middleware (`validate` module, 51 tests)  
+- [x] Plugin documentation (`PLUGINS.md`)  
+
 **v0.3.0** — ecosystem, DX, and stability:
 
 - [x] JSON Schema for IR (`assets/ir-schema.json`, `emit --schema`)  
@@ -630,9 +638,9 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] WASM-based plugin emitters  
-- [ ] Web UI for previewing generated SDKs  
-- [ ] Spec validation middleware  
+- [ ] Request/response validation middleware in generated SDKs  
+- [ ] WASM-compiled specforge for browser use  
+- [ ] Spec documentation generator  
 
 ---
 

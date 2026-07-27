@@ -13,6 +13,7 @@ pub mod ir;
 pub mod lint;
 pub mod resolve;
 pub mod spec;
+pub mod validate;
 
 pub use diff::{diff, DiffFinding, DiffSeverity};
 pub use error::{ResolveError, SpecError};
@@ -24,3 +25,4 @@ pub use ir::{
 pub use lint::{Diagnostic, Severity};
 pub use resolve::resolve;
 pub use spec::{parse_bytes, parse_file, parse_str};
+pub use validate::{validate, ValidationError};

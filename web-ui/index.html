@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>specforge — SDK Preview</title>
+    <style>
+        :root {
+            --bg: #1a0f0a;
+            --surface: #1c1008;
+            --border: #92400e;
+            --text: #fef3c7;
+            --muted: #d97706;
+            --accent: #f97316;
+            --red: #ef4444;
+            --green: #22c55e;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        header h1 { font-size: 1.5rem; font-weight: 700; }
+        header span { color: var(--muted); font-size: 0.9rem; }
+        .container { display: flex; height: calc(100vh - 70px); }
+        .sidebar {
+            width: 300px;
+            border-right: 1px solid var(--border);
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .main { flex: 1; display: flex; flex-direction: column; }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 1rem;
+        }
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+        .content { flex: 1; overflow: auto; padding: 1rem; }
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+        }
+        button {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        button:hover { opacity: 0.9; }
+        .tree { font-family: monospace; font-size: 0.85rem; line-height: 1.8; }
+        .tree-item { padding: 0.2rem 0.5rem; cursor: pointer; border-radius: 4px; }
+        .tree-item:hover { background: var(--surface); }
+        .tree-item.selected { background: var(--border); }
+        .schema-name { color: var(--accent); }
+        .schema-type { color: var(--muted); font-size: 0.8rem; }
+        pre {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 0.8rem; color: var(--muted); }
+        .btn-group { display: flex; gap: 0.5rem; margin-top: 1rem; }
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>specforge</h1>
+        <span>SDK Preview</span>
+    </header>
+    <div class="container">
+        <div class="sidebar">
+            <h3 style="margin-bottom: 1rem; color: var(--muted);">Input</h3>
+            <textarea id="ir-input" placeholder="Paste output of `specforge emit spec.yaml` here..."></textarea>
+            <div class="btn-group">
+                <button onclick="loadIR()">Load IR</button>
+                <button class="btn-secondary" onclick="document.getElementById('file-input').click()">Upload File</button>
+            </div>
+            <input type="file" id="file-input" accept=".json,.yaml,.yml" style="display:none" onchange="handleFile(event)">
+
+            <h3 style="margin: 1.5rem 0 1rem; color: var(--muted);">Schemas</h3>
+            <div id="schema-tree" class="tree"></div>
+        </div>
+        <div class="main">
+            <div class="tabs">
+                <div class="tab active" onclick="showTab('overview')">Overview</div>
+                <div class="tab" onclick="showTab('ir')">IR JSON</div>
+                <div class="tab" onclick="showTab('operations')">Operations</div>
+            </div>
+            <div class="content" id="tab-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentDoc = null;
+
+        function loadIR() {
+            const input = document.getElementById('ir-input').value.trim();
+            if (!input) return;
+            try {
+                currentDoc = JSON.parse(input);
+                renderAll();
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+            }
+        }
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('ir-input').value = e.target.result;
+                loadIR();
+            };
+            reader.readAsText(file);
+        }
+
+        function renderAll() {
+            renderStats();
+            renderSchemaTree();
+            showTab('overview');
+        }
+
+        function renderStats() {
+            const ops = currentDoc.operations?.length || 0;
+            const schemas = Object.keys(currentDoc.schemas?.models || {}).length;
+            const security = currentDoc.security?.length || 0;
+            // Stats are rendered inside the overview tab
+        }
+
+        function renderSchemaTree() {
+            const tree = document.getElementById('schema-tree');
+            const models = currentDoc.schemas?.models || {};
+            tree.innerHTML = Object.entries(models).map(([name, model]) => {
+                const kind = model.Object ? 'object' : 'enum';
+                return `<div class="tree-item" onclick="selectSchema('${name}')">
+                    <span class="schema-name">${name}</span>
+                    <span class="schema-type">${kind}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function selectSchema(name) {
+            document.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+            event.target.closest('.tree-item').classList.add('selected');
+            const model = currentDoc.schemas.models[name];
+            const json = JSON.stringify(model, null, 2);
+            document.getElementById('tab-content').innerHTML = `<pre>${escapeHtml(json)}</pre>`;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        }
+
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event?.target?.classList.add('active');
+            const content = document.getElementById('tab-content');
+
+            if (!currentDoc) {
+                content.innerHTML = '<p style="color:var(--muted)">Paste IR JSON and click "Load IR" to begin.</p>';
+                return;
+            }
+
+            if (tab === 'overview') {
+                const ops = currentDoc.operations?.length || 0;
+                const schemas = Object.keys(currentDoc.schemas?.models || {}).length;
+                const security = currentDoc.security?.length || 0;
+                content.innerHTML = `
+                    <div class="stats">
+                        <div class="stat"><div class="stat-value">${ops}</div><div class="stat-label">Operations</div></div>
+                        <div class="stat"><div class="stat-value">${schemas}</div><div class="stat-label">Schemas</div></div>
+                        <div class="stat"><div class="stat-value">${security}</div><div class="stat-label">Security</div></div>
+                    </div>
+                    <h3 style="margin-bottom:1rem">${escapeHtml(currentDoc.title || 'Untitled')} <span style="color:var(--muted)">${escapeHtml(currentDoc.version || '')}</span></h3>
+                    ${currentDoc.base_url ? `<p style="color:var(--muted)">Base URL: ${escapeHtml(currentDoc.base_url)}</p>` : ''}
+                    <div class="btn-group" style="margin-top:1.5rem">
+                        <button onclick="downloadJSON()">Download IR JSON</button>
+                    </div>
+                `;
+            } else if (tab === 'ir') {
+                content.innerHTML = `<pre>${escapeHtml(JSON.stringify(currentDoc, null, 2))}</pre>`;
+            } else if (tab === 'operations') {
+                const ops = currentDoc.operations || [];
+                content.innerHTML = ops.map(op => `
+                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem">
+                        <strong style="color:var(--accent)">${escapeHtml(op.method?.Get || op.method?.Post || '?')} ${escapeHtml(op.path)}</strong>
+                        <span style="color:var(--muted);margin-left:1rem">${escapeHtml(op.operation_id)}</span>
+                        ${op.summary ? `<p style="color:var(--muted);margin-top:0.5rem">${escapeHtml(op.summary)}</p>` : ''}
+                    </div>
+                `).join('');
+            }
+        }
+
+        function downloadJSON() {
+            const blob = new Blob([JSON.stringify(currentDoc, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'ir.json';
+            a.click();
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+    </script>
+</body>
+</html>
