@@ -107,6 +107,10 @@ struct GenerateArgs {
     #[arg(long)]
     profile: bool,
 
+    /// Include webhook handler types in the generated SDK (OpenAPI 3.1).
+    #[arg(long)]
+    include_webhooks: bool,
+
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
     log_level: LogLevel,
@@ -489,21 +493,59 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
 
     info!("reading spec: {}", spec_path.display());
     let t0 = std::time::Instant::now();
-    let spec = parse_file(&spec_path)
-        .with_context(|| format!("failed to parse spec at {}", spec_path.display()))?;
-    let parse_time = t0.elapsed();
 
-    info!("resolving document into IR");
-    let t1 = std::time::Instant::now();
-    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
-    let resolve_time = t1.elapsed();
+    let doc = if cli.include_webhooks {
+        // Use full parsing that preserves webhooks (OpenAPI 3.1).
+        let parsed = specforge_core::parse_file_full(&spec_path)
+            .with_context(|| format!("failed to parse spec at {}", spec_path.display()))?;
+        let parse_time = t0.elapsed();
 
-    info!(
-        "resolved: {} schemas, {} operations, {} security scheme(s)",
-        doc.schemas.models.len(),
-        doc.operations.len(),
-        doc.security.len(),
-    );
+        info!("resolving document into IR (with webhooks)");
+        let t1 = std::time::Instant::now();
+        let doc = specforge_core::resolve_with_webhooks(&parsed.spec, parsed.webhooks.as_ref())
+            .context("failed to resolve spec into IR")?;
+        let resolve_time = t1.elapsed();
+
+        info!(
+            "resolved: {} schemas, {} operations, {} webhook(s), {} security scheme(s)",
+            doc.schemas.models.len(),
+            doc.operations.len(),
+            doc.webhooks.len(),
+            doc.security.len(),
+        );
+
+        if cli.profile {
+            eprintln!("Profile:");
+            eprintln!("  parse:   {parse_time:?}");
+            eprintln!("  resolve: {resolve_time:?}");
+        }
+
+        doc
+    } else {
+        let spec = parse_file(&spec_path)
+            .with_context(|| format!("failed to parse spec at {}", spec_path.display()))?;
+        let parse_time = t0.elapsed();
+
+        info!("resolving document into IR");
+        let t1 = std::time::Instant::now();
+        let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+        let resolve_time = t1.elapsed();
+
+        info!(
+            "resolved: {} schemas, {} operations, {} security scheme(s)",
+            doc.schemas.models.len(),
+            doc.operations.len(),
+            doc.security.len(),
+        );
+
+        if cli.profile {
+            eprintln!("Profile:");
+            eprintln!("  parse:   {parse_time:?}");
+            eprintln!("  resolve: {resolve_time:?}");
+        }
+
+        doc
+    };
 
     info!(
         "emitting {:?} SDK to: {}",
@@ -544,8 +586,6 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
 
     if cli.profile {
         eprintln!("Profile:");
-        eprintln!("  parse:   {parse_time:?}");
-        eprintln!("  resolve: {resolve_time:?}");
         eprintln!("  emit:    {emit_time:?}");
         eprintln!("  total:   {:?}", start.elapsed());
     }

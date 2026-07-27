@@ -12,7 +12,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust%20%7C%20WASM-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.8.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.9.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -316,17 +316,19 @@ while let Some(ev) = sse.next_event().await? {
 specforge <COMMAND>
 
 Commands:
-  generate   Generate an SDK from an OpenAPI spec
-  check      Lint and validate an OpenAPI spec without generating
-  diff       Compare two OpenAPI specs and report breaking changes
-  emit       Emit the resolved IR as JSON (for external emitters / plugins)
-  init       Scaffold a new minimal OpenAPI spec
-  convert    Convert between OpenAPI 3.0 and 3.1
-  merge      Merge multiple OpenAPI spec files into one
-  docs       Generate static HTML API documentation
-  test       Generate mock server tests for generated SDKs
-  versions   List API versions in a spec directory
-  help       Print this message or the help of the given subcommand
+  generate        Generate an SDK from an OpenAPI spec
+  check           Lint and validate an OpenAPI spec without generating
+  diff            Compare two OpenAPI specs and report breaking changes
+  emit            Emit the resolved IR as JSON (for external emitters / plugins)
+  init            Scaffold a new minimal OpenAPI spec
+  convert         Convert between OpenAPI 3.0 and 3.1
+  merge           Merge multiple OpenAPI spec files into one
+  docs            Generate static HTML API documentation
+  test            Generate mock server tests for generated SDKs
+  versions        List API versions in a spec directory
+  workspace       Generate SDKs for all specs in a workspace config
+  workspace-init  Generate a workspace config from a directory
+  help            Print this message or the help of the given subcommand
 ```
 
 ### `specforge generate`
@@ -773,6 +775,13 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v0.9.0** — caching, webhooks, workspace:
+
+- [x] Response caching with ETags (TS/Go/Rust SDKs)  
+- [x] OpenAPI 3.1 webhooks support (`--include-webhooks`)  
+- [x] `specforge workspace` — multi-spec generation from config  
+- [x] `specforge workspace-init` — generate workspace config from directory  
+
 **v0.8.0** — DI, merge, 3.1 expansion:
 
 - [x] Rust `http_client()` builder for dependency injection in tests  
@@ -848,9 +857,9 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] Generated SDK caching layer (ETags, conditional requests)  
-- [ ] Spec webhooks support (OpenAPI 3.1 webhooks)  
-- [ ] Multi-spec workspace generation  
+- [ ] SDK rate limiting (token bucket, sliding window)  
+- [ ] Spec deprecation tracking and migration guides  
+- [ ] Generated SDK telemetry hooks  
 
 ---
 

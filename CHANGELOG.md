@@ -5,6 +5,26 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-27
+
+### Added
+
+#### SDK runtimes
+- **Response caching** — All three SDKs now support ETag-based caching. `ResponseCache` with TTL expiry, `If-None-Match` headers, 304 handling. TS: `cache` option on client. Go: `WithCache(ttl)`. Rust: `.cache_ttl(Duration)`.
+
+#### Core
+- **Webhooks support** — OpenAPI 3.1 `webhooks` section parsed from raw JSON (bypasses `openapiv3` crate limitation). `Webhook` IR type with method, path, request body, responses.
+- **`specforge workspace`** — Generate SDKs for multiple specs from `.specforge-workspace.yaml` config. `--only` filter, `--dry-run` mode.
+- **`specforge workspace-init`** — Scan a directory and generate a starter workspace config.
+
+#### Emitters
+- **TypeScript webhook types** — `webhooks.ts` with payload types, `WebhookHandler<T>`, factory functions.
+- **Go webhook types** — `webhooks.go` with payload types and `WebhookHandler` func type.
+- **Rust webhook types** — `webhooks.rs` with payload structs and `WebhookHandler` trait.
+
+#### CLI
+- **`--include-webhooks`** flag on `generate` — opt-in webhook type generation.
+
 ## [0.8.0] — 2026-07-27
 
 ### Added
@@ -207,6 +227,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[0.9.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.9.0
 [0.8.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.8.0
 [0.7.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.7.0
 [0.6.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.6.0
