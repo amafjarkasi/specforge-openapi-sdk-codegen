@@ -5,6 +5,27 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] — 2026-07-27
+
+### Added
+
+#### SDK runtimes
+- **Rate limiting** — Token bucket and sliding window rate limiters for all 3 SDKs. TS: `rateLimiter` option. Go: `WithRateLimiter()`. Rust: `.rate_limiter()`.
+- **Telemetry hooks** — Request metrics, error tracking, retry counting, cache hit/miss. TS/Go/Rust: `TelemetryHooks` interface/trait + `MetricsCollector`.
+
+#### Core
+- **Spec deprecation tracking** — `find_deprecations()` scans IR for deprecated operations/schemas. `generate_migration_guide()` compares two specs.
+- **`specforge migrate`** — Generate Markdown migration guides between spec versions. Deprecation comments in generated code (`@deprecated`, `// Deprecated:`, `#[deprecated]`).
+
+#### Fixes
+- **Go pipeline** — Fixed unused `obj` variable in validate.go, fixed hyphenated field names
+
+### Changed
+- **v1.0.0** — First stable release. All roadmap items from README completed.
+- Website live at `specforge.deepwhaleai.com`
+- 6 external test fixtures (petstore, GitHub, Stripe, Kubernetes, Twilio)
+- 176 tests across core, emitters, and CLI
+
 ## [0.9.0] — 2026-07-27
 
 ### Added
@@ -227,6 +248,7 @@ First public MVP of **specforge**: OpenAPI → typed SDKs for TypeScript, Go, an
 - Streaming middleware on Go `DoStream` does not rewrite responses (body stays open)
 - Large-spec downloads require network on first run (cached under `target/spec-cache/`)
 
+[1.0.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.0.0
 [0.9.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.9.0
 [0.8.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.8.0
 [0.7.0]: https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v0.7.0

@@ -12,7 +12,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust%20%7C%20WASM-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.9.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.0.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -796,6 +796,17 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v1.0.0** — rate limiting, telemetry, deprecation, website:
+
+- [x] SDK rate limiting — token bucket + sliding window (TS/Go/Rust)  
+- [x] Telemetry hooks — request metrics, error tracking, cache hit/miss  
+- [x] `specforge migrate` — generate migration guides between spec versions  
+- [x] Deprecation tracking + comments in generated code  
+- [x] 6 external test fixtures (GitHub, Stripe, Kubernetes, Twilio)  
+- [x] Website at `specforge.deepwhaleai.com`  
+- [x] Go pipeline fixes (validate.go, hyphenated fields)  
+- [x] Test count: 176  
+
 **v0.9.0** — caching, webhooks, workspace:
 
 - [x] Response caching with ETags (TS/Go/Rust SDKs)  
@@ -878,9 +889,9 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 **Next up:**
 
-- [ ] SDK rate limiting (token bucket, sliding window)  
-- [ ] Spec deprecation tracking and migration guides  
-- [ ] Generated SDK telemetry hooks  
+- [ ] SDK observability dashboard (real-time metrics visualization)  
+- [ ] OpenAPI 3.1 native parser (replace preprocessing layer)  
+- [ ] Spec security scheme analysis  
 
 ---
 

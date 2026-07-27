@@ -2008,7 +2008,12 @@ func (e ValidationErrors) Error() string {
                 ));
                 out.push_str("\terrs := validateObject(v, \"\")\n");
                 // Check required fields and types.
-                if !o.properties.is_empty() {
+                // Only declare obj when at least one property check actually uses it
+                // (required field existence check or enum value check).
+                let needs_obj = o.properties.iter().any(|p| {
+                    p.required || matches!(&p.ty, Type::StringEnum { .. })
+                });
+                if needs_obj {
                     out.push_str("\tobj, ok := v.(map[string]any)\n");
                     out.push_str("\tif !ok {\n");
                     out.push_str("\t\tif b, err := json.Marshal(v); err == nil {\n");
@@ -2610,11 +2615,12 @@ fn emit_union_from_json(union_name: &str, arms: &[&str]) -> String {
     ));
     for arm in arms {
         let arm_ty = export_ident(arm);
-        out.push_str(&format!("\tvar {arm} {arm_ty}\n"));
+        let arm_var = go_param_ident(arm);
+        out.push_str(&format!("\tvar {arm_var} {arm_ty}\n"));
         out.push_str(&format!(
-            "\tif err := json.Unmarshal(raw, &{arm}); err == nil {{\n"
+            "\tif err := json.Unmarshal(raw, &{arm_var}); err == nil {{\n"
         ));
-        out.push_str(&format!("\t\treturn {arm}, nil\n"));
+        out.push_str(&format!("\t\treturn {arm_var}, nil\n"));
         out.push_str("\t}\n");
     }
     out.push_str(&format!(
