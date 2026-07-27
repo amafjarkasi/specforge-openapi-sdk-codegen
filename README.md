@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
-  <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
+  <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust%20%7C%20WASM-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.6.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
@@ -27,15 +27,16 @@
 Most OpenAPI generators dump incomplete types, ignore runtime concerns, or lock you into one language. **specforge** is built the other way around:
 
 1. **Parse once** — OpenAPI YAML/JSON → resolved, language-neutral IR  
-2. **Emit many** — walk the same IR for TypeScript, Go, or Rust  
-3. **Ship clients that run** — auth, retry, timeouts, pagination, concurrency, dedupe, middleware, idempotency, streaming  
+2. **Emit many** — walk the same IR for TypeScript, Go, Rust, or WASM plugins  
+3. **Ship clients that run** — auth, retry, timeouts, pagination, concurrency, dedupe, middleware, idempotency, streaming, validation  
+4. **Extend with plugins** — build custom WASM emitters for any language  
 
 The goal is not “types that might compile.” It’s **SDKs you can point at a real API today**.
 
 ```mermaid
 graph LR
     A["📄 OpenAPI 3.x<br/>YAML / JSON"] --> B["⚙️ specforge-core<br/>parse · resolve<br/>language-neutral IR"]
-    B --> C["🔧 emitters<br/>TS · Go · Rust<br/>typed client + runtime"]
+    B --> C["🔧 emitters<br/>TS · Go · Rust · WASM<br/>typed client + runtime"]
 
     style A fill:#1a0f0a,stroke:#f97316,color:#fef3c7
     style B fill:#1a0f0a,stroke:#ef4444,color:#fef3c7
@@ -54,22 +55,23 @@ graph LR
 - Deterministic output (stable ordering from the spec)
 - Multi-language CLI: `-l ts|go|rust`
 
-### Generated runtimes (all three languages)
+### Generated runtimes
 
-| Capability | TypeScript | Go | Rust |
-|---|:---:|:---:|:---:|
-| Typed models + operations | ✅ | ✅ | ✅ |
-| Bearer / API-key auth providers | ✅ | ✅ | ✅ |
-| Retry + full-jitter exponential backoff | ✅ | ✅ | ✅ |
-| Per-attempt timeouts | ✅ | ✅ | ✅ |
-| Cursor & offset pagination helpers | ✅ | ✅ | ✅ |
-| Concurrency semaphore (`maxConcurrent`) | ✅ | ✅ | ✅ |
-| In-flight dedupe (GET/HEAD/OPTIONS) | ✅ | ✅ | ✅ |
-| Middleware chain | ✅ | ✅ | ✅ |
-| Idempotency-Key on POST/PUT/PATCH/DELETE | ✅ | ✅ | ✅ |
-| SSE / chunk streaming helpers | ✅ | ✅ | ✅ |
-| oneOf runtime type guards | ✅ | — | untagged enums |
-| Tree-shakeable multi-file package | ✅ ESM/CJS | stdlib module | cargo crate |
+| Capability | TypeScript | Go | Rust | WASM plugin |
+|---|:---:|:---:|:---:|:---:|
+| Typed models + operations | ✅ | ✅ | ✅ | via JSON |
+| Bearer / API-key auth providers | ✅ | ✅ | ✅ | — |
+| Retry + full-jitter exponential backoff | ✅ | ✅ | ✅ | — |
+| Per-attempt timeouts | ✅ | ✅ | ✅ | — |
+| Cursor & offset pagination helpers | ✅ | ✅ | ✅ | — |
+| Concurrency semaphore (`maxConcurrent`) | ✅ | ✅ | ✅ | — |
+| In-flight dedupe (GET/HEAD/OPTIONS) | ✅ | ✅ | ✅ | — |
+| Middleware chain | ✅ | ✅ | ✅ | — |
+| Idempotency-Key on POST/PUT/PATCH/DELETE | ✅ | ✅ | ✅ | — |
+| SSE / chunk streaming helpers | ✅ | ✅ | ✅ | — |
+| oneOf runtime type guards | ✅ | — | untagged enums | — |
+| Runtime request/response validation | ✅ | ✅ | ✅ | — |
+| Tree-shakeable multi-file package | ✅ ESM/CJS | stdlib module | cargo crate | WASM binary |
 
 ### Quality gates
 - **Unit tests** for IR + TypeScript emitter  
@@ -332,6 +334,8 @@ specforge/
 │   ├── specforge-ts/       # TypeScript emitter + rich runtime templates
 │   ├── specforge-go/       # Go emitter (stdlib HTTP client)
 │   ├── specforge-rust/     # Rust emitter (reqwest + serde)
+│   ├── specforge-wasm/     # WASM target for browser-based parsing
+│   ├── specforge-plugin/   # Plugin SDK for WASM emitter plugins
 │   └── specforge-cli/      # `specforge` binary + regression / e2e tests
 ├── fixtures/
 │   ├── petstore.yaml       # small vendored fixture (always online)
@@ -353,6 +357,8 @@ specforge/
 | **Parse** | `specforge-core` | YAML/JSON → `openapiv3::OpenAPI` |
 | **Resolve** | `specforge-core` | `$ref`s, security schemes, operations → `Document` IR |
 | **Emit** | `specforge-{ts,go,rust}` | IR → idiomatic project on disk |
+| **WASM** | `specforge-wasm` | Core parsing/resolving compiled to WASM for browser use |
+| **Plugins** | `specforge-plugin` | SDK for building custom WASM emitter plugins |
 | **Orchestrate** | `specforge-cli` | CLI flags, logging, language dispatch |
 
 ### IR highlights
@@ -461,6 +467,21 @@ sdk-rs/
     ├── models.rs
     └── api/<tag>.rs
 ```
+
+</details>
+
+<details>
+<summary><b>WASM plugin</b> <code>-l wasm</code> (via <code>specforge-plugin</code>)</summary>
+
+```text
+plugin/
+├── Cargo.toml            # crate-type = ["cdylib"]
+├── src/
+│   └── lib.rs            # impl Plugin + export_plugin! macro
+└── README.md
+```
+
+Build: `cargo build --target wasm32-wasi --release`
 
 </details>
 

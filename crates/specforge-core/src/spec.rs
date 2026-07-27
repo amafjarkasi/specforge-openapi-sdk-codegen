@@ -8,12 +8,21 @@
 //! conversions are: `type: ["X", "null"]` → `type: X` + `nullable: true`, and
 //! numeric `exclusive_minimum`/`exclusive_maximum` → boolean.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use openapiv3::OpenAPI;
 use serde_json::Value as JsonValue;
 
 use crate::error::SpecError;
+
+/// Information about a discovered API version in a spec directory.
+#[derive(Debug, Clone)]
+pub struct VersionInfo {
+    /// The API version string extracted from `info.version`.
+    pub version: String,
+    /// The file path where this version's spec lives.
+    pub path: PathBuf,
+}
 
 /// Read and parse an OpenAPI document from a file path (JSON or YAML).
 pub fn parse_file(path: impl AsRef<Path>) -> Result<OpenAPI, SpecError> {
@@ -174,6 +183,180 @@ fn downgrade_value(json: &mut JsonValue) {
         }
         _ => {}
     }
+}
+
+/// Extract the `info.version` field from a raw YAML/JSON value without full
+/// OpenAPI parsing. Returns `None` if the field is missing or not a string.
+fn extract_info_version(json: &JsonValue) -> Option<String> {
+    json.get("info")
+        .and_then(|info| info.get("version"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Try to extract the API version from a spec file. This does a lightweight
+/// parse (just reads the raw YAML/JSON) rather than a full OpenAPI parse,
+/// so it works even for specs that have minor issues.
+fn try_extract_version(path: &Path) -> Option<VersionInfo> {
+    let bytes = std::fs::read(path).ok()?;
+    let text = std::str::from_utf8(&bytes).ok()?;
+
+    // Try JSON first, then YAML.
+    let json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start()) {
+        v
+    } else {
+        serde_yaml::from_str::<JsonValue>(text).ok()?
+    };
+
+    let version = extract_info_version(&json)?;
+    Some(VersionInfo {
+        version,
+        path: path.to_path_buf(),
+    })
+}
+
+/// Scan a directory for OpenAPI spec files (`.yaml`, `.yml`, `.json`) and
+/// extract their API versions. Supports two directory conventions:
+///
+/// 1. Flat files: `specs/v1.yaml`, `specs/v2.yaml`
+/// 2. Subdirectories: `specs/v1/openapi.yaml`, `specs/v2/openapi.yaml`
+///
+/// Returns a list of [`VersionInfo`] sorted by version string.
+pub fn scan_versions(dir: &Path) -> Vec<VersionInfo> {
+    let mut results = Vec::new();
+
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return results;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        if path.is_file() {
+            // Convention 1: flat files like v1.yaml, v2.json, openapi.yaml
+            if is_spec_file(&path) {
+                if let Some(info) = try_extract_version(&path) {
+                    results.push(info);
+                }
+            }
+        } else if path.is_dir() {
+            // Convention 2: subdirectories like v1/openapi.yaml
+            if let Some(info) = scan_version_dir(&path) {
+                results.push(info);
+            }
+        }
+    }
+
+    results.sort_by(|a, b| a.version.cmp(&b.version));
+    results
+}
+
+/// Check if a file looks like an OpenAPI spec by extension.
+fn is_spec_file(path: &Path) -> bool {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("yaml" | "yml" | "json") => true,
+        _ => false,
+    }
+}
+
+/// Scan a single subdirectory for a spec file and extract its version.
+/// Looks for `openapi.yaml`, `openapi.yml`, `openapi.json`, or any
+/// `.yaml`/`.json` file in the directory.
+fn scan_version_dir(dir: &Path) -> Option<VersionInfo> {
+    // Prefer well-known names first.
+    let preferred = ["openapi.yaml", "openapi.yml", "openapi.json"];
+    for name in &preferred {
+        let path = dir.join(name);
+        if path.is_file() {
+            if let Some(info) = try_extract_version(&path) {
+                return Some(info);
+            }
+        }
+    }
+
+    // Fall back to any spec file in the directory.
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return None;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() && is_spec_file(&path) {
+            if let Some(info) = try_extract_version(&path) {
+                return Some(info);
+            }
+        }
+    }
+
+    None
+}
+
+/// Resolve a spec path from a directory and optional version filter.
+///
+/// - If `path` is a file, returns it directly.
+/// - If `path` is a directory and `version` is `None`, returns an error
+///   asking the user to specify `--version`.
+/// - If `path` is a directory and `version` is `Some`, scans the directory
+///   and returns the matching spec file.
+pub fn resolve_spec_path(path: &Path, version: Option<&str>) -> Result<PathBuf, SpecError> {
+    if path.is_file() {
+        return Ok(path.to_path_buf());
+    }
+
+    if !path.is_dir() {
+        return Err(SpecError::Io {
+            path: path.display().to_string(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "path does not exist or is not a file/directory",
+            ),
+        });
+    }
+
+    let version_str = version.ok_or_else(|| SpecError::Invalid(format!(
+        "spec path is a directory; use --version to select an API version (run `specforge versions {}` to see available versions)",
+        path.display()
+    )))?;
+
+    let versions = scan_versions(path);
+    if versions.is_empty() {
+        return Err(SpecError::Invalid(format!(
+            "no OpenAPI spec files found in {}",
+            path.display()
+        )));
+    }
+
+    // Try exact match first.
+    if let Some(info) = versions.iter().find(|v| v.version == version_str) {
+        return Ok(info.path.clone());
+    }
+
+    // Try matching by directory/file name (e.g., "v1" matches specs/v1.yaml).
+    let normalized = if version_str.starts_with('v') {
+        version_str.to_string()
+    } else {
+        format!("v{version_str}")
+    };
+
+    for info in &versions {
+        let file_stem = info.path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let parent_name = info
+            .path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        if file_stem == normalized || parent_name == normalized {
+            return Ok(info.path.clone());
+        }
+    }
+
+    let available: Vec<&str> = versions.iter().map(|v| v.version.as_str()).collect();
+    Err(SpecError::Invalid(format!(
+        "version {version_str:?} not found; available versions: {}",
+        available.join(", ")
+    )))
 }
 
 #[cfg(test)]

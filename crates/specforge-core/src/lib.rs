@@ -29,5 +29,5 @@ pub use ir::{
 pub use lint::{Diagnostic, Severity};
 pub use lint_config::{LintConfig, LintRule, RuleSeverity};
 pub use resolve::resolve;
-pub use spec::{parse_bytes, parse_file, parse_str};
+pub use spec::{parse_bytes, parse_file, parse_str, resolve_spec_path, scan_versions, VersionInfo};
 pub use validate::{validate, ValidationError};

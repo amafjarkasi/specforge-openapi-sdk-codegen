@@ -63,8 +63,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     // Operations — one file per tag.
     files.extend(operations::collect(doc, &opts.out_dir)?);
 
-    // Barrel index.
+    // Barrel index (root exports client + models only; API tags are tree-shakeable).
     files.extend(collect_index(doc, &opts.out_dir)?);
+
+    // API convenience barrel (re-exports all tags for callers who want everything).
+    files.extend(collect_api_index(doc, &opts.out_dir)?);
 
     // Write all files in parallel.
     let written: Vec<String> = files
@@ -84,9 +87,36 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
 }
 
 /// Collect `src/index.ts` content for parallel writing.
+///
+/// The root barrel exports only the client core, runtime helpers, and models.
+/// API tag classes are **not** re-exported from the root so that bundlers can
+/// tree-shake unused tags. Consumers who need a specific tag import directly:
+///
+/// ```ts
+/// import { PetsApi } from "./api/Pets";
+/// import type { ListPetsParams } from "./api/Pets";
+/// ```
+///
+/// A convenience barrel at `src/api/index.ts` re-exports every tag for callers
+/// who prefer a single import.
 fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
     let mut body = String::from("/* eslint-disable */\n// Generated barrel. DO NOT EDIT.\n\n");
+
+    // Tree-shaking comment for consumers.
+    body.push_str("// Tree-shaking: this file exports only the client core, runtime helpers,\n");
+    body.push_str("// and models. API tag classes are intentionally excluded so bundlers can\n");
+    body.push_str("// eliminate unused tags. Import individual tag modules directly:\n");
+    body.push_str("//\n");
+    body.push_str("//   import { PetsApi } from \"./api/Pets\";\n");
+    body.push_str("//   import type { ListPetsParams } from \"./api/Pets\";\n");
+    body.push_str("//\n");
+    body.push_str("// Or use the convenience barrel that re-exports all tags:\n");
+    body.push_str("//\n");
+    body.push_str("//   import { PetsApi } from \"./api\";\n");
+    body.push_str("//\n");
+    body.push_str("// The createClient() factory below pulls all tags into a single object.\n");
+    body.push_str("// Prefer direct tag imports when bundle size matters.\n\n");
 
     // Runtime exports.
     body.push_str("export * from \"./client\";\n");
@@ -112,7 +142,7 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     }
     let tag_list: Vec<String> = tags.iter().cloned().collect();
 
-    // Import each tag API class for the factory below.
+    // Import each tag API class for the factory below (internal use only — not re-exported).
     for tag in &tag_list {
         body.push_str(&format!(
             "import {{ {}Api }} from \"./api/{tag}\";\n",
@@ -125,11 +155,6 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
     // Import ApiClient + its options type for the factory.
     body.push_str("import { ApiClient } from \"./client\";\n");
     body.push_str("import type { ApiClientOptions } from \"./client\";\n\n");
-    // Re-export each tag's class and its params interfaces.
-    for tag in &tag_list {
-        body.push_str(&format!("export {{ {}Api }} from \"./api/{tag}\";\n", tag));
-    }
-    body.push('\n');
 
     // The typed top-level client: one property per tag.
     let client_type = if tag_list.is_empty() {
@@ -154,10 +179,39 @@ fn collect_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String,
         format!("  return {{\n{}\n  }};", inits.join("\n"))
     };
     body.push_str(&format!(
-        "/**\n * Construct the SDK client. Each tag becomes a namespaced property.\n */\nexport function createClient(options: ApiClientOptions = {{}}): SdkClient {{\n  const client = new ApiClient(options);\n{constructor}\n}}\n"
+        "/**\n * Construct the SDK client. Each tag becomes a namespaced property.\n *\n * NOTE: This factory imports all tag modules. For tree-shakeable code,\n * import individual tag modules directly instead of using createClient.\n */\nexport function createClient(options: ApiClientOptions = {{}}): SdkClient {{\n  const client = new ApiClient(options);\n{constructor}\n}}\n"
     ));
 
     let path = src.join("index.ts");
+    let rel = path_str(&path, out_dir);
+    Ok(vec![(rel, path, body)])
+}
+
+/// Collect `src/api/index.ts` — a convenience barrel that re-exports all tag
+/// API classes and their params interfaces. Callers who want everything can
+/// import from here; callers who need tree-shaking import individual tags.
+fn collect_api_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+    let api_dir = out_dir.join("src").join("api");
+
+    let mut tags: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for op in &doc.operations {
+        if let Some(t) = &op.tag {
+            tags.insert(name::pascal(t));
+        }
+    }
+
+    let mut body = String::from("/* eslint-disable */\n// Generated barrel. DO NOT EDIT.\n\n");
+    body.push_str("// Convenience barrel: re-exports all tag API modules.\n");
+    body.push_str("// For tree-shakeable imports, import individual tag files instead:\n");
+    body.push_str("//\n");
+    body.push_str("//   import { PetsApi } from \"./Pets\";\n");
+    body.push_str("//   import type { ListPetsParams } from \"./Pets\";\n\n");
+
+    for tag in &tags {
+        body.push_str(&format!("export * from \"./{tag}\";\n"));
+    }
+
+    let path = api_dir.join("index.ts");
     let rel = path_str(&path, out_dir);
     Ok(vec![(rel, path, body)])
 }

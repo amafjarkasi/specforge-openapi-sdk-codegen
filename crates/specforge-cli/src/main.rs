@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, lint, lint_config, parse_file, resolve, DiffSeverity, LintConfig, RuleSeverity, Severity};
+use specforge_core::{diff, lint, lint_config, parse_file, resolve, resolve_spec_path, scan_versions, DiffSeverity, LintConfig, RuleSeverity, Severity};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -72,6 +72,8 @@ enum Commands {
     Docs(DocsArgs),
     /// Generate SDK test files with mock servers from an OpenAPI spec.
     Test(TestArgs),
+    /// List all API versions found in a spec directory or show a file's version.
+    Versions(VersionsArgs),
 }
 
 #[derive(Args, Debug)]
@@ -90,6 +92,14 @@ struct GenerateArgs {
     /// Package/module/crate name (language-specific default if omitted).
     #[arg(short = 'n', long = "name")]
     package_name: Option<String>,
+
+    /// Generate for a specific API version (when spec is a directory).
+    #[arg(long)]
+    version: Option<String>,
+
+    /// Output detailed timing for each pipeline stage.
+    #[arg(long)]
+    profile: bool,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
@@ -156,6 +166,10 @@ struct EmitArgs {
     /// Header line first, then one line per schema and operation.
     #[arg(long)]
     stream: bool,
+
+    /// Output detailed timing for each pipeline stage.
+    #[arg(long)]
+    profile: bool,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Warn)]
@@ -231,6 +245,16 @@ struct ConvertArgs {
     log_level: LogLevel,
 }
 
+#[derive(Args, Debug)]
+struct VersionsArgs {
+    /// Path to a spec file or directory containing versioned specs.
+    spec: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -243,6 +267,7 @@ fn main() -> ExitCode {
         Commands::Convert(args) => args.log_level,
         Commands::Docs(args) => args.log_level,
         Commands::Test(args) => args.log_level,
+        Commands::Versions(args) => args.log_level,
     };
 
     let level_str = match level {
@@ -342,16 +367,30 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Commands::Versions(args) => match run_versions(args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
 fn run_generate(cli: GenerateArgs) -> Result<usize> {
+    let start = std::time::Instant::now();
+
     info!("reading spec: {}", cli.spec.display());
+    let t0 = std::time::Instant::now();
     let spec = parse_file(&cli.spec)
         .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+    let parse_time = t0.elapsed();
 
     info!("resolving document into IR");
+    let t1 = std::time::Instant::now();
     let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+    let resolve_time = t1.elapsed();
 
     info!(
         "resolved: {} schemas, {} operations, {} security scheme(s)",
@@ -366,6 +405,7 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
         cli.out.display()
     );
 
+    let t2 = std::time::Instant::now();
     let written = match cli.lang {
         Lang::Ts => {
             let opts = specforge_ts::GeneratorOptions {
@@ -390,10 +430,20 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
             specforge_rust::generate(&doc, &opts).context("failed to emit Rust SDK")?
         }
     };
+    let emit_time = t2.elapsed();
 
     if written.is_empty() {
         bail!("emitter wrote zero files");
     }
+
+    if cli.profile {
+        eprintln!("Profile:");
+        eprintln!("  parse:   {parse_time:?}");
+        eprintln!("  resolve: {resolve_time:?}");
+        eprintln!("  emit:    {emit_time:?}");
+        eprintln!("  total:   {:?}", start.elapsed());
+    }
+
     Ok(written.len())
 }
 
