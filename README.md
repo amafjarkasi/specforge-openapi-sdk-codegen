@@ -83,7 +83,11 @@ Each generated SDK is a standalone project — no shared runtime dependency, no 
 - GitHub Action for one-line CI integration
 - Deterministic output for reproducible builds and effective caching
 
-**5. Extensible via WASM plugins**
+**5. Full IDE integration**
+
+The [VS Code extension](vscode-extension/) provides 23 commands, auto-validation on save, context menus, keyboard shortcuts, and a status bar — everything you need to work with OpenAPI specs without leaving your editor.
+
+**6. Extensible via WASM plugins**
 
 Need Kotlin? Swift? Python? Build a custom emitter as a WASM plugin:
 
@@ -978,10 +982,33 @@ Commands: `generate`, `check`, `diff`, `emit`
 
 ### VS Code Extension
 
-Install the [specforge VS Code extension](vscode-extension/) for:
-- One-click SDK generation
-- Spec validation
-- IR preview
+The [specforge VS Code extension](vscode-extension/) provides a full IDE experience for working with OpenAPI specs:
+
+**23 commands** accessible via `Ctrl+Shift+P`:
+- **Generate SDK** — Pick language, generate to output directory
+- **Check Spec** — Validate with `--strict` mode
+- **Diff Spec** — Compare two spec versions
+- **Preview IR** — View resolved intermediate representation
+- **Analyze Spec** — Find unused schemas, optimization opportunities
+- **Security Analysis** — Audit auth requirements
+- **Show Dependency Graph** — Mermaid visualization
+- **Generate Docs** — Static HTML documentation
+- **Generate Tests** — Mock server tests
+- **Merge Specs** — Combine multiple files
+- **Migrate** — Generate migration guide
+- **Mock Server** — Start local mock server
+- **Export** — Swagger Editor compatible output
+- **Infer** — Generate spec from sample JSON
+- **Verify** — Validate running API against spec
+- **Evolution** — Track schema changes over git
+
+**IDE integration:**
+- Auto-validate specs on save (configurable)
+- Context menus (right-click YAML/JSON)
+- Keyboard shortcuts (`Ctrl+Shift+G` generate, `Ctrl+Shift+K` check)
+- Status bar with quick access
+- Output channel for all commands
+- Progress notifications for long operations
 
 ### External Emitters
 
