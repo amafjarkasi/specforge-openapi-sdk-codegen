@@ -2519,6 +2519,10 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
                     }
                 }
             }
+            // Property description doc comment.
+            if let Some(desc) = &p.description {
+                out.push_str(&format!("    /// {desc}\n"));
+            }
             let field = unique_field_name(&snake(&p.name), &mut used);
             let mut ty = render_type(&p.ty);
             if !p.required && !ty.starts_with("Option<") {
@@ -2890,6 +2894,48 @@ fn emit_method(op: &Operation) -> String {
     ));
     body.push_str("}\n");
     body
+}
+
+
+/// Generate the full doc comment block + deprecation attribute for a method.
+fn rust_method_doc_comment(op: &Operation, fn_name: &str) -> String {
+    let mut doc = String::new();
+    if let Some(s) = &op.summary { doc.push_str(&rust_doc(s)); }
+    else { doc.push_str(&format!("/// {} {}.\n", op.method.upper(), op.path)); }
+    if let Some(d) = &op.description { for line in d.lines() { doc.push_str(&format!("/// {line}\n")); } }
+    let all_params: Vec<&specforge_core::Parameter> = op.parameters.iter().filter(|p| matches!(p.location, ParamLocation::Path | ParamLocation::Query)).collect();
+    let has_param_desc = all_params.iter().any(|p| p.description.is_some()) || op.request_body.as_ref().and_then(|b| b.description.as_deref()).is_some();
+    if has_param_desc {
+        doc.push_str("///\n/// # Arguments\n");
+        for p in &all_params {
+            let ident = snake(&p.name);
+            let suffix = if p.required { String::new() } else { " (optional)".to_string() };
+            if let Some(desc) = &p.description { doc.push_str(&format!("/// * `{ident}` - {desc}{suffix}\n")); }
+            else { doc.push_str(&format!("/// * `{ident}`{suffix}\n")); }
+        }
+        if let Some(rb) = &op.request_body {
+            let suffix = if rb.required { String::new() } else { " (optional)".to_string() };
+            if let Some(desc) = &rb.description { doc.push_str(&format!("/// * `body` - {desc}{suffix}\n")); }
+            else { doc.push_str(&format!("/// * `body`{suffix}\n")); }
+        }
+    }
+    let success_desc = op.responses.iter().filter(|r| r.status.starts_with('2')).min_by_key(|r| r.status.clone()).and_then(|r| r.description.clone());
+    if let Some(desc) = &success_desc { doc.push_str(&format!("///\n/// # Returns\n/// {desc}\n")); }
+    else if success_body(op).is_some() { doc.push_str("///\n/// # Returns\n/// The response body\n"); }
+    let error_responses: Vec<&specforge_core::Response> = op.responses.iter().filter(|r| !r.status.starts_with('2') && r.status != "*").collect();
+    if !error_responses.is_empty() {
+        doc.push_str("///\n/// # Errors\n");
+        for r in &error_responses {
+            let status = &r.status;
+            if let Some(desc) = &r.description { doc.push_str(&format!("/// Returns `Error::Http` with status {status} for {desc}.\n")); }
+            else { doc.push_str(&format!("/// Returns `Error::Http` with status {status}.\n")); }
+        }
+    }
+    if is_operation_deprecated(op) {
+        if let Some(alt) = rust_deprecation_alternative(op) { doc.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n")); }
+        else { doc.push_str(&format!("#[deprecated(note = \"Use {} instead\")]\n", fn_name)); }
+    }
+    doc
 }
 
 fn build_rust_path(path: &str, path_params: &[&specforge_core::Parameter]) -> String {

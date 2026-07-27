@@ -53,14 +53,15 @@ fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, S
     let mut body = String::new();
 
     if let Some(desc) = &o.description {
-        body.push_str(&format_doc_comment(desc, ""));
-        if desc.to_lowercase().contains("deprecated") {
-            if let Some(alt) = extract_alternative(desc) {
-                body.push_str(&format!("/** @deprecated Use {alt} instead. */\n"));
-            } else {
-                body.push_str("/** @deprecated This schema is deprecated. */\n");
+        body.push_str(&format!("/**\n * {desc}\n"));
+        for prop in &o.properties {
+            if let Some(pd) = &prop.description {
+                let key = property_key(&prop.name);
+                let suffix = if prop.required { String::new() } else { " (optional)".to_string() };
+                body.push_str(&format!(" * @property {key} - {pd}{suffix}\n"));
             }
         }
+        body.push_str(" */\n");
     }
 
     // If the root is a composition or scalar alias (no own properties), emit a
@@ -343,33 +344,6 @@ fn format_doc_comment(text: &str, pad: &str) -> String {
         out.push_str(&format!("{pad}/// {line}\n"));
     }
     out
-}
-
-/// Extract a suggested alternative from deprecation text.
-fn extract_alternative(text: &str) -> Option<String> {
-    let lower = text.to_lowercase();
-    if let Some(pos) = lower.find("use ") {
-        let after = &text[pos + 4..];
-        if let Some(end) = after.to_lowercase().find(" instead") {
-            let alt = after[..end].trim();
-            if !alt.is_empty() {
-                return Some(alt.to_string());
-            }
-        }
-    }
-    for pattern in &["replaced by ", "replaced with "] {
-        if let Some(pos) = lower.find(pattern) {
-            let after = &text[pos + pattern.len()..];
-            let end = after
-                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
-                .unwrap_or(after.len());
-            let alt = after[..end].trim();
-            if !alt.is_empty() {
-                return Some(alt.to_string());
-            }
-        }
-    }
-    None
 }
 
 /// Walk a type and record every `Reference` name it transitively mentions.

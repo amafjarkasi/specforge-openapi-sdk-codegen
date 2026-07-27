@@ -28,3 +28,9 @@ specforge-core.workspace = true
 specforge-ts.workspace = true
 specforge-go.workspace = true
 specforge-rust.workspace = true
+criterion.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+name = "generate"
+harness = false

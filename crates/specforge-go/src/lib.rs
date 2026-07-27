@@ -413,6 +413,10 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
                     }
                 }
             }
+            // Property description comment.
+            if let Some(desc) = &p.description {
+                out.push_str(&format!("// {desc}\n"));
+            }
             let field = unique_field_name(&field_name(&p.name), &mut used_fields);
             let ty = render_type(&p.ty);
             let omit = if p.required { "" } else { ",omitempty" };
@@ -2218,7 +2222,57 @@ fn emit_method(op: &Operation) -> String {
             op.path
         ));
     }
-    // Deprecation notice.
+    // Operation description (multi-line).
+    if let Some(d) = &op.description {
+        if !body.trim().ends_with(d.trim()) {
+            body.push('\n');
+            body.push_str(&go_doc(d, ""));
+        }
+    }
+    // Parameter descriptions.
+    let all_params: Vec<&specforge_core::Parameter> = path_params.iter()
+        .chain(query_params.iter())
+        .chain(header_params.iter())
+        .copied()
+        .collect();
+    if all_params.iter().any(|p| p.description.is_some()) {
+        body.push('\n');
+        for p in &all_params {
+            let pname = go_param_ident(&p.name);
+            if let Some(desc) = &p.description {
+                body.push_str(&format!("// {pname}: {desc}\n"));
+            }
+        }
+    }
+    // Request body description.
+    if let Some(rb) = &op.request_body {
+        if let Some(desc) = &rb.description {
+            body.push_str(&format!("// body: {desc}\n"));
+        }
+    }
+    // Return description from success response.
+    let success_desc = op.responses.iter()
+        .filter(|r| r.status.starts_with('2'))
+        .min_by_key(|r| r.status.clone())
+        .and_then(|r| r.description.clone());
+    if let Some(desc) = &success_desc {
+        body.push('\n');
+        body.push_str(&format!("// Returns {desc}.\n"));
+    }
+    // Error response descriptions.
+    let error_responses: Vec<&specforge_core::Response> = op.responses.iter()
+        .filter(|r| !r.status.starts_with('2') && r.status != "*")
+        .collect();
+    if !error_responses.is_empty() {
+        for r in &error_responses {
+            if let Some(desc) = &r.description {
+                body.push_str(&format!("// Returns {} for {}.\n", desc, r.status));
+            } else {
+                body.push_str(&format!("// Returns an error for {}.\n", r.status));
+            }
+        }
+    }
+        // Deprecation notice.
     if is_operation_deprecated(op) {
         if let Some(alt) = go_deprecation_alternative(op) {
             body.push_str(&format!("// Deprecated: Use {alt} instead.\n"));

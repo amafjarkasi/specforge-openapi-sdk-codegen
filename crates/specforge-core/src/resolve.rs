@@ -19,7 +19,7 @@ use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
-    Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
+    Response, RetryPolicy, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook,
 };
 
 /// Load and fully resolve a parsed OpenAPI document into the IR.
@@ -677,6 +677,7 @@ fn resolve_operation(
 
     let responses = resolve_responses(&op.responses)?;
 
+
     Ok(Operation {
         operation_id,
         method,
@@ -687,6 +688,8 @@ fn resolve_operation(
         parameters,
         request_body,
         responses,
+    
+        retry_policy: None,
     })
 }
 

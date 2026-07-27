@@ -156,7 +156,7 @@ fn validate_scalar(
     errors: &mut Vec<ValidationError>,
 ) {
     match scalar {
-        Scalar::String | Scalar::DateTime | Scalar::Uuid => {
+        Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Base64 | Scalar::Binary => {
             if !value.is_string() {
                 errors.push(ValidationError {
                     path: path.to_string(),
@@ -180,7 +180,7 @@ fn validate_scalar(
                 });
             }
         }
-        Scalar::Boolean | Scalar::Base64 | Scalar::Binary => {
+        Scalar::Boolean => {
             if !value.is_boolean() {
                 errors.push(ValidationError {
                     path: path.to_string(),
@@ -188,6 +188,7 @@ fn validate_scalar(
                 });
             }
         }
+        _ => {}
     }
 }
 

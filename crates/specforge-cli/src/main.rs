@@ -864,6 +864,18 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
     Ok(())
 }
 
+fn build_retry_yaml_block(max_retries: Option<u32>, retry_on: Option<&[String]>) -> String {
+    if max_retries.is_none() && retry_on.is_none() { return String::new(); }
+    let mut lines = vec!["      x-retry:".to_string()];
+    if let Some(max) = max_retries { lines.push(format!("        maxRetries: {max}")); }
+    if let Some(methods) = retry_on {
+        let retryable = methods.iter().any(|m| m.eq_ignore_ascii_case("GET"));
+        lines.push(format!("        retryable: {retryable}"));
+    }
+    lines.join("
+")
+}
+
 fn run_init(cli: &InitArgs) -> Result<()> {
     std::fs::create_dir_all(&cli.out)
         .with_context(|| format!("failed to create output directory {}", cli.out.display()))?;
@@ -871,6 +883,7 @@ fn run_init(cli: &InitArgs) -> Result<()> {
     let title_escaped = cli.title.replace('"', "\\\"");
     let dollar_ref = ["$", "ref"].concat();
     let schema_path = ["#", "/", "components", "/schemas", "/HealthResponse"].concat();
+    let retry_block = build_retry_yaml_block(cli.retry_default, cli.retry_on.as_deref());
     let openapi_yaml = vec![
         "openapi: \"3.0.3\"",
         "info:",
@@ -888,6 +901,7 @@ fn run_init(cli: &InitArgs) -> Result<()> {
         "      description: Returns the health status of the API.",
         "      tags:",
         "        - system",
+        &retry_block,
         "      responses:",
         "        \"200\":",
         "          description: Service is healthy",

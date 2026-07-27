@@ -20,11 +20,12 @@ use crate::name::pascal;
 pub fn render(ty: &Type) -> String {
     match ty {
         Type::Scalar(s) => match s {
-            Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Integer64 => {
+            Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Base64 | Scalar::Integer64 => {
                 "string".to_string()
             }
             Scalar::Integer | Scalar::Float => "number".to_string(),
-            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "boolean".to_string(),
+            Scalar::Boolean => "boolean".to_string(),
+            Scalar::Binary => "Uint8Array".to_string(),
         },
         Type::StringEnum { variants, nullable } => {
             let arms: Vec<String> = variants
@@ -98,7 +99,7 @@ mod tests {
         assert_eq!(render(&Type::Scalar(Scalar::Integer)), "number");
         assert_eq!(render(&Type::Scalar(Scalar::Uuid)), "string");
         assert_eq!(render(&Type::Scalar(Scalar::DateTime)), "string");
-        assert_eq!(render(&Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary)), "boolean");
+        assert_eq!(render(&Type::Scalar(Scalar::Boolean)), "boolean");
     }
 
     #[test]

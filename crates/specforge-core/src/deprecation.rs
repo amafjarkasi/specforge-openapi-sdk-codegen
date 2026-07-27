@@ -504,6 +504,7 @@ mod tests {
             parameters: vec![],
             request_body: None,
             responses: vec![],
+            retry_policy: None,
         }
     }
 
