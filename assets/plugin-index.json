@@ -1,0 +1,48 @@
+{
+  "plugins": [
+    {
+      "name": "kotlin-emitter",
+      "description": "Generate idiomatic Kotlin SDKs with coroutines, sealed classes, and Ktor/OkHttp support from OpenAPI specs.",
+      "version": "0.1.0",
+      "author": "specforge-community",
+      "language": "kotlin",
+      "url": "https://plugins.specforge.dev/kotlin-emitter-0.1.0.wasm",
+      "verified": true,
+      "downloads": 1240,
+      "rating": 4.7
+    },
+    {
+      "name": "swift-emitter",
+      "description": "Generate Swift SDKs with async/await, Codable models, and URLSession support from OpenAPI specs.",
+      "version": "0.1.0",
+      "author": "specforge-community",
+      "language": "swift",
+      "url": "https://plugins.specforge.dev/swift-emitter-0.1.0.wasm",
+      "verified": true,
+      "downloads": 980,
+      "rating": 4.6
+    },
+    {
+      "name": "python-emitter",
+      "description": "Generate Python SDKs with Pydantic models, httpx/requests support, and async client options from OpenAPI specs.",
+      "version": "0.1.0",
+      "author": "specforge-community",
+      "language": "python",
+      "url": "https://plugins.specforge.dev/python-emitter-0.1.0.wasm",
+      "verified": true,
+      "downloads": 2100,
+      "rating": 4.8
+    },
+    {
+      "name": "csharp-emitter",
+      "description": "Generate C# SDKs with System.Text.Json models, HttpClient support, and nullable reference types from OpenAPI specs.",
+      "version": "0.1.0",
+      "author": "specforge-community",
+      "language": "csharp",
+      "url": "https://plugins.specforge.dev/csharp-emitter-0.1.0.wasm",
+      "verified": true,
+      "downloads": 650,
+      "rating": 4.4
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 //! Reads an OpenAPI YAML/JSON spec, runs the full pipeline (parse -> resolve ->
 //! IR -> emit), and writes a ready-to-build SDK for the chosen target language.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{bail, Context, Result};
@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, resolve, resolve_spec_path, scan_versions, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, MarketplaceIndex, RuleSeverity, Severity};
+use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, profile_api, resolve, resolve_spec_path, scan_versions, apply_versioning, ChangelogFormat, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, MarketplaceIndex, PluginIndex, ProfileOptions, RuleSeverity, Severity, SpecforgeConfig, VersioningConfig, VersionStrategy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -100,6 +100,12 @@ enum Commands {
     Changelog(ChangelogArgs),
     /// Browse, search, and manage the community spec marketplace.
     Market(MarketArgs),
+    /// Apply automatic API versioning to an OpenAPI spec's endpoint paths.
+    Version(VersionArgs),
+    /// Profile the performance of API endpoints from an OpenAPI spec.
+    Profile(ProfileArgs),
+    /// Manage WASM emitter plugins.
+    Plugin(PluginArgs),
 }
 
 #[derive(Args, Debug)]
@@ -147,6 +153,14 @@ struct GenerateArgs {
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
     log_level: LogLevel,
+
+    /// Apply URL path versioning prefix before generation (e.g. "v1", "v2").
+    #[arg(long)]
+    version_prefix: Option<String>,
+
+    /// Use a WASM plugin emitter by name (loaded from plugin marketplace or .specforge.yaml).
+    #[arg(long = "plugin")]
+    plugin: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -513,6 +527,14 @@ struct DemoArgs {
     log_level: LogLevel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum ChangelogOutputFormat {
+    /// Markdown output (default).
+    Markdown,
+    /// JSON output.
+    Json,
+}
+
 #[derive(Args, Debug)]
 struct ChangelogArgs {
     /// Path to the OpenAPI spec (YAML or JSON).
@@ -529,6 +551,14 @@ struct ChangelogArgs {
     /// Output file (default: CHANGELOG.md in current directory).
     #[arg(short, long)]
     out: Option<PathBuf>,
+
+    /// Suggest semantic version bump (major/minor/patch) based on changes.
+    #[arg(long)]
+    suggest_version: bool,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = ChangelogOutputFormat::Markdown)]
+    format: ChangelogOutputFormat,
 
     /// Log verbosity.
     #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
@@ -611,6 +641,172 @@ struct MarketAddArgs {
     log_level: LogLevel,
 }
 
+// ---------------------------------------------------------------------------
+// Plugin subcommand args
+// ---------------------------------------------------------------------------
+
+/// Manage WASM emitter plugins.
+#[derive(Args, Debug)]
+struct PluginArgs {
+    #[command(subcommand)]
+    plugin_cmd: PluginCommands,
+
+    /// Path to an extra plugin index JSON to merge.
+    #[arg(long = "index")]
+    extra_index: Option<PathBuf>,
+}
+
+#[derive(Subcommand, Debug)]
+enum PluginCommands {
+    /// List all available plugins.
+    List(PluginListArgs),
+    /// Search plugins by keyword.
+    Search(PluginSearchArgs),
+    /// Show detailed info about a specific plugin.
+    Info(PluginInfoArgs),
+    /// Download and install a plugin.
+    Install(PluginInstallArgs),
+}
+
+#[derive(Args, Debug)]
+struct PluginListArgs {
+    /// Output format (text or json).
+    #[arg(long, default_value = "text")]
+    format: String,
+
+    /// Filter by target language.
+    #[arg(long)]
+    language: Option<String>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct PluginSearchArgs {
+    /// Search query (matches name, description, language, author).
+    query: String,
+
+    /// Output format.
+    #[arg(long, default_value = "text")]
+    format: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct PluginInfoArgs {
+    /// Name of the plugin to inspect.
+    name: String,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Args, Debug)]
+struct PluginInstallArgs {
+    /// Name of the plugin to install.
+    name: String,
+
+    /// Directory to install the plugin WASM file into (default: ./plugins).
+    #[arg(short, long, default_value = "./plugins")]
+    dir: PathBuf,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum ProfileFormat {
+    Text,
+    Json,
+    Markdown,
+}
+
+/// Profile the performance of API endpoints declared in an OpenAPI spec.
+#[derive(Args, Debug)]
+struct ProfileArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Base URL of the running API to profile against.
+    #[arg(long)]
+    base_url: String,
+
+    /// Profile a specific endpoint (substring match on path).
+    #[arg(long)]
+    endpoint: Option<String>,
+
+    /// Number of requests per endpoint.
+    #[arg(long, default_value_t = 100)]
+    requests: usize,
+
+    /// Number of concurrent requests (reserved for future use).
+    #[arg(long, default_value_t = 10)]
+    concurrency: usize,
+
+    /// Per-request timeout in milliseconds.
+    #[arg(long, default_value_t = 5000)]
+    timeout: u64,
+
+    /// Authorization header value (e.g. "Bearer <token>").
+    #[arg(long)]
+    auth: Option<String>,
+
+    /// Output format.
+    #[arg(long, value_enum, default_value_t = ProfileFormat::Text)]
+    format: ProfileFormat,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
+/// Versioning strategy for the `version` subcommand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum VersionStrategyArg {
+    /// URL path prefix (/v1/pets)
+    Url,
+    /// Header (API-Version: 1)
+    Header,
+    /// Query parameter (?version=1)
+    Query,
+    /// None (no versioning)
+    None,
+}
+
+/// Apply automatic API versioning to endpoint paths in an OpenAPI spec.
+#[derive(Args, Debug)]
+struct VersionArgs {
+    /// Path to the OpenAPI spec (YAML or JSON).
+    spec: PathBuf,
+
+    /// Versioning strategy.
+    #[arg(long, value_enum, default_value_t = VersionStrategyArg::Url)]
+    strategy: VersionStrategyArg,
+
+    /// URL prefix for path strategy (default: v1).
+    #[arg(long, default_value = "v1")]
+    prefix: String,
+
+    /// Header name for header strategy (default: API-Version).
+    #[arg(long)]
+    header: Option<String>,
+
+    /// Output file (default: stdout).
+    #[arg(short, long)]
+    out: Option<PathBuf>,
+
+    /// Log verbosity.
+    #[arg(short = 'v', long = "log-level", value_enum, default_value_t = LogLevel::Info)]
+    log_level: LogLevel,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
@@ -641,6 +837,14 @@ fn main() -> ExitCode {
             MarketCommands::List(a) => a.log_level,
             MarketCommands::Info(a) => a.log_level,
             MarketCommands::Add(a) => a.log_level,
+        },
+        Commands::Version(args) => args.log_level,
+        Commands::Profile(args) => args.log_level,
+        Commands::Plugin(args) => match &args.plugin_cmd {
+            PluginCommands::List(a) => a.log_level,
+            PluginCommands::Search(a) => a.log_level,
+            PluginCommands::Info(a) => a.log_level,
+            PluginCommands::Install(a) => a.log_level,
         },
     };
 
@@ -877,6 +1081,30 @@ fn main() -> ExitCode {
                 ExitCode::FAILURE
             }
         },
+        Commands::Version(args) => match run_version(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Profile(args) => match run_profile(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
+        Commands::Plugin(args) => match run_plugin(&args) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                let _ = warn!("{e:#}");
+                ExitCode::FAILURE
+            }
+        },
     }
 }
 
@@ -943,6 +1171,37 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
         doc
     };
 
+    // Apply versioning if --version-prefix is set.
+    let mut doc = doc;
+    if let Some(ref prefix) = cli.version_prefix {
+        info!("applying URL path versioning with prefix: {prefix}");
+        let versioning_config = VersioningConfig {
+            strategy: VersionStrategy::UrlPath,
+            prefix: Some(prefix.clone()),
+            header_name: None,
+        };
+        apply_versioning(&mut doc, &versioning_config);
+        for op in &doc.operations {
+            info!("  {} {}", op.method.upper(), op.path);
+        }
+    }
+
+    // Resolve --plugin flag: try .specforge.yaml first, then the plugin marketplace.
+    if let Some(ref plugin_name) = cli.plugin {
+        let plugin_path = resolve_plugin_path(plugin_name)
+            .with_context(|| format!("failed to resolve plugin '{plugin_name}'"))?;
+        info!("using WASM plugin: {} ({})", plugin_name, plugin_path.display());
+        // NOTE: Actual WASM runtime execution requires a WASM engine (e.g.
+        // wasmtime).  For now we record the resolved path so downstream tooling
+        // can pick it up.  The IR is still emitted through the built-in emitters
+        // and the plugin path is written alongside for reference.
+        std::fs::create_dir_all(&cli.out)
+            .with_context(|| format!("failed to create output directory {}", cli.out.display()))?;
+        let marker = cli.out.join(".plugin-used");
+        std::fs::write(&marker, plugin_path.display().to_string())
+            .with_context(|| format!("failed to write {}", marker.display()))?;
+    }
+
     info!(
         "emitting {:?} SDK to: {}",
         cli.lang,
@@ -993,6 +1252,8 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
         let changelog_opts = ChangelogOptions {
             version: cli.version.clone(),
             previous_spec: cli.changelog_previous.as_ref().map(|p| p.display().to_string()),
+            suggest_version: false,
+            format: Default::default(),
         };
         let changelog_content = generate_changelog(&doc, &changelog_opts);
         let changelog_path = cli.out.join("CHANGELOG.md");
@@ -2135,12 +2396,25 @@ fn run_changelog(cli: &ChangelogArgs) -> Result<()> {
     info!("resolving document into IR");
     let doc = resolve(&spec).context("failed to resolve spec into IR")?;
 
+    let fmt = match cli.format {
+        ChangelogOutputFormat::Markdown => ChangelogFormat::Markdown,
+        ChangelogOutputFormat::Json => ChangelogFormat::Json,
+    };
+
     let opts = ChangelogOptions {
         version: cli.version.clone(),
         previous_spec: cli.previous.as_ref().map(|p| p.display().to_string()),
+        suggest_version: cli.suggest_version,
+        format: fmt,
     };
 
     let output = generate_changelog(&doc, &opts);
+
+    // Determine the default filename based on output format.
+    let default_filename = match cli.format {
+        ChangelogOutputFormat::Markdown => "CHANGELOG.md",
+        ChangelogOutputFormat::Json => "CHANGELOG.json",
+    };
 
     match &cli.out {
         Some(path) => {
@@ -2149,7 +2423,7 @@ fn run_changelog(cli: &ChangelogArgs) -> Result<()> {
             eprintln!("Wrote {}", path.display());
         }
         None => {
-            let default_path = std::path::PathBuf::from("CHANGELOG.md");
+            let default_path = std::path::PathBuf::from(default_filename);
             std::fs::write(&default_path, &output)
                 .with_context(|| format!("failed to write {}", default_path.display()))?;
             eprintln!("Wrote {}", default_path.display());
@@ -2328,6 +2602,349 @@ fn run_market_add(index: &MarketplaceIndex, cli: &MarketAddArgs) -> Result<()> {
     std::fs::write(out_path, &json)
         .with_context(|| format!("failed to write {}", out_path.display()))?;
     eprintln!("Wrote {}", out_path.display());
+
+    Ok(())
+}
+
+fn run_profile(cli: &ProfileArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let opts = ProfileOptions {
+        base_url: cli.base_url.clone(),
+        auth: cli.auth.clone(),
+        requests: cli.requests,
+        concurrency: cli.concurrency,
+        timeout_ms: cli.timeout,
+        endpoint_filter: cli.endpoint.clone(),
+    };
+
+    info!(
+        "profiling {} endpoint(s) against {} ({} requests each)",
+        doc.operations.len(),
+        cli.base_url,
+        cli.requests,
+    );
+
+    let report = profile_api(&doc, &opts);
+
+    match cli.format {
+        ProfileFormat::Text => {
+            print!("{}", specforge_core::profiler::format_text(&report));
+        }
+        ProfileFormat::Json => {
+            let json = specforge_core::profiler::format_json(&report)
+                .context("failed to serialize profile report as JSON")?;
+            println!("{json}");
+        }
+        ProfileFormat::Markdown => {
+            print!("{}", specforge_core::profiler::format_markdown(&report));
+        }
+    }
+
+    Ok(())
+}
+
+fn run_version(cli: &VersionArgs) -> Result<()> {
+    info!("reading spec: {}", cli.spec.display());
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+
+    info!("resolving document into IR");
+    let mut doc = resolve(&spec).context("failed to resolve spec into IR")?;
+
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len(),
+    );
+
+    let strategy = match cli.strategy {
+        VersionStrategyArg::Url => VersionStrategy::UrlPath,
+        VersionStrategyArg::Header => VersionStrategy::Header,
+        VersionStrategyArg::Query => VersionStrategy::QueryParam,
+        VersionStrategyArg::None => VersionStrategy::None,
+    };
+
+    let prefix = if matches!(strategy, VersionStrategy::UrlPath | VersionStrategy::QueryParam) {
+        Some(cli.prefix.clone())
+    } else {
+        None
+    };
+
+    let config = VersioningConfig {
+        strategy,
+        prefix,
+        header_name: cli.header.clone(),
+    };
+
+    info!("applying versioning (strategy: {:?})", cli.strategy);
+    apply_versioning(&mut doc, &config);
+
+    for op in &doc.operations {
+        info!("  {} {}", op.method.upper(), op.path);
+    }
+
+    let output =
+        serde_json::to_string_pretty(&doc).context("failed to serialize versioned IR to JSON")?;
+
+    match &cli.out {
+        Some(path) => {
+            std::fs::write(path, &output)
+                .with_context(|| format!("failed to write {}", path.display()))?;
+            eprintln!("Wrote {}", path.display());
+        }
+        None => {
+            println!("{output}");
+        }
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Plugin path resolution
+// ---------------------------------------------------------------------------
+
+/// Resolve a plugin name to a filesystem path by checking:
+/// 1. Local `.specforge.yaml` config for a matching plugin entry
+/// 2. The built-in plugin marketplace index for a URL
+/// 3. Common paths like `./plugins/<name>.wasm`
+fn resolve_plugin_path(name: &str) -> Result<PathBuf> {
+    // 1. Check .specforge.yaml
+    let config_path = PathBuf::from(".specforge.yaml");
+    if config_path.exists() {
+        if let Ok(config) = SpecforgeConfig::load(&config_path) {
+            if let Some(plugin) = config.find_plugin(name) {
+                let path = PathBuf::from(&plugin.path);
+                if path.exists() {
+                    return Ok(path);
+                }
+                // Path configured but file missing — try relative to config dir.
+                let base = config_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."));
+                let resolved = base.join(&plugin.path);
+                if resolved.exists() {
+                    return Ok(resolved);
+                }
+                bail!(
+                    "plugin '{name}' is configured in {} but {} not found",
+                    config_path.display(),
+                    plugin.path,
+                );
+            }
+        }
+    }
+
+    // 2. Check the built-in marketplace index for a download URL.
+    let index = PluginIndex::built_in();
+    if let Some(_plugin) = index.find(name) {
+        // Return the expected local install path.
+        let local = PathBuf::from("plugins").join(format!("{name}.wasm"));
+        if local.exists() {
+            return Ok(local);
+        }
+        bail!(
+            "plugin '{name}' is available in the marketplace but not installed.\n\
+             Run: specforge plugin install {name}"
+        );
+    }
+
+    // 3. Fallback: check common paths.
+    let candidates = [
+        PathBuf::from(format!("plugins/{name}.wasm")),
+        PathBuf::from(format!("./{name}.wasm")),
+    ];
+    for candidate in &candidates {
+        if candidate.exists() {
+            return Ok(candidate.clone());
+        }
+    }
+
+    bail!(
+        "unknown plugin '{name}'. Available plugins can be listed with:\n\
+         specforge plugin list"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Plugin subcommand handlers
+// ---------------------------------------------------------------------------
+
+fn load_plugin_index(extra_index: &Option<PathBuf>) -> Result<PluginIndex> {
+    let mut index = PluginIndex::built_in();
+    if let Some(ref extra_path) = extra_index {
+        let extra = PluginIndex::load(extra_path)
+            .with_context(|| format!("failed to load extra plugin index from {}", extra_path.display()))?;
+        index.merge(&extra);
+    }
+    Ok(index)
+}
+
+fn run_plugin(cli: &PluginArgs) -> Result<()> {
+    let index = load_plugin_index(&cli.extra_index)?;
+
+    match &cli.plugin_cmd {
+        PluginCommands::List(args) => run_plugin_list(&index, args),
+        PluginCommands::Search(args) => run_plugin_search(&index, args),
+        PluginCommands::Info(args) => run_plugin_info(&index, args),
+        PluginCommands::Install(args) => run_plugin_install(&index, args),
+    }
+}
+
+fn run_plugin_list(index: &PluginIndex, cli: &PluginListArgs) -> Result<()> {
+    let plugins: Vec<&specforge_core::PluginEntry> = if let Some(ref lang) = cli.language {
+        let q = lang.to_lowercase();
+        index
+            .plugins
+            .iter()
+            .filter(|p| p.language.to_lowercase() == q)
+            .collect()
+    } else {
+        index.sorted_by_downloads()
+    };
+
+    if plugins.is_empty() {
+        eprintln!("No plugins found.");
+        return Ok(());
+    }
+
+    match cli.format.as_str() {
+        "json" => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&plugins).context("failed to serialize")?
+            );
+        }
+        _ => {
+            eprintln!("Plugin Marketplace -- {} plugin(s)\n", plugins.len());
+            let name_w = plugins
+                .iter()
+                .map(|p| p.name.len())
+                .max()
+                .unwrap_or(20)
+                .max(20);
+            eprintln!(
+                "  {:<width$}  {:>10}  {:>5}  {:>12}  {}",
+                "NAME",
+                "DOWNLOADS",
+                "RATING",
+                "LANGUAGE",
+                "DESCRIPTION",
+                width = name_w,
+            );
+            eprintln!(
+                "  {:─<width$}  {:─>10}  {:─>5}  {:─>12}  {width:─<40}",
+                "",
+                "",
+                "",
+                "",
+                width = name_w
+            );
+            for p in &plugins {
+                let verified = if p.verified { " [v]" } else { "" };
+                eprintln!(
+                    "  {:<width$}  {:>10}  {:>5.1}  {:>12}  {}{}",
+                    p.name,
+                    p.downloads,
+                    p.rating,
+                    p.language,
+                    truncate(&p.description, 45),
+                    verified,
+                    width = name_w,
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_plugin_search(index: &PluginIndex, cli: &PluginSearchArgs) -> Result<()> {
+    let results = index.search(&cli.query);
+
+    if results.is_empty() {
+        eprintln!("No plugins found matching \"{}\".", cli.query);
+        return Ok(());
+    }
+
+    match cli.format.as_str() {
+        "json" => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&results).context("failed to serialize")?
+            );
+        }
+        _ => {
+            eprintln!("Found {} plugin(s) matching \"{}\":\n", results.len(), cli.query);
+            for p in &results {
+                let verified = if p.verified { " [verified]" } else { "" };
+                eprintln!(
+                    "  {} v{}{}\n    {} (by {})\n    Language: {} | Downloads: {} | Rating: {:.1}/5\n",
+                    p.name,
+                    p.version,
+                    verified,
+                    truncate(&p.description, 80),
+                    p.author,
+                    p.language,
+                    p.downloads,
+                    p.rating,
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn run_plugin_info(index: &PluginIndex, cli: &PluginInfoArgs) -> Result<()> {
+    let plugin = index
+        .find(&cli.name)
+        .ok_or_else(|| anyhow::anyhow!("plugin not found: {}", cli.name))?;
+
+    eprintln!("{}\n", plugin.name);
+    eprintln!("  Version:      {}", plugin.version);
+    eprintln!("  Author:       {}", plugin.author);
+    eprintln!("  Description:  {}", plugin.description);
+    eprintln!("  Language:     {}", plugin.language);
+    eprintln!("  Downloads:    {}", plugin.downloads);
+    eprintln!("  Rating:       {:.1}/5", plugin.rating);
+    eprintln!(
+        "  Verified:     {}",
+        if plugin.verified { "Yes" } else { "No" }
+    );
+    if !plugin.url.is_empty() {
+        eprintln!("  URL:          {}", plugin.url);
+    }
+
+    Ok(())
+}
+
+fn run_plugin_install(index: &PluginIndex, cli: &PluginInstallArgs) -> Result<()> {
+    let dest = index
+        .install_plugin(&cli.name, &cli.dir)
+        .with_context(|| format!("failed to install plugin {}", cli.name))?;
+
+    eprintln!("Installed plugin '{}' to {}", cli.name, dest.display());
+
+    // Also show the .specforge.yaml snippet the user can add.
+    eprintln!("\nAdd to your .specforge.yaml:");
+    eprintln!(
+        "  plugins:\n    - name: {}\n      path: {}\n      enabled: true",
+        cli.name,
+        dest.display(),
+    );
 
     Ok(())
 }

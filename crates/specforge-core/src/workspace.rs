@@ -9,6 +9,59 @@ use std::path::{Path, PathBuf};
 
 use crate::error::SpecError;
 
+// ---------------------------------------------------------------------------
+// Plugin Configuration
+// ---------------------------------------------------------------------------
+
+/// A single WASM emitter plugin entry in `.specforge.yaml`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PluginConfig {
+    /// Plugin name (must match a marketplace entry).
+    pub name: String,
+    /// Local filesystem path to the `.wasm` file.
+    pub path: String,
+    /// Whether the plugin is enabled (default: true).
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Top-level `.specforge.yaml` configuration (extends workspace config).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct SpecforgeConfig {
+    /// Workspace specs (optional; may be absent if only plugins are configured).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub specs: Vec<WorkspaceSpec>,
+    /// WASM emitter plugins to load.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins: Vec<PluginConfig>,
+}
+
+impl SpecforgeConfig {
+    /// Load a `.specforge.yaml` config from disk.
+    pub fn load(path: &Path) -> Result<Self, SpecError> {
+        let content = std::fs::read_to_string(path).map_err(|e| SpecError::Io {
+            path: path.display().to_string(),
+            source: e,
+        })?;
+        serde_yaml::from_str(&content).map_err(SpecError::Yaml)
+    }
+
+    /// Return only the enabled plugins.
+    pub fn enabled_plugins(&self) -> Vec<&PluginConfig> {
+        self.plugins.iter().filter(|p| p.enabled).collect()
+    }
+
+    /// Find a plugin by name (case-insensitive).
+    pub fn find_plugin(&self, name: &str) -> Option<&PluginConfig> {
+        let q = name.to_lowercase();
+        self.plugins.iter().find(|p| p.name.to_lowercase() == q)
+    }
+}
+
 /// Top-level workspace configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceConfig {
@@ -16,7 +69,7 @@ pub struct WorkspaceConfig {
 }
 
 /// A single spec entry within a workspace.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceSpec {
     /// Human-friendly name for this spec (used in logs and `--only` filtering).
     pub name: String,
@@ -27,7 +80,7 @@ pub struct WorkspaceSpec {
 }
 
 /// One SDK output target for a workspace spec.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceOutput {
     /// Target language (`ts`, `go`, `rust`).
     pub lang: String,

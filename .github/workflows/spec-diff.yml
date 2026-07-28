@@ -1,0 +1,25 @@
+name: Spec Diff
+
+on:
+  pull_request:
+    paths:
+      - '**/*.yaml'
+      - '**/*.yml'
+      - '**/*.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    name: Compare OpenAPI Specs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/specforge-diff
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
