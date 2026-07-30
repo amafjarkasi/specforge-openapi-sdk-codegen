@@ -5,7 +5,14 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum DiffSeverity { Breaking, Info }
-impl std::fmt::Display for DiffSeverity { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { match self { DiffSeverity::Breaking => write!(f, "breaking"), DiffSeverity::Info => write!(f, "info") } } }
+impl std::fmt::Display for DiffSeverity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiffSeverity::Breaking => write!(f, "breaking"),
+            DiffSeverity::Info => write!(f, "info"),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DiffFinding { pub severity: DiffSeverity, pub message: String, pub path: String }
@@ -40,7 +47,15 @@ impl std::fmt::Display for PropertyChange {
 pub enum PropertyChangeKind { Added { ty: String }, AddedRequired { ty: String }, Removed { ty: String }, TypeChanged { old_type: String, new_type: String }, RequiredChanged { old_required: bool, new_required: bool } }
 #[derive(Debug, Clone, Serialize)]
 pub struct SchemaDiffDetail { pub name: String, pub changes: Vec<PropertyChange> }
-impl std::fmt::Display for SchemaDiffDetail { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { writeln!(f, "Schema {}:", self.name)?; for c in &self.changes { writeln!(f, "  {c}")?; } Ok(()) } }
+impl std::fmt::Display for SchemaDiffDetail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Schema {}:", self.name)?;
+        for c in &self.changes {
+            writeln!(f, "  {c}")?;
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, Clone, Serialize)]
 pub struct DiffResult { pub findings: Vec<DiffFinding>, pub schema_diffs: Vec<SchemaDiffDetail> }
 #[derive(Debug, Clone, Serialize)]
