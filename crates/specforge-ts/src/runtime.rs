@@ -27,26 +27,26 @@ pub fn emit(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
 /// Collect all runtime files (relative path, absolute path, content) for parallel writing.
 pub fn collect(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
-    let mut files = Vec::new();
-
-    files.push((path_str(&src.join("errors.ts"), out_dir), src.join("errors.ts"), errors_source()));
-    files.push((path_str(&src.join("auth.ts"), out_dir), src.join("auth.ts"), auth_source(doc)));
-    files.push((path_str(&src.join("retry.ts"), out_dir), src.join("retry.ts"), retry_source()));
-    files.push((path_str(&src.join("paginate.ts"), out_dir), src.join("paginate.ts"), paginate_source()));
-    files.push((path_str(&src.join("concurrency.ts"), out_dir), src.join("concurrency.ts"), concurrency_source()));
-    files.push((path_str(&src.join("dedup.ts"), out_dir), src.join("dedup.ts"), dedup_source()));
-    files.push((path_str(&src.join("idempotency.ts"), out_dir), src.join("idempotency.ts"), idempotency_source()));
-    files.push((path_str(&src.join("middleware.ts"), out_dir), src.join("middleware.ts"), middleware_source()));
-    files.push((path_str(&src.join("interceptors.ts"), out_dir), src.join("interceptors.ts"), interceptors_source()));
-    files.push((path_str(&src.join("streaming.ts"), out_dir), src.join("streaming.ts"), streaming_source()));
-    files.push((path_str(&src.join("validate.ts"), out_dir), src.join("validate.ts"), validate_source(doc)));
-    files.push((path_str(&src.join("cache.ts"), out_dir), src.join("cache.ts"), cache_source()));
-    files.push((path_str(&src.join("ratelimit.ts"), out_dir), src.join("ratelimit.ts"), ratelimit_source()));
-    files.push((path_str(&src.join("telemetry.ts"), out_dir), src.join("telemetry.ts"), telemetry_source()));
-    files.push((path_str(&src.join("logging.ts"), out_dir), src.join("logging.ts"), logging_source()));
-    files.push((path_str(&src.join("validation-middleware.ts"), out_dir), src.join("validation-middleware.ts"), validation_middleware_source()));
-    files.push((path_str(&src.join("service_container.ts"), out_dir), src.join("service_container.ts"), service_container_source()));
-    files.push((path_str(&src.join("client.ts"), out_dir), src.join("client.ts"), client_source(doc)));
+    let files = vec![
+        (path_str(&src.join("errors.ts"), out_dir), src.join("errors.ts"), errors_source()),
+        (path_str(&src.join("auth.ts"), out_dir), src.join("auth.ts"), auth_source(doc)),
+        (path_str(&src.join("retry.ts"), out_dir), src.join("retry.ts"), retry_source()),
+        (path_str(&src.join("paginate.ts"), out_dir), src.join("paginate.ts"), paginate_source()),
+        (path_str(&src.join("concurrency.ts"), out_dir), src.join("concurrency.ts"), concurrency_source()),
+        (path_str(&src.join("dedup.ts"), out_dir), src.join("dedup.ts"), dedup_source()),
+        (path_str(&src.join("idempotency.ts"), out_dir), src.join("idempotency.ts"), idempotency_source()),
+        (path_str(&src.join("middleware.ts"), out_dir), src.join("middleware.ts"), middleware_source()),
+        (path_str(&src.join("interceptors.ts"), out_dir), src.join("interceptors.ts"), interceptors_source()),
+        (path_str(&src.join("streaming.ts"), out_dir), src.join("streaming.ts"), streaming_source()),
+        (path_str(&src.join("validate.ts"), out_dir), src.join("validate.ts"), validate_source(doc)),
+        (path_str(&src.join("cache.ts"), out_dir), src.join("cache.ts"), cache_source()),
+        (path_str(&src.join("ratelimit.ts"), out_dir), src.join("ratelimit.ts"), ratelimit_source()),
+        (path_str(&src.join("telemetry.ts"), out_dir), src.join("telemetry.ts"), telemetry_source()),
+        (path_str(&src.join("logging.ts"), out_dir), src.join("logging.ts"), logging_source()),
+        (path_str(&src.join("validation-middleware.ts"), out_dir), src.join("validation-middleware.ts"), validation_middleware_source()),
+        (path_str(&src.join("service_container.ts"), out_dir), src.join("service_container.ts"), service_container_source()),
+        (path_str(&src.join("client.ts"), out_dir), src.join("client.ts"), client_source(doc)),
+    ];
 
     Ok(files)
 }
