@@ -246,34 +246,32 @@ fn properties_from_allof_member(
         ReferenceOr::Reference { reference } => {
             let ref_name = ref_name(reference);
             // First, try to find the schema in components and extract inline.
-            if let Some(schema_or) = components.schemas.get(&ref_name) {
-                if let ReferenceOr::Item(schema) = schema_or {
-                    if let SchemaKind::Type(OApiType::Object(ObjectType {
-                        properties,
-                        required,
-                        ..
-                    })) = &schema.schema_kind
-                    {
-                        let required_set: std::collections::HashSet<String> =
-                            required.iter().cloned().collect();
-                        let props = properties
-                            .iter()
-                            .map(|(prop_name, prop_schema_or)| {
-                                let ty = ref_or_boxed_schema_to_type(prop_schema_or);
-                                let description = match prop_schema_or {
-                                    ReferenceOr::Item(s) => s.schema_data.description.clone(),
-                                    ReferenceOr::Reference { .. } => None,
-                                };
-                                Property {
-                                    name: prop_name.clone(),
-                                    ty,
-                                    required: required_set.contains(prop_name),
-                                    description,
-                                }
-                            })
-                            .collect();
-                        return Ok((props, required_set));
-                    }
+            if let Some(ReferenceOr::Item(schema)) = components.schemas.get(&ref_name) {
+                if let SchemaKind::Type(OApiType::Object(ObjectType {
+                    properties,
+                    required,
+                    ..
+                })) = &schema.schema_kind
+                {
+                    let required_set: std::collections::HashSet<String> =
+                        required.iter().cloned().collect();
+                    let props = properties
+                        .iter()
+                        .map(|(prop_name, prop_schema_or)| {
+                            let ty = ref_or_boxed_schema_to_type(prop_schema_or);
+                            let description = match prop_schema_or {
+                                ReferenceOr::Item(s) => s.schema_data.description.clone(),
+                                ReferenceOr::Reference { .. } => None,
+                            };
+                            Property {
+                                name: prop_name.clone(),
+                                ty,
+                                required: required_set.contains(prop_name),
+                                description,
+                            }
+                        })
+                        .collect();
+                    return Ok((props, required_set));
                 }
             }
             // Fallback: check the already-built registry.
@@ -766,14 +764,12 @@ fn resolve_responses(
             body,
         });
     }
-    if let Some(default) = &responses.default {
-        if let ReferenceOr::Item(r) = default {
-            out.push(Response {
-                status: "default".to_string(),
-                description: Some(r.description.clone()),
-                body: json_body(&r.content),
-            });
-        }
+    if let Some(ReferenceOr::Item(r)) = &responses.default {
+        out.push(Response {
+            status: "default".to_string(),
+            description: Some(r.description.clone()),
+            body: json_body(&r.content),
+        });
     }
     Ok(out)
 }

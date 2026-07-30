@@ -10,6 +10,12 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
+
+/// A parsed HTTP request: method, path, version, headers, body.
+type ParsedRequest = (String, String, String, HashMap<String, String>, Vec<u8>);
+
+/// A language test leg: its label and the function that runs it for a crate dir.
+type LangLeg = (&'static str, Box<dyn Fn(&Path) -> Result<(), String>>);
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -45,7 +51,7 @@ fn escape_json(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
-fn parse_request(stream: &mut TcpStream) -> std::io::Result<(String, String, String, HashMap<String, String>, Vec<u8>)> {
+fn parse_request(stream: &mut TcpStream) -> std::io::Result<ParsedRequest> {
     stream.set_read_timeout(Some(Duration::from_secs(3)))?;
     stream.set_write_timeout(Some(Duration::from_secs(3)))?;
 
@@ -1024,7 +1030,7 @@ console.log("ts-runtime-ok", all.length, page.items.length);
 fn run_langs(
     label: &str,
     root: &Path,
-    legs: &[(&str, Box<dyn Fn(&Path) -> Result<(), String>>)],
+    legs: &[LangLeg],
 ) {
     let mut failures = Vec::new();
     let mut ran = 0;

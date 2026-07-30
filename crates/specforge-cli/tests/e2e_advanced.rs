@@ -10,6 +10,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::thread;
+
+/// A parsed HTTP request: method, path, headers, body.
+type ParsedRequest = (String, String, HashMap<String, String>, Vec<u8>);
 use std::time::Duration;
 
 // ─── Shared helpers (mirrored lightly from e2e_smoke) ────────────────────────
@@ -98,7 +101,7 @@ fn write_response(stream: &mut TcpStream, status: u16, ct: &str, body: &str, ext
     stream.flush()
 }
 
-fn parse_http(stream: &mut TcpStream) -> std::io::Result<(String, String, HashMap<String, String>, Vec<u8>)> {
+fn parse_http(stream: &mut TcpStream) -> std::io::Result<ParsedRequest> {
     stream.set_read_timeout(Some(Duration::from_secs(5)))?;
     stream.set_write_timeout(Some(Duration::from_secs(5)))?;
     let mut buf = [0u8; 32768];

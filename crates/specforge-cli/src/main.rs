@@ -2592,7 +2592,7 @@ fn run_market_add(index: &MarketplaceIndex, cli: &MarketAddArgs) -> Result<()> {
     // Build a new index: start from existing built-in entries and append.
     let mut new_index = index.clone();
     new_index.entries.push(entry);
-    new_index.entries.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+    new_index.entries.sort_by_key(|a| std::cmp::Reverse(a.downloads));
 
     let json =
         serde_json::to_string_pretty(&new_index).context("failed to serialize marketplace index")?;

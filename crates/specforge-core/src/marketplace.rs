@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn search_matches_name() {
-        let mut index = MarketplaceIndex {
+        let index = MarketplaceIndex {
             entries: vec![sample_entry("github"), sample_entry("stripe")],
         };
         let results = index.search("github");

@@ -235,22 +235,20 @@ fn discriminant_literal(
     disc: Option<&Discriminator>,
 ) -> Option<String> {
     // 1. Try the arm's own property (single-variant string enum).
-    if let Some(model) = registry.get(arm_name) {
-        if let Model::Object(obj) = model {
-            if let Some(p) = obj.properties.iter().find(|p| p.name == prop) {
-                match &p.ty {
-                    Type::StringEnum { variants, .. } if variants.len() == 1 => {
-                        return Some(string_literal(&variants[0]));
-                    }
-                    Type::Reference { name, .. } => {
-                        if let Some(Model::Enum(e)) = registry.get(name) {
-                            if e.variants.len() == 1 {
-                                return Some(string_literal(&e.variants[0].value));
-                            }
+    if let Some(Model::Object(obj)) = registry.get(arm_name) {
+        if let Some(p) = obj.properties.iter().find(|p| p.name == prop) {
+            match &p.ty {
+                Type::StringEnum { variants, .. } if variants.len() == 1 => {
+                    return Some(string_literal(&variants[0]));
+                }
+                Type::Reference { name, .. } => {
+                    if let Some(Model::Enum(e)) = registry.get(name) {
+                        if e.variants.len() == 1 {
+                            return Some(string_literal(&e.variants[0].value));
                         }
                     }
-                    _ => {}
                 }
+                _ => {}
             }
         }
     }

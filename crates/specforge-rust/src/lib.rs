@@ -2989,13 +2989,11 @@ fn discriminant_value(
     disc: &specforge_core::Discriminator,
 ) -> Option<String> {
     // 1. Try the arm's own property (single-variant string enum).
-    if let Some(model) = registry.get(arm_name) {
-        if let Model::Object(obj) = model {
-            if let Some(p) = obj.properties.iter().find(|p| p.name == prop) {
-                if let Type::StringEnum { variants, .. } = &p.ty {
-                    if variants.len() == 1 {
-                        return Some(variants[0].clone());
-                    }
+    if let Some(Model::Object(obj)) = registry.get(arm_name) {
+        if let Some(p) = obj.properties.iter().find(|p| p.name == prop) {
+            if let Type::StringEnum { variants, .. } = &p.ty {
+                if variants.len() == 1 {
+                    return Some(variants[0].clone());
                 }
             }
         }
