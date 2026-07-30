@@ -2095,12 +2095,42 @@ fn print_analysis_text(report: &specforge_core::AnalysisReport) {
     eprintln!("Operations:  {}", report.total_operations);
     eprintln!("IR size:     {:.1} KB", report.total_size_bytes as f64 / 1024.0);
     eprintln!();
-    if !report.unused_schemas.is_empty() { eprintln!("Unused schemas ({}):", report.unused_schemas.len()); for name in &report.unused_schemas { eprintln!("  - {name}"); } eprintln!(); }
-    if !report.duplicate_schemas.is_empty() { eprintln!("Duplicate schemas ({} pair(s)):", report.duplicate_schemas.len()); for (a, b) in &report.duplicate_schemas { eprintln!("  - {a} <-> {b}"); } eprintln!(); }
-    if !report.large_schemas.is_empty() { eprintln!("Large schemas (>20 properties):"); for (name, count) in &report.large_schemas { eprintln!("  - {name}: {count} properties"); } eprintln!(); }
-    if !report.deep_refs.is_empty() { eprintln!("Deep reference chains:"); for (name, depth) in &report.deep_refs { eprintln!("  - {name}: depth {depth}"); } eprintln!(); }
-    if report.recommendations.is_empty() { eprintln!("No issues found. Spec looks healthy."); }
-    else { eprintln!("Recommendations ({}):", report.recommendations.len()); for (i, rec) in report.recommendations.iter().enumerate() { eprintln!("  {}. {rec}", i + 1); } }
+    if !report.unused_schemas.is_empty() {
+        eprintln!("Unused schemas ({}):", report.unused_schemas.len());
+        for name in &report.unused_schemas {
+            eprintln!("  - {name}");
+        }
+        eprintln!();
+    }
+    if !report.duplicate_schemas.is_empty() {
+        eprintln!("Duplicate schemas ({} pair(s)):", report.duplicate_schemas.len());
+        for (a, b) in &report.duplicate_schemas {
+            eprintln!("  - {a} <-> {b}");
+        }
+        eprintln!();
+    }
+    if !report.large_schemas.is_empty() {
+        eprintln!("Large schemas (>20 properties):");
+        for (name, count) in &report.large_schemas {
+            eprintln!("  - {name}: {count} properties");
+        }
+        eprintln!();
+    }
+    if !report.deep_refs.is_empty() {
+        eprintln!("Deep reference chains:");
+        for (name, depth) in &report.deep_refs {
+            eprintln!("  - {name}: depth {depth}");
+        }
+        eprintln!();
+    }
+    if report.recommendations.is_empty() {
+        eprintln!("No issues found. Spec looks healthy.");
+    } else {
+        eprintln!("Recommendations ({}):", report.recommendations.len());
+        for (i, rec) in report.recommendations.iter().enumerate() {
+            eprintln!("  {}. {rec}", i + 1);
+        }
+    }
 }
 fn print_analysis_markdown(report: &specforge_core::AnalysisReport) {
     println!("# Spec Bundle Analysis");
@@ -2111,12 +2141,47 @@ fn print_analysis_markdown(report: &specforge_core::AnalysisReport) {
     println!("| Operations | {} |", report.total_operations);
     println!("| IR size | {:.1} KB |", report.total_size_bytes as f64 / 1024.0);
     println!();
-    if !report.unused_schemas.is_empty() { println!("## Unused Schemas ({})", report.unused_schemas.len()); println!(); for name in &report.unused_schemas { println!("- `{name}`"); } println!(); }
-    if !report.duplicate_schemas.is_empty() { println!("## Duplicate Schemas ({} pair(s))", report.duplicate_schemas.len()); println!(); for (a, b) in &report.duplicate_schemas { println!("- `{a}` <-> `{b}`"); } println!(); }
-    if !report.large_schemas.is_empty() { println!("## Large Schemas (>20 properties)"); println!(); for (name, count) in &report.large_schemas { println!("- `{name}`: {count} properties"); } println!(); }
-    if !report.deep_refs.is_empty() { println!("## Deep Reference Chains"); println!(); for (name, depth) in &report.deep_refs { println!("- `{name}`: depth {depth}"); } println!(); }
-    if !report.recommendations.is_empty() { println!("## Recommendations"); println!(); for (i, rec) in report.recommendations.iter().enumerate() { println!("{}. {rec}", i + 1); } }
-    else { println!("No issues found. Spec looks healthy."); }
+    if !report.unused_schemas.is_empty() {
+        println!("## Unused Schemas ({})", report.unused_schemas.len());
+        println!();
+        for name in &report.unused_schemas {
+            println!("- `{name}`");
+        }
+        println!();
+    }
+    if !report.duplicate_schemas.is_empty() {
+        println!("## Duplicate Schemas ({} pair(s))", report.duplicate_schemas.len());
+        println!();
+        for (a, b) in &report.duplicate_schemas {
+            println!("- `{a}` <-> `{b}`");
+        }
+        println!();
+    }
+    if !report.large_schemas.is_empty() {
+        println!("## Large Schemas (>20 properties)");
+        println!();
+        for (name, count) in &report.large_schemas {
+            println!("- `{name}`: {count} properties");
+        }
+        println!();
+    }
+    if !report.deep_refs.is_empty() {
+        println!("## Deep Reference Chains");
+        println!();
+        for (name, depth) in &report.deep_refs {
+            println!("- `{name}`: depth {depth}");
+        }
+        println!();
+    }
+    if !report.recommendations.is_empty() {
+        println!("## Recommendations");
+        println!();
+        for (i, rec) in report.recommendations.iter().enumerate() {
+            println!("{}. {rec}", i + 1);
+        }
+    } else {
+        println!("No issues found. Spec looks healthy.");
+    }
 }
 /// Recursively upgrade OpenAPI 3.0 constructs to 3.1 equivalents.
 fn upgrade_30_to_31(json: &mut JsonValue) {
