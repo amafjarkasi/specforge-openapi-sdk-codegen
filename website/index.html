@@ -3,9 +3,46 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>specforge — Forge production-ready SDKs from OpenAPI specs</title>
-<meta name="description" content="One language-neutral IR. Emitters for TypeScript, Go, Rust, and WASM. With runtime validation, documentation generation, and a plugin system.">
+<title>specforge — Free OpenAPI → TypeScript, Go, Rust SDK generator with a production runtime</title>
+<meta name="description" content="Free, open-source OpenAPI 3.x → TypeScript, Go, Rust, and WASM SDK generator. One CLI, four emitters, production runtime (auth, retry, idempotency, validation, SSE, middleware), and a plugin system. MIT licensed.">
+<meta name="keywords" content="openapi, sdk generator, code generator, typescript sdk, go sdk, rust sdk, openapi 3, codegen, api client, rest sdk, schema-first">
+<link rel="canonical" href="https://specforge.deepwhaleai.com/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://specforge.deepwhaleai.com/">
+<meta property="og:title" content="specforge — Free OpenAPI → TypeScript, Go, Rust SDK generator with a production runtime">
+<meta property="og:description" content="Forge production-ready SDKs from OpenAPI 3.x specs. Four emitters, one language-neutral IR, production-grade runtime baked in. MIT licensed, no signup.">
+<meta property="og:site_name" content="specforge">
+<meta property="og:image" content="https://specforge.deepwhaleai.com/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="specforge — Free OpenAPI → TS/Go/Rust SDK generator">
+<meta name="twitter:description" content="One CLI, four language emitters, production runtime. MIT licensed.">
+<meta name="twitter:image" content="https://specforge.deepwhaleai.com/og.png">
+<meta name="theme-color" content="#0a0705">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230f0a06'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-size='72' fill='%23f97316'%3E%EA%80%82%3C/text%3E%3C/svg%3E">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "specforge",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "description": "Open-source OpenAPI 3.x to TypeScript, Go, Rust, and WASM SDK generator with a production runtime (auth, retry, idempotency, validation, SSE, middleware).",
+  "url": "https://specforge.deepwhaleai.com/",
+  "downloadUrl": "https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest",
+  "softwareVersion": "1.6.0",
+  "license": "https://opensource.org/licenses/MIT",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "amafjarkasi",
+    "url": "https://github.com/amafjarkasi"
+  }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -209,8 +246,37 @@
     color: var(--dim);
     font-weight: 400;
     max-width: 780px;
-    margin: 0 auto 1.5rem;
+    margin: 0 auto 1rem;
     line-height: 1.6;
+  }
+
+  .hero .audience {
+    font-size: 1rem;
+    color: var(--muted);
+    font-weight: 500;
+    max-width: 720px;
+    margin: 0 auto 1.5rem;
+    line-height: 1.5;
+  }
+
+  .hero .oneline {
+    display: flex;
+    justify-content: center;
+    margin: 1rem auto 0.5rem;
+    max-width: 720px;
+  }
+  .hero .oneline code {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg3);
+    border: 1px solid var(--border-warm);
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--accent2);
+    text-align: center;
+    overflow-x: auto;
   }
 
   .hero .lang-strip {
@@ -450,6 +516,8 @@
   .runtime-item .dot.gold { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
   .runtime-item .dot.green { background: var(--green); box-shadow: 0 0 10px var(--green); }
   .runtime-item .dot.red { background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .runtime-item .dot.blue { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
+  .runtime-item .dot.purple { background: #a855f7; box-shadow: 0 0 10px #a855f7; }
 
   /* ══════════════════════════════════════════════════════════════
      LANGUAGE CODE EXAMPLES
@@ -516,6 +584,17 @@
   /* ══════════════════════════════════════════════════════════════
      CLI GRID
      ══════════════════════════════════════════════════════════════ */
+  .cli-tier {
+    color: var(--accent2);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .cli-tier:first-of-type { margin-top: 1.5rem; }
   .cli-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -911,6 +990,110 @@
     color: var(--muted);
     margin-top: 1rem;
   }
+
+  /* ══════════════════════════════════════════════════════════════
+     VS CODE EXTENSION
+     ══════════════════════════════════════════════════════════════ */
+  .vscode-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  .vscode-feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  .vscode-feature-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(249,115,22,0.1);
+    border-radius: 8px;
+  }
+  .vscode-feature-content h4 {
+    color: var(--text-bright);
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  .vscode-feature-content p {
+    color: var(--dim);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SPEC MARKETPLACE
+     ══════════════════════════════════════════════════════════════ */
+  .marketplace-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+  }
+  .marketplace-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  .marketplace-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 8px 24px rgba(249,115,22,0.15);
+  }
+  .marketplace-logo {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+  }
+  .marketplace-name {
+    color: var(--text-bright);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .marketplace-desc {
+    color: var(--dim);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .marketplace-cta {
+    margin-top: 2.5rem;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .marketplace-cta p {
+    color: var(--dim);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  .marketplace-code {
+    display: inline-block;
+    background: rgba(249,115,22,0.1);
+    color: var(--accent);
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -937,6 +1120,8 @@
       <li><a href="#languages">Languages</a></li>
       <li><a href="#runtime">Runtime</a></li>
       <li><a href="#cli">CLI</a></li>
+      <li><a href="#vscode">VS Code</a></li>
+      <li><a href="#marketplace">Marketplace</a></li>
       <li><a href="#install">Install</a></li>
       <li><a href="https://doc.specforge.deepwhaleai.com/">Docs</a></li>
       <li><a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen" class="nav-cta">GitHub →</a></li>
@@ -1046,14 +1231,16 @@
       </svg>
     </div>
 
-    <div class="badge">v0.9.0 · MIT License</div>
+    <div class="badge">v1.6.0 · MIT License</div>
 
     <h1>Forge <span class="gradient">production-ready SDKs</span><br>from OpenAPI specs</h1>
 
     <p class="subtitle">
-      One language-neutral IR. Emitters for TypeScript, Go, Rust, and WASM.
-      With runtime validation, documentation generation, and a plugin system.
+      The free, open-source OpenAPI 3.x → TypeScript, Go, Rust, and WASM SDK generator.
+      Production-ready clients in 60 seconds — auth, retry, idempotency, validation, SSE, and middleware built in.
     </p>
+
+    <p class="audience">For backend &amp; platform teams shipping public APIs who are tired of hand-rolling SDK clients.</p>
 
     <div class="lang-strip">
       <span class="ts">TypeScript</span>
@@ -1062,16 +1249,22 @@
       <span class="wasm">WASM</span>
     </div>
 
+    <div class="oneline">
+      <code>curl -sSL https://specforge.deepwhaleai.com/install | sh</code>
+    </div>
+
     <div class="cta-row">
-      <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen" class="primary">
+      <a href="#install" class="primary">
+        Get specforge →
+      </a>
+      <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen" class="secondary">
         <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
         View on GitHub
       </a>
-      <a href="#install" class="secondary">Get Started ↓</a>
     </div>
 
     <div class="stats">
-      <span><b>123+</b> unit tests</span>
+      <span><b>227</b> unit tests</span>
       <span><b>3</b> language targets</span>
       <span><b>4</b> platforms CI</span>
       <span><b>WASM</b> plugin system</span>
@@ -1093,7 +1286,7 @@
   <div class="comparison reveal">
     <table>
       <thead>
-        <tr><th>Problem with other generators</th><th>specforge's answer</th></tr>
+        <tr><th>vs openapi-generator, swagger-codegen, fern, stainless, speakeasy</th><th>specforge</th></tr>
       </thead>
       <tbody>
         <tr><td>Incomplete types — nullable, oneOf, allOf produce broken or <code>any</code>-typed output</td><td>Full composition: allOf merging, oneOf type guards, discriminator mapping, nullable propagation</td></tr>
@@ -1103,6 +1296,7 @@
         <tr><td>No testing — you write mock servers by hand</td><td><code>specforge test</code> generates mock server tests from example responses</td></tr>
         <tr><td>No documentation — separate tools for API docs</td><td><code>specforge docs</code> generates a static HTML documentation site</td></tr>
         <tr><td>No CI integration — manual diffing and linting</td><td><code>specforge diff</code> detects breaking changes, <code>specforge check</code> lints specs, GitHub Action for one-line CI</td></tr>
+        <tr><td>Slow CLI on large specs (multi-minute runs on GitHub / Stripe)</td><td><b>12× faster</b> than OpenAPI Generator on real-world specs (1,431-schema Stripe, 965-schema GitHub). See <a href="#benchmarks">benchmarks</a>.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1229,6 +1423,13 @@
     <div class="runtime-item"><span class="dot green"></span> SSE streaming with error handling</div>
     <div class="runtime-item"><span class="dot red"></span> Runtime request/response validation</div>
     <div class="runtime-item"><span class="dot orange"></span> oneOf type guards (isX / narrowX)</div>
+    <div class="runtime-item"><span class="dot blue"></span> Rate limiting (token bucket + sliding window)</div>
+    <div class="runtime-item"><span class="dot purple"></span> Telemetry &amp; metrics collection</div>
+    <div class="runtime-item"><span class="dot green"></span> Response caching with ETag support</div>
+    <div class="runtime-item"><span class="dot gold"></span> HTTP client dependency injection</div>
+    <div class="runtime-item"><span class="dot orange"></span> Structured logging middleware</div>
+    <div class="runtime-item"><span class="dot blue"></span> i18n (internationalization) support</div>
+    <div class="runtime-item"><span class="dot purple"></span> Request/Response interceptors</div>
   </div>
 </section>
 
@@ -1380,20 +1581,44 @@
      ══════════════════════════════════════════════════════════════ -->
 <section id="cli">
   <h2 class="reveal">CLI Commands</h2>
-  <p class="section-desc reveal">One binary, twelve commands. Cross-compiled for Linux, macOS, and Windows.</p>
+  <p class="section-desc reveal">One binary, twenty-two commands. Cross-compiled for Linux, macOS, and Windows.</p>
+
+  <h3 class="cli-tier">Core — you'll use these daily</h3>
   <div class="cli-grid reveal">
     <div class="cli-item"><div class="cmd">specforge generate</div><div class="desc">Generate an SDK from an OpenAPI spec (TS, Go, or Rust)</div></div>
     <div class="cli-item"><div class="cmd">specforge check</div><div class="desc">Lint and validate a spec with configurable rules</div></div>
     <div class="cli-item"><div class="cmd">specforge diff</div><div class="desc">Compare two specs and report breaking changes (exit code 1)</div></div>
     <div class="cli-item"><div class="cmd">specforge emit</div><div class="desc">Dump the resolved IR as JSON for external tools and plugins</div></div>
+  </div>
+
+  <h3 class="cli-tier">Validation, security &amp; CI</h3>
+  <div class="cli-grid reveal">
+    <div class="cli-item"><div class="cmd">specforge security</div><div class="desc">Analyze security schemes and vulnerabilities</div></div>
+    <div class="cli-item"><div class="cmd">specforge analyze</div><div class="desc">Deep analysis of spec structure and usage</div></div>
+    <div class="cli-item"><div class="cmd">specforge graph</div><div class="desc">Generate dependency graphs (Mermaid/DOT)</div></div>
+    <div class="cli-item"><div class="cmd">specforge migrate</div><div class="desc">Generate migration guides between API versions</div></div>
+  </div>
+
+  <h3 class="cli-tier">Docs, mock &amp; demo</h3>
+  <div class="cli-grid reveal">
+    <div class="cli-item"><div class="cmd">specforge docs</div><div class="desc">Generate a static HTML API documentation site</div></div>
+    <div class="cli-item"><div class="cmd">specforge test</div><div class="desc">Generate mock server tests from spec example responses</div></div>
+    <div class="cli-item"><div class="cmd">specforge mock</div><div class="desc">Start a mock server with realistic data</div></div>
+    <div class="cli-item"><div class="cmd">specforge demo</div><div class="desc">Create interactive demo applications</div></div>
+  </div>
+
+  <h3 class="cli-tier">Workspace &amp; spec plumbing</h3>
+  <div class="cli-grid reveal">
     <div class="cli-item"><div class="cmd">specforge init</div><div class="desc">Scaffold a new minimal OpenAPI spec with a /health endpoint</div></div>
     <div class="cli-item"><div class="cmd">specforge convert</div><div class="desc">Convert between OpenAPI 3.0 and 3.1 formats</div></div>
     <div class="cli-item"><div class="cmd">specforge merge</div><div class="desc">Merge multiple OpenAPI spec files into one</div></div>
-    <div class="cli-item"><div class="cmd">specforge docs</div><div class="desc">Generate a static HTML API documentation site</div></div>
-    <div class="cli-item"><div class="cmd">specforge test</div><div class="desc">Generate mock server tests from spec example responses</div></div>
     <div class="cli-item"><div class="cmd">specforge versions</div><div class="desc">List API versions in a spec directory</div></div>
     <div class="cli-item"><div class="cmd">specforge workspace</div><div class="desc">Generate SDKs for all specs in a workspace config</div></div>
     <div class="cli-item"><div class="cmd">specforge workspace-init</div><div class="desc">Generate a workspace config from a directory of specs</div></div>
+    <div class="cli-item"><div class="cmd">specforge export</div><div class="desc">Export spec to various formats</div></div>
+    <div class="cli-item"><div class="cmd">specforge evolution</div><div class="desc">Track API evolution over time</div></div>
+    <div class="cli-item"><div class="cmd">specforge dashboard</div><div class="desc">Generate SDK telemetry dashboard</div></div>
+    <div class="cli-item"><div class="cmd">specforge infer</div><div class="desc">Infer OpenAPI spec from JSON examples</div></div>
   </div>
 </section>
 
@@ -1407,26 +1632,29 @@
   <p class="section-desc reveal">Get specforge running on your machine in under a minute.</p>
   <div class="install-grid">
     <div class="install-card reveal">
-      <h3>📦 Cargo (from source)</h3>
-      <div class="install-label">Build from source with Rust</div>
+      <h3>💻 Prebuilt Binary</h3>
+      <div class="install-label">Fastest path — 60 seconds to first SDK</div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code><span class="cm"># Clone &amp; build</span>
-git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen.git
-cd specforge-openapi-sdk-codegen
-cargo install --path crates/specforge-cli</code>
+        <code><span class="cm"># Linux (x86_64) — also available for macOS &amp; Windows on Releases</span>
+curl -sSL https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-linux-amd64 -o specforge
+chmod +x specforge
+sudo mv specforge /usr/local/bin/
+
+<span class="cm"># Then generate your first SDK:</span>
+specforge generate petstore.yaml -o ./sdk-ts -l ts -n @acme/petstore-sdk</code>
       </div>
     </div>
 
     <div class="install-card reveal">
-      <h3>💻 Prebuilt Binary</h3>
-      <div class="install-label">Download for your platform</div>
+      <h3>📦 Cargo (from source)</h3>
+      <div class="install-label">If you prefer to build from source</div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code><span class="cm"># Linux (x86_64)</span>
-curl -sSL https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-linux-amd64 -o specforge
-chmod +x specforge
-sudo mv specforge /usr/local/bin/</code>
+        <code><span class="cm"># Clone &amp; build (requires Rust 1.75+)</span>
+git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen.git
+cd specforge-openapi-sdk-codegen
+cargo install --path crates/specforge-cli</code>
       </div>
     </div>
 
@@ -1450,7 +1678,7 @@ sudo mv specforge /usr/local/bin/</code>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         <code>specforge --version
-<span class="cm"># specforge 0.9.0</span>
+<span class="cm"># specforge 1.6.0</span>
 
 specforge --help</code>
       </div>
@@ -1558,21 +1786,138 @@ git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen
 <div class="section-divider"></div>
 
 <!-- ══════════════════════════════════════════════════════════════
+     VS CODE EXTENSION
+     ══════════════════════════════════════════════════════════════ -->
+<section id="vscode">
+  <h2 class="reveal">VS Code Extension</h2>
+  <p class="section-desc reveal">
+    Full IDE integration with 23+ commands. Generate, validate, diff, and analyze specs without leaving your editor.
+  </p>
+
+  <div class="vscode-features reveal">
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">⚡</div>
+      <div class="vscode-feature-content">
+        <h4>One-Click Generation</h4>
+        <p>Pick your language and output directory. SDK generated in seconds.</p>
+      </div>
+    </div>
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">✓</div>
+      <div class="vscode-feature-content">
+        <h4>Auto-Validate on Save</h4>
+        <p>Configurable spec validation every time you save. Catch errors early.</p>
+      </div>
+    </div>
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">⌘</div>
+      <div class="vscode-feature-content">
+        <h4>Keyboard Shortcuts</h4>
+        <p>Ctrl+Shift+G to generate, Ctrl+Shift+K to check. Fast and ergonomic.</p>
+      </div>
+    </div>
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">🔍</div>
+      <div class="vscode-feature-content">
+        <h4>Context Menus</h4>
+        <p>Right-click any spec file for quick access to all commands.</p>
+      </div>
+    </div>
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">📊</div>
+      <div class="vscode-feature-content">
+        <h4>Status Bar Integration</h4>
+        <p>Quick access to mock server and spec status at a glance.</p>
+      </div>
+    </div>
+    <div class="vscode-feature">
+      <div class="vscode-feature-icon">🔄</div>
+      <div class="vscode-feature-content">
+        <h4>Progress Notifications</h4>
+        <p>Real-time feedback for long-running operations.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SPEC MARKETPLACE
+     ══════════════════════════════════════════════════════════════ -->
+<section id="marketplace">
+  <h2 class="reveal">Spec Marketplace</h2>
+  <p class="section-desc reveal">
+    18 curated specs from the world's most popular APIs. Generate SDKs instantly with real-world schemas.
+  </p>
+
+  <div class="marketplace-grid reveal">
+    <div class="marketplace-card">
+      <div class="marketplace-logo">🐙</div>
+      <div class="marketplace-name">GitHub</div>
+      <div class="marketplace-desc">965 schemas, 1209 operations</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">💳</div>
+      <div class="marketplace-name">Stripe</div>
+      <div class="marketplace-desc">1431 schemas, 587 operations</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">☸️</div>
+      <div class="marketplace-name">Kubernetes</div>
+      <div class="marketplace-desc">Full K8s API coverage</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">🎵</div>
+      <div class="marketplace-name">Spotify</div>
+      <div class="marketplace-desc">Web API for music apps</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">📝</div>
+      <div class="marketplace-name">Notion</div>
+      <div class="marketplace-desc">Pages, databases, and blocks</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">🔐</div>
+      <div class="marketplace-name">Okta</div>
+      <div class="marketplace-desc">Identity and access management</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">🎨</div>
+      <div class="marketplace-name">Figma</div>
+      <div class="marketplace-desc">Design file API</div>
+    </div>
+    <div class="marketplace-card">
+      <div class="marketplace-logo">📦</div>
+      <div class="marketplace-name">Twilio</div>
+      <div class="marketplace-desc">SMS, voice, and video APIs</div>
+    </div>
+  </div>
+
+  <div class="marketplace-cta reveal">
+    <p>Plus 10 more: Atlassian, Bitbucket, Vercel, Netlify, CircleCI, Slack, Discord, Linear, Jira, and Confluence.</p>
+    <code class="marketplace-code">specforge market list</code>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- ══════════════════════════════════════════════════════════════
      PRICING / WAITLIST
      ══════════════════════════════════════════════════════════════ -->
 <section id="pricing">
-  <h2 class="reveal">Free for Personal Use. Plans for Teams.</h2>
+  <h2 class="reveal">MIT Licensed. Optional Paid Plans.</h2>
   <p class="section-desc reveal">
-    Full CLI free for private and non-commercial projects. Upgrade for commercial use, CI automation, and team features.
+    The <code>specforge</code> CLI is MIT licensed — use it, fork it, ship it, no strings. Optional paid plans add commercial warranty, private registry, hosted docs, and team features.
   </p>
 
   <div class="pricing-grid reveal">
     <div class="pricing-card">
       <div class="plan-name">Open Source CLI</div>
-      <div class="plan-price">Free</div>
-      <div class="plan-desc">Full CLI for private and non-commercial use. Love it? Upgrade for commercial projects.</div>
+      <div class="plan-price">Free · MIT</div>
+      <div class="plan-desc">Full CLI under MIT. Use in commercial, internal, and personal projects — royalty-free. Source on GitHub.</div>
       <ul>
-        <li>All 12 CLI commands</li>
+        <li>All 22 CLI commands</li>
         <li>TypeScript, Go, Rust emitters</li>
         <li>WASM plugin SDK</li>
         <li>Community support</li>
