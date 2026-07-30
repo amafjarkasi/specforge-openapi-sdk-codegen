@@ -6,6 +6,12 @@
 //! point for new APIs.
 
 /// Generate the demo Petstore spec as a YAML string.
+///
+/// # Panics
+///
+/// Panics if the internally-built spec fails to serialize to YAML. Since the
+/// spec is constructed from known-valid `serde_json::Value`s, this should never
+/// happen; a panic here indicates an internal bug.
 pub fn generate_demo_spec() -> String {
     // We build the spec as a serde_json::Value for reliable escaping,
     // then serialize to YAML.

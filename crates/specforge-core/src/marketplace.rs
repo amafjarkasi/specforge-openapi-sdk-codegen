@@ -41,6 +41,11 @@ impl MarketplaceIndex {
     }
 
     /// Return the built-in curated marketplace index bundled with this binary.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bundled `assets/marketplace-index.json` is malformed. This
+    /// is a compile-time-baked asset, so a panic here indicates a corrupt build.
     pub fn built_in() -> Self {
         let json = include_str!("../../../assets/marketplace-index.json");
         serde_json::from_str(json).expect("bundled marketplace-index.json is valid JSON")
@@ -176,6 +181,11 @@ impl PluginIndex {
     }
 
     /// Return the built-in curated plugin index bundled with this binary.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bundled `assets/plugin-index.json` is malformed. This
+    /// is a compile-time-baked asset, so a panic here indicates a corrupt build.
     pub fn built_in() -> Self {
         let json = include_str!("../../../assets/plugin-index.json");
         serde_json::from_str(json).expect("bundled plugin-index.json is valid JSON")

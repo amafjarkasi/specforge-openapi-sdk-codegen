@@ -217,6 +217,12 @@ fn extract_alternative(text: &str) -> Option<String> {
 ///
 /// Produces a Markdown document listing deprecated operations, removed
 /// operations, new required parameters, and schema changes.
+///
+/// # Panics
+///
+/// Panics if a schema name present in both documents' schema sets is missing
+/// from the schema map of either document. This cannot happen for documents
+/// produced by [`resolve`](crate::resolve), which keep both in sync.
 pub fn generate_migration_guide(
     old_doc: &Document,
     new_doc: &Document,
