@@ -11,8 +11,8 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://specforge.deepwhaleai.com',
-  baseUrl: '/docs/',
+  url: 'https://doc.specforge.deepwhaleai.com',
+  baseUrl: '/',
 
   organizationName: 'amafjarkasi',
   projectName: 'specforge-openapi-sdk-codegen',
@@ -62,8 +62,8 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: '/',
-          label: 'Home',
+          href: 'https://specforge.deepwhaleai.com',
+          label: 'specforge',
           position: 'right',
         },
         {
@@ -111,7 +111,7 @@ const config: Config = {
           items: [
             {
               label: 'specforge.deepwhaleai.com',
-              href: '/',
+              href: 'https://specforge.deepwhaleai.com',
             },
             {
               label: 'DeepWhale AI',
