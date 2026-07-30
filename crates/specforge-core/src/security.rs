@@ -42,7 +42,14 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
             Some(Some(r)) => { let n: Vec<String> = r.iter().flat_map(|x| x.keys().cloned()).collect(); (true, n.first().cloned(), true) }
             _ => (has_global_auth, global_names.first().cloned(), false),
         };
-        operations.push(OperationSecurity { operation_id: ir_op.operation_id.clone(), method: ir_op.method.as_str().to_string(), path: ir_op.path.clone(), requires_auth: req_auth, scheme: sch, has_override: ov });
+        operations.push(OperationSecurity {
+            operation_id: ir_op.operation_id.clone(),
+            method: ir_op.method.as_str().to_string(),
+            path: ir_op.path.clone(),
+            requires_auth: req_auth,
+            scheme: sch,
+            has_override: ov,
+        });
     }
     let mut issues = Vec::new();
     analyze_common_issues(&schemes, &operations, &mut issues);
@@ -51,8 +58,20 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
 }
 
 fn scheme_info_from_ir(s: &SecurityScheme) -> SecuritySchemeInfo {
-    match s { SecurityScheme::HttpBearer => SecuritySchemeInfo { name: "BearerAuth".into(), kind: "bearer".into(), header: Some("Authorization".into()), bearer_format: None },
-        SecurityScheme::ApiKey { header } => SecuritySchemeInfo { name: format!("ApiKey({})", header), kind: "apikey".into(), header: Some(header.clone()), bearer_format: None } }
+    match s {
+        SecurityScheme::HttpBearer => SecuritySchemeInfo {
+            name: "BearerAuth".into(),
+            kind: "bearer".into(),
+            header: Some("Authorization".into()),
+            bearer_format: None,
+        },
+        SecurityScheme::ApiKey { header } => SecuritySchemeInfo {
+            name: format!("ApiKey({})", header),
+            kind: "apikey".into(),
+            header: Some(header.clone()),
+            bearer_format: None,
+        },
+    }
 }
 fn scheme_info_from_raw(name: &str, s: &OApiSecurityScheme) -> SecuritySchemeInfo {
     match s {
@@ -86,18 +105,44 @@ fn scheme_info_from_raw(name: &str, s: &OApiSecurityScheme) -> SecuritySchemeInf
         },
     }
 }
-fn scheme_label(s: &SecurityScheme) -> String { match s { SecurityScheme::HttpBearer => "bearer".into(), SecurityScheme::ApiKey { header } => format!("apikey ({})", header) } }
-fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> { let Some(reqs) = security else { return Vec::new() }; reqs.iter().flat_map(|r| r.keys().cloned()).collect() }
-fn op_key(method: &str, path: &str) -> String { format!("{} {}", method.to_uppercase(), path) }
+fn scheme_label(s: &SecurityScheme) -> String {
+    match s {
+        SecurityScheme::HttpBearer => "bearer".into(),
+        SecurityScheme::ApiKey { header } => format!("apikey ({})", header),
+    }
+}
+
+fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> {
+    let Some(reqs) = security else { return Vec::new() };
+    reqs.iter().flat_map(|r| r.keys().cloned()).collect()
+}
+
+fn op_key(method: &str, path: &str) -> String {
+    format!("{} {}", method.to_uppercase(), path)
+}
+
 fn build_op_security_map(spec: &OpenAPI) -> BTreeMap<String, Option<Vec<SecurityRequirement>>> {
     let mut map = BTreeMap::new();
-    { let paths = &spec.paths;
+    let paths = &spec.paths;
     for (path, item_or) in &paths.paths {
-        let item = match item_or { openapiv3::ReferenceOr::Item(i) => i, _ => continue };
-        for (m, op_opt) in [("get", &item.get), ("post", &item.post), ("put", &item.put), ("patch", &item.patch), ("delete", &item.delete), ("head", &item.head), ("options", &item.options)] {
-            if let Some(op) = op_opt { map.insert(format!("{} {}", m.to_uppercase(), path), op.security.clone()); }
+        let item = match item_or {
+            openapiv3::ReferenceOr::Item(i) => i,
+            _ => continue,
+        };
+        for (m, op_opt) in [
+            ("get", &item.get),
+            ("post", &item.post),
+            ("put", &item.put),
+            ("patch", &item.patch),
+            ("delete", &item.delete),
+            ("head", &item.head),
+            ("options", &item.options),
+        ] {
+            if let Some(op) = op_opt {
+                map.insert(format!("{} {}", m.to_uppercase(), path), op.security.clone());
+            }
         }
-    } }
+    }
     map
 }
 fn analyze_common_issues(
