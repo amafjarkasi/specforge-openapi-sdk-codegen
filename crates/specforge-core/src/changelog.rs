@@ -237,6 +237,7 @@ fn classify_finding(finding: &diff::DiffFinding) -> ChangeImpact {
 }
 
 /// Build per-operation changelog entries from the diff between old and new documents.
+#[cfg(test)]
 fn build_operation_entries(
     old_doc: &Document,
     new_doc: &Document,
