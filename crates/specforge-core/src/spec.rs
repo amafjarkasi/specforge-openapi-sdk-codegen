@@ -376,10 +376,10 @@ pub fn scan_versions(dir: &Path) -> Vec<VersionInfo> {
 
 /// Check if a file looks like an OpenAPI spec by extension.
 fn is_spec_file(path: &Path) -> bool {
-    match path.extension().and_then(|e| e.to_str()) {
-        Some("yaml" | "yml" | "json") => true,
-        _ => false,
-    }
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("yaml" | "yml" | "json")
+    )
 }
 
 /// Scan a single subdirectory for a spec file and extract its version.

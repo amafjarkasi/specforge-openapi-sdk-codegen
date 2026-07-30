@@ -83,7 +83,62 @@ pub fn format_markdown(findings: &[DiffFinding], schema_diffs: &[SchemaDiffDetai
     if !schema_diffs.is_empty() { out.push_str("## Schema Changes\n\n"); for d in schema_diffs { out.push_str(&format!("### `{}`\n\n| Change | Property | Details |\n|--------|----------|--------|\n", d.name)); for c in &d.changes { let (icon, det) = match &c.change { PropertyChangeKind::Added { ty } => ("Added", format!("new property (`{ty}`)")), PropertyChangeKind::AddedRequired { ty } => ("Added", format!("new required property (`{ty}`)")), PropertyChangeKind::Removed { ty } => ("Removed", format!("was `{ty}`")), PropertyChangeKind::TypeChanged { old_type, new_type } => ("Changed", format!("`{old_type}` → `{new_type}`")), PropertyChangeKind::RequiredChanged { old_required, new_required } => { let o = if *old_required { "required" } else { "optional" }; let n = if *new_required { "required" } else { "optional" }; ("Changed", format!("{o} → {n}")) } }; out.push_str(&format!("| {icon} | `{}` | {det} |\n", c.property)); } out.push('\n'); } } out.push_str("## Summary\n\n"); out.push_str(&format!("- **{}** breaking change(s)\n- **{}** non-breaking change(s)\n", brk.len(), inf.len())); if !schema_diffs.is_empty() { out.push_str(&format!("- **{}** schema(s) modified\n", schema_diffs.len())); } out }
 
 fn fmt_md(f: &DiffFinding) -> String { fmt_md_msg(&f.message) }
-fn fmt_md_msg(msg: &str) -> String { if let Some(rest) = msg.strip_prefix("IR version changed: ") { return format!("IR version changed: {rest}"); } if let Some(id) = msg.strip_prefix("operation removed: ") { return format!("Operation `{id}` removed"); } if let Some(id) = msg.strip_prefix("operation added: ") { return format!("Operation `{id}` added"); } if let Some(n) = msg.strip_prefix("schema removed: ") { return format!("Schema `{n}` removed"); } if let Some(n) = msg.strip_prefix("schema added: ") { return format!("Schema `{n}` added"); } if let Some(p) = msg.strip_prefix("new required property: ") { return format!("New required property `{p}`"); } if let Some(p) = msg.strip_prefix("new optional property: ") { return format!("New optional property `{p}`"); } if let Some(p) = msg.strip_prefix("property removed: ") { return format!("Property `{p}` removed"); } if let Some(p) = msg.strip_prefix("type changed for property: ") { return format!("Type changed for property `{p}`"); } if let Some(p) = msg.strip_prefix("new required parameter: ") { return format!("New required parameter `{p}`"); } if let Some(p) = msg.strip_prefix("parameter removed: ") { return format!("Parameter `{p}` removed"); } if let Some(p) = msg.strip_prefix("response removed: ") { return format!("Response `{p}` removed"); } if let Some(p) = msg.strip_prefix("required changed for property: ") { return format!("Required status changed for property `{p}`"); } if msg == "new required request body" { return "New required request body".into(); } let mut c = msg.chars(); match c.next() { None => String::new(), Some(ch) => { let mut s = ch.to_uppercase().to_string(); s.extend(c); s } } }
+fn fmt_md_msg(msg: &str) -> String {
+    // Recognized diff messages are rewritten into human-readable Markdown.
+    // Each prefix maps to a templated sentence; anything else is returned
+    // with its first character uppercased.
+    if let Some(rest) = msg.strip_prefix("IR version changed: ") {
+        return format!("IR version changed: {rest}");
+    }
+    if let Some(id) = msg.strip_prefix("operation removed: ") {
+        return format!("Operation `{id}` removed");
+    }
+    if let Some(id) = msg.strip_prefix("operation added: ") {
+        return format!("Operation `{id}` added");
+    }
+    if let Some(n) = msg.strip_prefix("schema removed: ") {
+        return format!("Schema `{n}` removed");
+    }
+    if let Some(n) = msg.strip_prefix("schema added: ") {
+        return format!("Schema `{n}` added");
+    }
+    if let Some(p) = msg.strip_prefix("new required property: ") {
+        return format!("New required property `{p}`");
+    }
+    if let Some(p) = msg.strip_prefix("new optional property: ") {
+        return format!("New optional property `{p}`");
+    }
+    if let Some(p) = msg.strip_prefix("property removed: ") {
+        return format!("Property `{p}` removed");
+    }
+    if let Some(p) = msg.strip_prefix("type changed for property: ") {
+        return format!("Type changed for property `{p}`");
+    }
+    if let Some(p) = msg.strip_prefix("new required parameter: ") {
+        return format!("New required parameter `{p}`");
+    }
+    if let Some(p) = msg.strip_prefix("parameter removed: ") {
+        return format!("Parameter `{p}` removed");
+    }
+    if let Some(p) = msg.strip_prefix("response removed: ") {
+        return format!("Response `{p}` removed");
+    }
+    if let Some(p) = msg.strip_prefix("required changed for property: ") {
+        return format!("Required status changed for property `{p}`");
+    }
+    if msg == "new required request body" {
+        return "New required request body".into();
+    }
+    let mut c = msg.chars();
+    match c.next() {
+        None => String::new(),
+        Some(ch) => {
+            let mut s = ch.to_uppercase().to_string();
+            s.extend(c);
+            s
+        }
+    }
+}
 
 pub fn format_json(findings: &[DiffFinding], schema_diffs: &[SchemaDiffDetail]) -> Result<String, serde_json::Error> { let breaking: Vec<_> = findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).cloned().collect(); let info: Vec<_> = findings.iter().filter(|f| f.severity == DiffSeverity::Info).cloned().collect(); serde_json::to_string_pretty(&DiffJsonOutput { breaking, info, schema_diffs: schema_diffs.to_vec(), summary: DiffSummary { breaking_count: findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).count(), info_count: findings.iter().filter(|f| f.severity == DiffSeverity::Info).count() } }) }
 

@@ -12,7 +12,7 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, export_spec, generate_changelog, generate_demo_spec, lint, lint_config, merge_specs, parse_file, profile_api, resolve, resolve_spec_path, scan_versions, apply_versioning, ChangelogFormat, ChangelogOptions, DiffSeverity, ExportOptions, LintConfig, MarketplaceIndex, PluginIndex, ProfileOptions, RuleSeverity, Severity, SpecforgeConfig, VersioningConfig, VersionStrategy};
+use specforge_core::{diff, generate_changelog, lint, lint_config, merge_specs, parse_file, profile_api, resolve, resolve_spec_path, scan_versions, apply_versioning, ChangelogFormat, ChangelogOptions, DiffSeverity, LintConfig, MarketplaceIndex, PluginIndex, ProfileOptions, RuleSeverity, Severity, SpecforgeConfig, VersioningConfig, VersionStrategy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -870,7 +870,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -884,7 +884,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -898,7 +898,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -906,7 +906,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -914,7 +914,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -922,7 +922,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -930,7 +930,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -941,7 +941,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -949,7 +949,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -957,7 +957,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -975,7 +975,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -990,7 +990,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -998,7 +998,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1006,7 +1006,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1014,7 +1014,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1029,7 +1029,7 @@ fn main() -> ExitCode {
             }
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1037,7 +1037,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1045,7 +1045,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1053,7 +1053,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1061,7 +1061,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1069,7 +1069,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1077,7 +1077,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1085,7 +1085,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1093,7 +1093,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1101,7 +1101,7 @@ fn main() -> ExitCode {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e:#}");
-                let _ = warn!("{e:#}");
+                warn!("{e:#}");
                 ExitCode::FAILURE
             }
         },
@@ -1781,7 +1781,7 @@ fn run_merge(cli: &MergeArgs) -> Result<()> {
         info!("reading spec: {}", path.display());
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read spec at {}", path.display()))?;
-        let val: serde_json::Value = if path.extension().map_or(false, |e| e == "json") {
+        let val: serde_json::Value = if path.extension().is_some_and(|e| e == "json") {
             serde_json::from_str(&text)
                 .with_context(|| format!("failed to parse {} as JSON", path.display()))?
         } else {
@@ -2521,11 +2521,10 @@ fn run_market_list(index: &MarketplaceIndex, cli: &MarketListArgs) -> Result<()>
                 .unwrap_or(20)
                 .max(20);
             eprintln!(
-                "  {:<width$}  {:>10}  {:>5}  {}",
+                "  {:<width$}  {:>10}  {:>5}  DESCRIPTION",
                 "NAME",
                 "DOWNLOADS",
                 "RATING",
-                "DESCRIPTION",
                 width = name_w,
             );
             eprintln!(
@@ -2836,12 +2835,11 @@ fn run_plugin_list(index: &PluginIndex, cli: &PluginListArgs) -> Result<()> {
                 .unwrap_or(20)
                 .max(20);
             eprintln!(
-                "  {:<width$}  {:>10}  {:>5}  {:>12}  {}",
+                "  {:<width$}  {:>10}  {:>5}  {:>12}  DESCRIPTION",
                 "NAME",
                 "DOWNLOADS",
                 "RATING",
                 "LANGUAGE",
-                "DESCRIPTION",
                 width = name_w,
             );
             eprintln!(

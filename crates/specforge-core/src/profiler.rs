@@ -365,7 +365,7 @@ pub fn format_text(report: &ProfileReport) -> String {
         out.push_str(&format!("  Requests:       {}\n", r.total_requests));
         out.push_str(&format!("  Success/Error:  {} / {}\n", r.success_count, r.error_count));
         out.push_str(&format!("  Error rate:     {:.1}%\n", r.error_rate * 100.0));
-        out.push_str(&"  Latency (ms):\n".to_string());
+        out.push_str("  Latency (ms):\n");
         out.push_str(&format!("    avg:   {:.1}\n", r.avg_latency_ms));
         out.push_str(&format!("    p50:   {:.1}\n", r.p50_latency_ms));
         out.push_str(&format!("    p95:   {:.1}\n", r.p95_latency_ms));
@@ -425,7 +425,7 @@ pub fn format_markdown(report: &ProfileReport) -> String {
     out.push_str(&format!("**Overall throughput:** {:.1} rps\n\n", report.overall_throughput_rps));
 
     if !report.recommendations.is_empty() {
-        out.push_str(&"## Recommendations\n\n".to_string());
+        out.push_str("## Recommendations\n\n");
         for (i, rec) in report.recommendations.iter().enumerate() {
             out.push_str(&format!("{}. {}\n", i + 1, rec));
         }

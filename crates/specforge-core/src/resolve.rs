@@ -526,8 +526,8 @@ fn ref_or_boxed_schema_to_type(schema_or: &ReferenceOr<Box<Schema>>) -> Type {
 
 /// Handle a `Box<ReferenceOr<Schema>>` — used for `additionalProperties` and
 /// array `items`. (openapiv3 is inconsistent about which side the Box is on.)
-fn boxed_ref_or_schema_to_type(boxed: &Box<ReferenceOr<Schema>>) -> Type {
-    match boxed.as_ref() {
+fn boxed_ref_or_schema_to_type(boxed: &ReferenceOr<Schema>) -> Type {
+    match boxed {
         ReferenceOr::Item(s) => schema_to_type(s).unwrap_or(Type::Unknown),
         ReferenceOr::Reference { reference } => Type::Reference {
             name: ref_name(reference),
