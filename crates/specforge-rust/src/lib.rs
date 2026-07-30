@@ -186,7 +186,7 @@ fn crate_name(doc: &Document, opts: &GeneratorOptions) -> String {
             slug
         };
         // Crate names can't start with a digit.
-        if slug.chars().next().unwrap().is_ascii_digit() {
+        if slug.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             format!("sdk_{slug}")
         } else {
             format!("{slug}_sdk")
@@ -220,7 +220,7 @@ fn pascal(input: &str) -> String {
     if out.is_empty() {
         return "X".to_string();
     }
-    if out.chars().next().unwrap().is_ascii_digit() {
+    if out.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         out.insert(0, 'X');
     }
     out
@@ -261,7 +261,7 @@ fn snake(input: &str) -> String {
     let out = out.trim_matches('_').to_string();
     let out = if out.is_empty() {
         "x".into()
-    } else if out.chars().next().unwrap().is_ascii_digit() {
+    } else if out.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         format!("n_{out}")
     } else {
         out

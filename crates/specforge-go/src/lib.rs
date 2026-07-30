@@ -186,7 +186,7 @@ fn pascal(input: &str) -> String {
     if out.is_empty() {
         return "X".to_string();
     }
-    if out.chars().next().unwrap().is_ascii_digit() {
+    if out.chars().next().is_some_and(|c| c.is_ascii_digit()) {
         out.insert(0, 'X');
     }
     out
