@@ -62,15 +62,49 @@ fn dlbl(l: &str) -> String { l.replace('\\', "\\\\").replace('"', "\\\"").replac
 
 fn render_mermaid(g: &Graph) -> String {
     let mut o = String::from("graph TD\n");
-    for n in &g.nodes { let id = mid(&n.id); match n.shape { NodeShape::Default => writeln!(o, "    {id}[\"{}\"]", mlbl(&n.label)).unwrap(), NodeShape::Diamond => writeln!(o, "    {id}{{\"{}\"}}", mlbl(&n.label)).unwrap() } }
-    for e in &g.edges { let f = mid(&e.from); let t = mid(&e.to); match &e.label { Some(l) => writeln!(o, "    {f} -->|{l}| {t}").unwrap(), None => writeln!(o, "    {f} --> {t}").unwrap() } }
+    for n in &g.nodes {
+        let id = mid(&n.id);
+        match n.shape {
+            NodeShape::Default => writeln!(o, "    {id}[\"{}\"]", mlbl(&n.label)).unwrap(),
+            NodeShape::Diamond => writeln!(o, "    {id}{{\"{}\"}}", mlbl(&n.label)).unwrap(),
+        }
+    }
+    for e in &g.edges {
+        let f = mid(&e.from);
+        let t = mid(&e.to);
+        match &e.label {
+            Some(l) => writeln!(o, "    {f} -->|{l}| {t}").unwrap(),
+            None => writeln!(o, "    {f} --> {t}").unwrap(),
+        }
+    }
     o
 }
 
 fn render_dot(g: &Graph, title: &str) -> String {
-    let mut o = format!("digraph \"{title}\" {{\n    rankdir=TB;\n    node [shape=box, style=filled, fillcolor=\"#f0f0f0\"];\n    edge [color=\"#555555\"];\n\n");
-    for n in &g.nodes { let id = did(&n.id); let l = dlbl(&n.label); match n.shape { NodeShape::Default => writeln!(o, "    {id} [label=\"{l}\"];").unwrap(), NodeShape::Diamond => writeln!(o, "    {id} [label=\"{l}\", shape=diamond, fillcolor=\"#e8e0f0\"];").unwrap() } }
+    let mut o = format!(
+        "digraph \"{title}\" {{\n    rankdir=TB;\n    node [shape=box, style=filled, fillcolor=\"#f0f0f0\"];\n    edge [color=\"#555555\"];\n\n"
+    );
+    for n in &g.nodes {
+        let id = did(&n.id);
+        let l = dlbl(&n.label);
+        match n.shape {
+            NodeShape::Default => writeln!(o, "    {id} [label=\"{l}\"];").unwrap(),
+            NodeShape::Diamond => writeln!(
+                o,
+                "    {id} [label=\"{l}\", shape=diamond, fillcolor=\"#e8e0f0\"];"
+            )
+            .unwrap(),
+        }
+    }
     o.push('\n');
-    for e in &g.edges { let f = did(&e.from); let t = did(&e.to); match &e.label { Some(l) => writeln!(o, "    {f} -> {t} [label=\"{l}\"];").unwrap(), None => writeln!(o, "    {f} -> {t};").unwrap() } }
-    o.push_str("}\n"); o
+    for e in &g.edges {
+        let f = did(&e.from);
+        let t = did(&e.to);
+        match &e.label {
+            Some(l) => writeln!(o, "    {f} -> {t} [label=\"{l}\"];").unwrap(),
+            None => writeln!(o, "    {f} -> {t};").unwrap(),
+        }
+    }
+    o.push_str("}\n");
+    o
 }

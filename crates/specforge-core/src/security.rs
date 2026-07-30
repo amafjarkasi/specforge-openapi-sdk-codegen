@@ -55,10 +55,36 @@ fn scheme_info_from_ir(s: &SecurityScheme) -> SecuritySchemeInfo {
         SecurityScheme::ApiKey { header } => SecuritySchemeInfo { name: format!("ApiKey({})", header), kind: "apikey".into(), header: Some(header.clone()), bearer_format: None } }
 }
 fn scheme_info_from_raw(name: &str, s: &OApiSecurityScheme) -> SecuritySchemeInfo {
-    match s { OApiSecurityScheme::HTTP { scheme, bearer_format, .. } => SecuritySchemeInfo { name: name.into(), kind: scheme.to_lowercase(), header: if scheme.eq_ignore_ascii_case("bearer") { Some("Authorization".into()) } else { None }, bearer_format: bearer_format.clone() },
-        OApiSecurityScheme::APIKey { name: kn, .. } => SecuritySchemeInfo { name: name.into(), kind: "apikey".into(), header: Some(kn.clone()), bearer_format: None },
-        OApiSecurityScheme::OAuth2 { .. } => SecuritySchemeInfo { name: name.into(), kind: "oauth2".into(), header: None, bearer_format: None },
-        OApiSecurityScheme::OpenIDConnect { .. } => SecuritySchemeInfo { name: name.into(), kind: "openidconnect".into(), header: None, bearer_format: None } }
+    match s {
+        OApiSecurityScheme::HTTP { scheme, bearer_format, .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: scheme.to_lowercase(),
+            header: if scheme.eq_ignore_ascii_case("bearer") {
+                Some("Authorization".into())
+            } else {
+                None
+            },
+            bearer_format: bearer_format.clone(),
+        },
+        OApiSecurityScheme::APIKey { name: kn, .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "apikey".into(),
+            header: Some(kn.clone()),
+            bearer_format: None,
+        },
+        OApiSecurityScheme::OAuth2 { .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "oauth2".into(),
+            header: None,
+            bearer_format: None,
+        },
+        OApiSecurityScheme::OpenIDConnect { .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "openidconnect".into(),
+            header: None,
+            bearer_format: None,
+        },
+    }
 }
 fn scheme_label(s: &SecurityScheme) -> String { match s { SecurityScheme::HttpBearer => "bearer".into(), SecurityScheme::ApiKey { header } => format!("apikey ({})", header) } }
 fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> { let Some(reqs) = security else { return Vec::new() }; reqs.iter().flat_map(|r| r.keys().cloned()).collect() }

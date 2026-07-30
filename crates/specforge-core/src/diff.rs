@@ -72,7 +72,14 @@ fn type_to_string(ty: &Type) -> String {
     }
 }
 pub fn diff(old: &Document, new: &Document) -> Vec<DiffFinding> { diff_detailed(old, new).findings }
-pub fn diff_detailed(old: &Document, new: &Document) -> DiffResult { let mut findings = Vec::new(); let mut schema_diffs = Vec::new(); diff_ir_version(old, new, &mut findings); diff_operations(old, new, &mut findings); diff_schemas(old, new, &mut findings, &mut schema_diffs); DiffResult { findings, schema_diffs } }
+pub fn diff_detailed(old: &Document, new: &Document) -> DiffResult {
+    let mut findings = Vec::new();
+    let mut schema_diffs = Vec::new();
+    diff_ir_version(old, new, &mut findings);
+    diff_operations(old, new, &mut findings);
+    diff_schemas(old, new, &mut findings, &mut schema_diffs);
+    DiffResult { findings, schema_diffs }
+}
 
 /// Check for IR version mismatches between old and new documents.
 /// A major version difference indicates breaking IR schema changes.
