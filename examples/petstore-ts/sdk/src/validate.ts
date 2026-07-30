@@ -38,7 +38,9 @@ export const ErrorSchema: SchemaObject = {
 };
 
 export function validateError(value: unknown, path = ""): ValidationError[] {
-  return validateValue(value, ErrorSchema, path);
+  const errors: ValidationError[] = [];
+  validateValue(value, ErrorSchema, path, errors);
+  return errors;
 }
 
 export const PetSchema: SchemaObject = {
@@ -51,7 +53,9 @@ export const PetSchema: SchemaObject = {
 };
 
 export function validatePet(value: unknown, path = ""): ValidationError[] {
-  return validateValue(value, PetSchema, path);
+  const errors: ValidationError[] = [];
+  validateValue(value, PetSchema, path, errors);
+  return errors;
 }
 
 export const PetsSchema: SchemaObject = {
@@ -61,7 +65,9 @@ export const PetsSchema: SchemaObject = {
 };
 
 export function validatePets(value: unknown, path = ""): ValidationError[] {
-  return validateValue(value, PetsSchema, path);
+  const errors: ValidationError[] = [];
+  validateValue(value, PetsSchema, path, errors);
+  return errors;
 }
 
 

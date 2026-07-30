@@ -189,7 +189,7 @@ fn extract_alternative(text: &str) -> Option<String> {
             let after = &text[pos + pattern.len()..];
             // Take until end of sentence or end of text.
             let end = after
-                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .find(['.', ',', '\n', ';'])
                 .unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
@@ -202,7 +202,7 @@ fn extract_alternative(text: &str) -> Option<String> {
     if let Some(pos) = lower.find("migrate to ") {
         let after = &text[pos + 11..];
         let end = after
-            .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+            .find(['.', ',', '\n', ';'])
             .unwrap_or(after.len());
         let alt = after[..end].trim();
         if !alt.is_empty() {

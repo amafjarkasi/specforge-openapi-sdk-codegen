@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use crate::cache::ResponseCache;
 		use crate::concurrency::Semaphore;
+		use crate::interceptors::{RequestInterceptor, ResponseInterceptor};
 		use crate::ratelimit::RateLimiter;
 		use crate::telemetry::TelemetryHooks;
 		use crate::dedup::RequestDeduper;
@@ -20,6 +21,77 @@ use crate::cache::ResponseCache;
 		use crate::retry::{backoff_delay, is_retriable_method, RetryOptions};
 		use crate::streaming::SseStream;
 	
+	/// Typed service container grouping all DI-able SDK dependencies.
+	/// Create one with `ServiceContainer::new()`, override fields, then pass
+	/// to `ClientBuilder::service_container()` to apply them all at once.
+	#[derive(Clone)]
+	pub struct ServiceContainer {
+	    pub http_client: reqwest::Client,
+	    pub cache: Option<ResponseCache>,
+	    pub rate_limiter: Option<Arc<dyn RateLimiter>>,
+	    pub logger: Option<Arc<dyn crate::logging::Logger>>,
+	    pub telemetry: Option<Arc<dyn TelemetryHooks>>,
+	}
+
+	impl ServiceContainer {
+	    /// Create a new container with sensible defaults (default reqwest client,
+	    /// console logger, no cache/rate limiter/telemetry).
+	    pub fn new() -> Self {
+	        Self {
+	            http_client: reqwest::Client::builder()
+	                .user_agent("specforge-rust-sdk")
+	                .build()
+	                .expect("failed to build default HTTP client"),
+	            cache: None,
+	            rate_limiter: None,
+	            logger: None,
+	            telemetry: None,
+	        }
+	    }
+
+	    /// Set a custom HTTP client, replacing the default.
+	    pub fn http_client(mut self, client: reqwest::Client) -> Self {
+	        self.http_client = client;
+	        self
+	    }
+
+	    /// Enable response caching with the given TTL.
+	    pub fn cache_ttl(mut self, ttl: std::time::Duration) -> Self {
+	        self.cache = Some(ResponseCache::new(ttl));
+	        self
+	    }
+
+	    /// Set a pre-configured response cache.
+	    pub fn cache(mut self, cache: ResponseCache) -> Self {
+	        self.cache = Some(cache);
+	        self
+	    }
+
+	    /// Set a rate limiter.
+	    pub fn rate_limiter(mut self, limiter: impl RateLimiter + 'static) -> Self {
+	        self.rate_limiter = Some(Arc::new(limiter));
+	        self
+	    }
+
+	    /// Set a structured logger.
+	    pub fn logger(mut self, logger: impl crate::logging::Logger + 'static) -> Self {
+	        self.logger = Some(Arc::new(logger));
+	        self
+	    }
+
+	    /// Set telemetry hooks.
+	    pub fn telemetry(mut self, hooks: impl TelemetryHooks + 'static) -> Self {
+	        self.telemetry = Some(Arc::new(hooks));
+	        self
+	    }
+	}
+
+	impl Default for ServiceContainer {
+	    fn default() -> Self {
+	        Self::new()
+	    }
+	}
+
 	/// Credential provider applied on every request.
 	#[derive(Clone)]
 	pub enum Auth {
@@ -191,7 +263,7 @@ use crate::cache::ResponseCache;
 	            None
 	        };
 	        let body_bytes = match body {
-	            Some(b) => Some(serde_json::to_vec(b)?),
+	            Some(b) => Some(serde_json::to_vec(&b)?),
 	            None => None,
 	        };
 	
@@ -331,15 +403,15 @@ use crate::cache::ResponseCache;
 	        }
 	        // Apply response transformers.
 	        let mut value: serde_json::Value = serde_json::from_slice(&data)?;
-	        for t in &self.response_transformers {
-	            value = t.transform(value);
+        for t in &self.response_transformers {
+            value = t.transform(value);
+        }
 
-	        // Apply response interceptors.
-	        for i in &self.response_interceptors {
-	            value = i.transform(value);
-	        }
-	        }
-	        Ok(serde_json::from_value(value)?)
+        // Apply response interceptors.
+        for i in &self.response_interceptors {
+            value = i.transform(value);
+        }
+        Ok(serde_json::from_value(value)?)
 	    }
 	
 	    /// Issue a streaming request (no retry). Returns the raw Response; use
@@ -465,10 +537,10 @@ use crate::cache::ResponseCache;
 	                    if let Some(l) = &self.logger {
 	                        l.warn(&format!("[retry] {} {} error={}, attempt {}/{}", method.as_str(), url, last_err.as_ref().unwrap(), attempt + 2, max + 1));
 	                    }
-	                    // Telemetry: retry notification.
-	                    if let Some(t) = &self.telemetry {
-	                        t.on_retry(method, url, attempt + 1, &last_err.as_ref().unwrap());
-	                    }
+		            // Telemetry: retry notification.
+		            if let Some(t) = &self.telemetry {
+		                t.on_retry(method.as_str(), url, attempt + 1, &last_err.as_ref().unwrap());
+		            }
 	                }
 	            }
 	        }
@@ -479,14 +551,13 @@ use crate::cache::ResponseCache;
         &self,
         method: &reqwest::Method,
         url: &str,
-        #[allow(unused_variables)]
-        start: std::time::Instant,
         query: &[(String, String)],
         body_bytes: Option<&[u8]>,
         idem_key: Option<&str>,
         if_none_match: Option<&str>,
+        start: std::time::Instant,
     ) -> Result<(Vec<u8>, u16, String)> {
-	        let _start = std::time::Instant::now();
+		        let _start = start;
 	
 	        // Build full URL with query for middleware visibility.
 	        let full_url = if query.is_empty() {
@@ -574,15 +645,16 @@ use crate::cache::ResponseCache;
 	            if mw_res.status == 304 {
 		        return Ok((mw_res.body, mw_res.status, etag));
 		    }
-	            // Telemetry: request error.
-	            if let Some(t) = &self.telemetry {
-	                t.on_request_error(method, url, _start.elapsed(), &format!("HTTP {}", mw_res.status));
-	            }
-	            return Err(Error::Http {
+	            let err = Error::Http {
 	                status: mw_res.status,
 	                body: String::from_utf8_lossy(&mw_res.body).into_owned(),
 	                url: full_url,
-	            });
+	            };
+	            // Telemetry: request error.
+	            if let Some(t) = &self.telemetry {
+	                t.on_request_error(method.as_str(), url, _start.elapsed().as_millis(), &err);
+	            }
+	            return Err(err);
 	        }
 	        // Logger: response received.
 	        if let Some(l) = &self.logger {
@@ -591,7 +663,7 @@ use crate::cache::ResponseCache;
 
 	        // Telemetry: successful request.
 	        if let Some(t) = &self.telemetry {
-	            t.on_request_end(method, url, _start.elapsed(), mw_res.status);
+	            t.on_request_end(method.as_str(), url, _start.elapsed().as_millis(), mw_res.status);
 	        }
 	        Ok((mw_res.body, mw_res.status, etag))
 	    }
@@ -642,6 +714,7 @@ use crate::cache::ResponseCache;
 		    cache: Option<ResponseCache>,
 		    rate_limiter: Option<Arc<dyn RateLimiter>>,
 		    telemetry: Option<Arc<dyn TelemetryHooks>>,
+		    logger: Option<Arc<dyn crate::logging::Logger>>,
 			    middlewares: Vec<Middleware>,
 			    stream_middlewares: Vec<StreamMiddleware>,
 			    /// Seeded from the first API-key security scheme in the spec, if any.
@@ -683,10 +756,11 @@ use crate::cache::ResponseCache;
 		    dedupe: true,
 		    idempotency: true,
 		    validation: false,
-		    cache: None,
-		    rate_limiter: None,
-		    telemetry: None,
-		            response_transformers: Vec::new(),
+	            cache: None,
+	            rate_limiter: None,
+	            telemetry: None,
+	            logger: None,
+	                    response_transformers: Vec::new(),
 			    request_interceptors: Vec::new(),
 			    response_interceptors: Vec::new(),
 		            middlewares: Vec::new(),
@@ -812,7 +886,27 @@ use crate::cache::ResponseCache;
 		        self.http_client = Some(client);
 		        self
 		    }
-		
+
+		    /// Apply a [`ServiceContainer`] to configure all DI-able services at once.
+		    /// Non-None container values override the builder defaults; individual
+		    /// builder methods called afterward take final precedence.
+		    pub fn service_container(mut self, sc: ServiceContainer) -> Self {
+		        self.http_client = Some(sc.http_client);
+		        if let Some(cache) = sc.cache {
+		            self.cache = Some(cache);
+		        }
+		        if let Some(limiter) = sc.rate_limiter {
+		            self.rate_limiter = Some(limiter);
+		        }
+		        if let Some(logger) = sc.logger {
+		            self.logger = Some(logger);
+		        }
+		        if let Some(telemetry) = sc.telemetry {
+		            self.telemetry = Some(telemetry);
+		        }
+		        self
+		    }
+
 		    pub fn build(self) -> Result<Client> {
 	        let http = match self.http_client {
 	            Some(c) => c,

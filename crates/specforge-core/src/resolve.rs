@@ -19,7 +19,7 @@ use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
-    Response, RetryPolicy, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
+    Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
 };
 
 /// Load and fully resolve a parsed OpenAPI document into the IR.
@@ -493,7 +493,7 @@ fn type_to_ir(t: &OApiType, nullable: bool) -> Type {
             let item = arr
                 .items
                 .as_ref()
-                .map(|i| ref_or_boxed_schema_to_type(i))
+                .map(ref_or_boxed_schema_to_type)
                 .unwrap_or(Type::Unknown);
             Type::Array {
                 item: Box::new(item),
@@ -789,7 +789,7 @@ fn json_body(content: &IndexMap<String, MediaType>) -> Option<Type> {
     content
         .get("application/json")
         .and_then(|m| m.schema.as_ref())
-        .map(|s| ref_or_schema_to_type(s))
+        .map(ref_or_schema_to_type)
 }
 
 fn ref_or_schema_to_type(schema_or: &ReferenceOr<Schema>) -> Type {

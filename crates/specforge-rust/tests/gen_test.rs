@@ -14,3 +14,66 @@ fn generate_and_check_docs() {
     println!("=== Rust doc comment verification PASSED ===");
     for line in content.lines().take(40) { println!("  {line}"); }
 }
+
+/// Regression test: the generated Rust SDK must actually compile.
+///
+/// Earlier emitter changes (interceptors/validation_middleware modules,
+/// ServiceContainer) shipped without ever compiling the output, so template
+/// bugs (nested loops, missing struct fields, trait signature mismatches,
+/// wrong arg order) silently broke every generated SDK. This test regenerates
+/// the SDK into an isolated temp crate and runs `cargo check` on it, so any
+/// future emitter template breakage fails CI.
+#[test]
+fn generated_sdk_compiles() {
+    // Skip in environments without network/cargo (e.g. some CI sandboxes);
+    // requires the rust toolchain and the ability to fetch deps.
+    if std::env::var_os("SKIP_COMPILE_TEST").is_some() {
+        eprintln!("note: SKIP_COMPILE_TEST set; skipping generated_sdk_compiles");
+        return;
+    }
+    let cargo = std::process::Command::new("cargo")
+        .arg("--version")
+        .output();
+    if !matches!(cargo, Ok(o) if o.status.success()) {
+        eprintln!("note: cargo not available; skipping generated_sdk_compiles");
+        return;
+    }
+
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+
+    let rust_dir = tempfile::tempdir().unwrap();
+    let opts = specforge_rust::GeneratorOptions {
+        out_dir: rust_dir.path().to_path_buf(),
+        crate_name: None,
+        i18n: None,
+    };
+    let files = specforge_rust::generate(&doc, &opts).expect("emit Rust");
+    assert!(!files.is_empty(), "emitter produced no files");
+
+    // The generated Cargo.toml is a leaf package; declare an empty workspace so
+    // `cargo check` from this temp dir isn't absorbed into specforge's workspace.
+    let cargo_toml = rust_dir.path().join("Cargo.toml");
+    let mut manifest = std::fs::read_to_string(&cargo_toml).expect("read generated Cargo.toml");
+    if !manifest.contains("[workspace]") {
+        manifest.push_str("\n[workspace]\n");
+    }
+    std::fs::write(&cargo_toml, manifest).expect("write generated Cargo.toml");
+
+    // `cargo check` the generated crate. Use the same toolchain, offline-friendly:
+    // deps are fetched on demand; this is the real signal we want.
+    let status = std::process::Command::new("cargo")
+        .arg("check")
+        .arg("--quiet")
+        .current_dir(rust_dir.path())
+        .env("CARGO_TARGET_DIR", rust_dir.path().join("target"))
+        .status()
+        .expect("failed to spawn cargo check");
+
+    assert!(
+        status.success(),
+        "generated Rust SDK failed to compile (`cargo check` exited {status})"
+    );
+}

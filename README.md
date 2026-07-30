@@ -680,17 +680,24 @@ sdk-rs/
 ├── README.md
 └── src/
     ├── lib.rs
-    ├── client.rs         # Client + ClientBuilder + request_stream
-    ├── error.rs
-    ├── retry.rs
-    ├── paginate.rs
-    ├── concurrency.rs
-    ├── dedup.rs
-    ├── middleware.rs
-    ├── idempotency.rs
-    ├── streaming.rs      # SseStream
-    ├── models.rs
-    └── api/<tag>.rs
+    ├── api/              # one module per tag, one fn per operation
+    ├── cache.rs          # ETag/conditional GET response cache
+    ├── client.rs         # Client + ClientBuilder + ServiceContainer + request_stream
+    ├── concurrency.rs    # async in-flight semaphore
+    ├── dedup.rs          # coalesce identical in-flight safe requests
+    ├── error.rs          # typed Error enum
+    ├── idempotency.rs    # auto Idempotency-Key for safe retries
+    ├── interceptors.rs   # request/response body interceptors
+    ├── logging.rs        # pluggable Logger trait + Console/Noop impls
+    ├── middleware.rs     # request/response middleware chain
+    ├── models.rs         # one struct/enum per schema + validators
+    ├── paginate.rs       # cursor/offset pagination helpers
+    ├── ratelimit.rs      # token-bucket + sliding-window rate limiters
+    ├── retry.rs          # exponential backoff + jitter
+    ├── streaming.rs      # SseStream for server-sent events
+    ├── telemetry.rs      # TelemetryHooks trait + MetricsCollector
+    ├── validate.rs       # generated per-model validators
+    └── validation_middleware.rs  # schema validation as middleware
 ```
 
 </details>

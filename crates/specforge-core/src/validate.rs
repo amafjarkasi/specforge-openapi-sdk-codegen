@@ -180,14 +180,13 @@ fn validate_scalar(
                 });
             }
         }
-        Scalar::Boolean => {
-            if !value.is_boolean() {
+        Scalar::Boolean
+            if !value.is_boolean() => {
                 errors.push(ValidationError {
                     path: path.to_string(),
                     message: format!("expected boolean, got {}", value_type_name(value)),
                 });
             }
-        }
         _ => {}
     }
 }

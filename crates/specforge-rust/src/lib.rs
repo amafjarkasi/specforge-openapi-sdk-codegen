@@ -253,11 +253,10 @@ fn snake(input: &str) -> String {
             out.extend(ch.to_lowercase());
         } else if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
-        } else if ch == '_' {
-            if !out.ends_with('_') {
+        } else if ch == '_'
+            && !out.ends_with('_') {
                 out.push('_');
             }
-        }
     }
     let out = out.trim_matches('_').to_string();
     let out = if out.is_empty() {
@@ -1641,7 +1640,7 @@ use crate::cache::ResponseCache;
 	            None
 	        }};
 	        let body_bytes = match body {{
-	            Some(b) => Some(serde_json::to_vec(b)?),
+	            Some(b) => Some(serde_json::to_vec(&b)?),
 	            None => None,
 	        }};
 	
@@ -1781,15 +1780,15 @@ use crate::cache::ResponseCache;
 	        }}
 	        // Apply response transformers.
 	        let mut value: serde_json::Value = serde_json::from_slice(&data)?;
-	        for t in &self.response_transformers {{
-	            value = t.transform(value);
+        for t in &self.response_transformers {{
+            value = t.transform(value);
+        }}
 
-	        // Apply response interceptors.
-	        for i in &self.response_interceptors {{
-	            value = i.transform(value);
-	        }}
-	        }}
-	        Ok(serde_json::from_value(value)?)
+        // Apply response interceptors.
+        for i in &self.response_interceptors {{
+            value = i.transform(value);
+        }}
+        Ok(serde_json::from_value(value)?)
 	    }}
 	
 	    /// Issue a streaming request (no retry). Returns the raw Response; use
@@ -1915,10 +1914,10 @@ use crate::cache::ResponseCache;
 	                    if let Some(l) = &self.logger {{
 	                        l.warn(&format!("[retry] {{}} {{}} error={{}}, attempt {{}}/{{}}", method.as_str(), url, last_err.as_ref().unwrap(), attempt + 2, max + 1));
 	                    }}
-	                    // Telemetry: retry notification.
-	                    if let Some(t) = &self.telemetry {{
-	                        t.on_retry(method, url, attempt + 1, &last_err.as_ref().unwrap());
-	                    }}
+		            // Telemetry: retry notification.
+		            if let Some(t) = &self.telemetry {{
+		                t.on_retry(method.as_str(), url, attempt + 1, &last_err.as_ref().unwrap());
+		            }}
 	                }}
 	            }}
 	        }}
@@ -1929,14 +1928,13 @@ use crate::cache::ResponseCache;
         &self,
         method: &reqwest::Method,
         url: &str,
-        #[allow(unused_variables)]
-        start: std::time::Instant,
         query: &[(String, String)],
         body_bytes: Option<&[u8]>,
         idem_key: Option<&str>,
         if_none_match: Option<&str>,
+        start: std::time::Instant,
     ) -> Result<(Vec<u8>, u16, String)> {{
-	        let _start = std::time::Instant::now();
+		        let _start = start;
 	
 	        // Build full URL with query for middleware visibility.
 	        let full_url = if query.is_empty() {{
@@ -2024,15 +2022,16 @@ use crate::cache::ResponseCache;
 	            if mw_res.status == 304 {{
 		        return Ok((mw_res.body, mw_res.status, etag));
 		    }}
-	            // Telemetry: request error.
-	            if let Some(t) = &self.telemetry {{
-	                t.on_request_error(method, url, _start.elapsed(), &format!("HTTP {{}}", mw_res.status));
-	            }}
-	            return Err(Error::Http {{
+	            let err = Error::Http {{
 	                status: mw_res.status,
 	                body: String::from_utf8_lossy(&mw_res.body).into_owned(),
 	                url: full_url,
-	            }});
+	            }};
+	            // Telemetry: request error.
+	            if let Some(t) = &self.telemetry {{
+	                t.on_request_error(method.as_str(), url, _start.elapsed().as_millis(), &err);
+	            }}
+	            return Err(err);
 	        }}
 	        // Logger: response received.
 	        if let Some(l) = &self.logger {{
@@ -2041,7 +2040,7 @@ use crate::cache::ResponseCache;
 
 	        // Telemetry: successful request.
 	        if let Some(t) = &self.telemetry {{
-	            t.on_request_end(method, url, _start.elapsed(), mw_res.status);
+	            t.on_request_end(method.as_str(), url, _start.elapsed().as_millis(), mw_res.status);
 	        }}
 	        Ok((mw_res.body, mw_res.status, etag))
 	    }}
@@ -2092,6 +2091,7 @@ use crate::cache::ResponseCache;
 		    cache: Option<ResponseCache>,
 		    rate_limiter: Option<Arc<dyn RateLimiter>>,
 		    telemetry: Option<Arc<dyn TelemetryHooks>>,
+		    logger: Option<Arc<dyn crate::logging::Logger>>,
 			    middlewares: Vec<Middleware>,
 			    stream_middlewares: Vec<StreamMiddleware>,
 			    /// Seeded from the first API-key security scheme in the spec, if any.
@@ -2133,10 +2133,11 @@ use crate::cache::ResponseCache;
 		    dedupe: true,
 		    idempotency: true,
 		    validation: false,
-		    cache: None,
-		    rate_limiter: None,
-		    telemetry: None,
-		            response_transformers: Vec::new(),
+	            cache: None,
+	            rate_limiter: None,
+	            telemetry: None,
+	            logger: None,
+	                    response_transformers: Vec::new(),
 			    request_interceptors: Vec::new(),
 			    response_interceptors: Vec::new(),
 		            middlewares: Vec::new(),
@@ -2463,9 +2464,7 @@ fn value_type_name(v: &Value) -> &'static str {
                     out.push_str("    if !v.is_object() {\n");
                     out.push_str("        errors.push(ValidationError {\n");
                     out.push_str("            path: String::new(),\n");
-                    out.push_str(&format!(
-                        "            message: format!(\"expected object, got {{}}\", value_type_name(v)),\n"
-                    ));
+                    out.push_str(&"            message: format!(\"expected object, got {}\", value_type_name(v)),\n".to_string());
                     out.push_str("        });\n");
                     out.push_str("    }\n");
                 } else {
@@ -2561,9 +2560,9 @@ use crate::validate::ValidationError;
 /// Schema descriptor for an endpoint's request and/or response body validator.
 pub struct EndpointSchema {
     /// Validator function for the request body. None means no validation.
-    pub request_body: Option<fn(&Value) -> Result<(), Vec<ValidationError>>>,
+    pub request_body: Option<fn(&Value) -> std::result::Result<(), Vec<ValidationError>>>,
     /// Validator function for the response body. None means no validation.
-    pub response_body: Option<fn(&Value) -> Result<(), Vec<ValidationError>>>,
+    pub response_body: Option<fn(&Value) -> std::result::Result<(), Vec<ValidationError>>>,
 }
 
 /// Route schema map keyed by "METHOD /path/pattern".
@@ -2707,7 +2706,7 @@ use serde::{Deserialize, Serialize};
 
     // Payload structs for each webhook.
     for wh in &doc.webhooks {
-        let name = pascal(&format!("{}WebhookPayload", &wh.name));
+        let name = pascal(&format!("{}WebhookPayload", wh.name));
         if let Some(d) = &wh.description {
             out.push_str(&rust_doc(d));
         } else if let Some(s) = &wh.summary {
@@ -2729,8 +2728,8 @@ use serde::{Deserialize, Serialize};
     out.push_str("/// Trait for handling webhook events.\n");
     out.push_str("pub trait WebhookHandler: Send + Sync {\n");
     for wh in &doc.webhooks {
-        let payload_ty = pascal(&format!("{}WebhookPayload", &wh.name));
-        let method_name = snake(&format!("handle_{}", &wh.name));
+        let payload_ty = pascal(&format!("{}WebhookPayload", wh.name));
+        let method_name = snake(&format!("handle_{}", wh.name));
         out.push_str(&format!(
             "    /// Handle the `{}` webhook.\n",
             wh.name
@@ -2825,7 +2824,7 @@ fn emit_enum(e: &EnumModel) -> String {
 fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> String {
     let name = pascal(&o.name);
     let mut out = String::new();
-    let is_deprecated = o.description.as_deref().map_or(false, |d| {
+    let is_deprecated = o.description.as_deref().is_some_and(|d| {
         d.to_lowercase().contains("deprecated")
     });
     if let Some(d) = &o.description {
@@ -3501,7 +3500,7 @@ fn rust_deprecation_alternative(op: &Operation) -> Option<String> {
         if let Some(pos) = lower.find(pattern) {
             let after = &text[pos + pattern.len()..];
             let end = after
-                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .find(['.', ',', '\n', ';'])
                 .unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
@@ -3528,7 +3527,7 @@ fn rust_schema_deprecation_alternative(desc: &str) -> Option<String> {
         if let Some(pos) = lower.find(pattern) {
             let after = &desc[pos + pattern.len()..];
             let end = after
-                .find(|c: char| c == '.' || c == ',' || c == '\n' || c == ';')
+                .find(['.', ',', '\n', ';'])
                 .unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
@@ -3711,6 +3710,100 @@ let client = Client::builder()
     .bearer_token("…")
     .idempotency(true)
     .build()?;
+```
+
+## Interceptors
+
+Transform the request body before it is serialized, or the response body after it
+is deserialized, by implementing a trait and registering it on the builder:
+
+```rust
+use {crate_name}::{{RequestInterceptor, ResponseInterceptor}};
+use serde_json::{{json, Value}};
+
+// Add a field to every outgoing request body.
+struct AddTraceId;
+impl RequestInterceptor for AddTraceId {{
+    fn transform(&self, mut body: Value) -> Value {{
+        if let Some(obj) = body.as_object_mut() {{
+            obj.insert("trace_id".into(), json!("abc-123"));
+        }}
+        body
+    }}
+}}
+
+// Strip a field from every response body.
+struct StripMeta;
+impl ResponseInterceptor for StripMeta {{
+    fn transform(&self, mut body: Value) -> Value {{
+        if let Some(obj) = body.as_object_mut() {{
+            obj.remove("_meta");
+        }}
+        body
+    }}
+}}
+
+let client = Client::builder()
+    .bearer_token("…")
+    .request_interceptor(AddTraceId)
+    .response_interceptor(StripMeta)
+    .build()?;
+```
+
+## Validation
+
+Validate request/response bodies against the OpenAPI schema at runtime. Toggle the
+built-in validator per client, or wire the generated `validation_middleware` into the
+middleware chain with per-route schemas for finer control:
+
+```rust
+// Whole-client validation (uses the generated validators automatically).
+let client = Client::builder()
+    .bearer_token("…")
+    .validation(true)
+    .build()?;
+
+// Or attach validation as a middleware with an explicit route -> schema map.
+use std::collections::HashMap;
+use {crate_name}::validation_middleware::{{validation_middleware, EndpointSchema, RouteSchemaMap}};
+use {crate_name}::models; // generated validators live here, e.g. validate_pet
+
+let mut schemas: RouteSchemaMap = HashMap::new();
+schemas.insert(
+    "POST /pets".to_string(),
+    EndpointSchema {{
+        request_body: Some(models::validate_pet),
+        response_body: None,
+    }},
+);
+let mut client = Client::builder().bearer_token("…").build()?;
+client.use_middleware(validation_middleware(schemas));
+```
+
+## Telemetry & dependency injection
+
+Observe the request lifecycle by implementing `TelemetryHooks`, or group injectable
+dependencies (HTTP client, cache, rate limiter, logger, telemetry) into a
+`ServiceContainer` and apply them in one call:
+
+```rust
+use std::time::Duration;
+use {crate_name}::{{MetricsCollector, ServiceContainer}};
+
+let metrics = MetricsCollector::default();
+
+let sc = ServiceContainer::new()
+    .cache_ttl(Duration::from_secs(60))
+    .logger({crate_name}::ConsoleLogger)
+    .telemetry(metrics.clone());
+
+let client = Client::builder()
+    .bearer_token("…")
+    .service_container(sc)
+    .build()?;
+
+// `metrics.get_metrics().await` now reflects every request, retry, and error.
+println!("{{:?}}", metrics.get_metrics().await);
 ```
 
 _Do not edit generated files directly._

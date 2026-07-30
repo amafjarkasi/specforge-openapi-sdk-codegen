@@ -133,4 +133,98 @@ let client = Client::builder()
     .build()?;
 ```
 
+## Interceptors
+
+Transform the request body before it is serialized, or the response body after it
+is deserialized, by implementing a trait and registering it on the builder:
+
+```rust
+use petstore_example_sdk::{RequestInterceptor, ResponseInterceptor};
+use serde_json::{json, Value};
+
+// Add a field to every outgoing request body.
+struct AddTraceId;
+impl RequestInterceptor for AddTraceId {
+    fn transform(&self, mut body: Value) -> Value {
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert("trace_id".into(), json!("abc-123"));
+        }
+        body
+    }
+}
+
+// Strip a field from every response body.
+struct StripMeta;
+impl ResponseInterceptor for StripMeta {
+    fn transform(&self, mut body: Value) -> Value {
+        if let Some(obj) = body.as_object_mut() {
+            obj.remove("_meta");
+        }
+        body
+    }
+}
+
+let client = Client::builder()
+    .bearer_token("…")
+    .request_interceptor(AddTraceId)
+    .response_interceptor(StripMeta)
+    .build()?;
+```
+
+## Validation
+
+Validate request/response bodies against the OpenAPI schema at runtime. Toggle the
+built-in validator per client, or wire the generated `validation_middleware` into the
+middleware chain with per-route schemas for finer control:
+
+```rust
+// Whole-client validation (uses the generated validators automatically).
+let client = Client::builder()
+    .bearer_token("…")
+    .validation(true)
+    .build()?;
+
+// Or attach validation as a middleware with an explicit route -> schema map.
+use std::collections::HashMap;
+use petstore_example_sdk::validation_middleware::{validation_middleware, EndpointSchema, RouteSchemaMap};
+use petstore_example_sdk::models; // generated validators live here, e.g. validate_pet
+
+let mut schemas: RouteSchemaMap = HashMap::new();
+schemas.insert(
+    "POST /pets".to_string(),
+    EndpointSchema {
+        request_body: Some(models::validate_pet),
+        response_body: None,
+    },
+);
+let mut client = Client::builder().bearer_token("…").build()?;
+client.use_middleware(validation_middleware(schemas));
+```
+
+## Telemetry & dependency injection
+
+Observe the request lifecycle by implementing `TelemetryHooks`, or group injectable
+dependencies (HTTP client, cache, rate limiter, logger, telemetry) into a
+`ServiceContainer` and apply them in one call:
+
+```rust
+use std::time::Duration;
+use petstore_example_sdk::{MetricsCollector, ServiceContainer};
+
+let metrics = MetricsCollector::default();
+
+let sc = ServiceContainer::new()
+    .cache_ttl(Duration::from_secs(60))
+    .logger(petstore_example_sdk::ConsoleLogger)
+    .telemetry(metrics.clone());
+
+let client = Client::builder()
+    .bearer_token("…")
+    .service_container(sc)
+    .build()?;
+
+// `metrics.get_metrics().await` now reflects every request, retry, and error.
+println!("{:?}", metrics.get_metrics().await);
+```
+
 _Do not edit generated files directly._

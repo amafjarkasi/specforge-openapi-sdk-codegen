@@ -12,7 +12,7 @@ pub struct OperationSecurity { pub operation_id: String, pub method: String, pub
 pub struct SecurityIssue { pub severity: String, pub message: String, pub path: String }
 
 pub fn analyze_security(doc: &Document) -> SecurityReport {
-    let schemes: Vec<SecuritySchemeInfo> = doc.security.iter().map(|s| scheme_info_from_ir(s)).collect();
+    let schemes: Vec<SecuritySchemeInfo> = doc.security.iter().map(scheme_info_from_ir).collect();
     let has_global_auth = !doc.security.is_empty();
     let operations = doc.operations.iter().map(|op| OperationSecurity {
         operation_id: op.operation_id.clone(), method: op.method.as_str().to_string(), path: op.path.clone(),

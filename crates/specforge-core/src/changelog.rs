@@ -590,7 +590,7 @@ fn render_markdown(result: &ChangelogResult, opts: &ChangelogOptions) -> String 
     let mut out = String::new();
 
     // Header
-    out.push_str(&format!("# Changelog\n\n"));
+    out.push_str(&"# Changelog\n\n".to_string());
     out.push_str(&format!("## [{version}] -- {today}\n\n"));
 
     // Suggested version bump
@@ -602,9 +602,7 @@ fn render_markdown(result: &ChangelogResult, opts: &ChangelogOptions) -> String 
     }
 
     // Summary
-    out.push_str(&format!(
-        "### Summary\n\n"
-    ));
+    out.push_str(&"### Summary\n\n".to_string());
     out.push_str(&format!(
         "- **{}** operation(s) changed\n",
         result.operation_entries.len()
