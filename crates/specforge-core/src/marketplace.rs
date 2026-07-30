@@ -5,6 +5,7 @@
 
 use anyhow::{bail, Context as _};
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -56,7 +57,7 @@ impl MarketplaceIndex {
             map.insert(&entry.name, entry);
         }
         self.entries = map.into_values().cloned().collect();
-        self.entries.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        self.entries.sort_by_key(|a| Reverse(a.downloads));
     }
 
     /// Search entries by a free-text query (matches name, description, tags, author).
@@ -82,7 +83,7 @@ impl MarketplaceIndex {
     /// Return all entries sorted by downloads (descending).
     pub fn sorted_by_downloads(&self) -> Vec<&SpecEntry> {
         let mut v: Vec<&SpecEntry> = self.entries.iter().collect();
-        v.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        v.sort_by_key(|a| Reverse(a.downloads));
         v
     }
 
@@ -191,7 +192,7 @@ impl PluginIndex {
             map.insert(&entry.name, entry);
         }
         self.plugins = map.into_values().cloned().collect();
-        self.plugins.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        self.plugins.sort_by_key(|a| Reverse(a.downloads));
     }
 
     /// Search plugins by a free-text query (matches name, description, language, author).
@@ -217,7 +218,7 @@ impl PluginIndex {
     /// Return all plugins sorted by downloads (descending).
     pub fn sorted_by_downloads(&self) -> Vec<&PluginEntry> {
         let mut v: Vec<&PluginEntry> = self.plugins.iter().collect();
-        v.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        v.sort_by_key(|a| Reverse(a.downloads));
         v
     }
 
