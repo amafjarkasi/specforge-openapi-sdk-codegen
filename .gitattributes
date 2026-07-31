@@ -1,0 +1,13 @@
+# Normalize line endings to LF for spec files. Windows checkouts otherwise
+# convert to CRLF, which breaks YAML parsing ("control characters are not
+# allowed"). The parser also normalizes at read time, but this keeps the
+# committed bytes stable across platforms.
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.json text eol=lf
+
+# Rust source: keep LF (cargo fmt and tooling assume it).
+*.rs text eol=lf
+
+# Shell scripts must stay LF (CRLF breaks them on bash).
+*.sh text eol=lf

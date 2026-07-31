@@ -61,14 +61,27 @@ pub fn parse_file_full(path: impl AsRef<Path>) -> Result<ParsedSpec, SpecError> 
 pub fn parse_bytes(bytes: &[u8]) -> Result<OpenAPI, SpecError> {
     let text = std::str::from_utf8(bytes)
         .map_err(|e| SpecError::Invalid(format!("spec is not valid UTF-8: {e}")))?;
-    parse_str(text)
+    // Normalize CRLF/CR to LF: Windows checkouts and some editors inject \r\n,
+    // and serde_yaml rejects bare CR ("control characters are not allowed").
+    let normalized = normalize_line_endings(text);
+    parse_str(&normalized)
 }
 
 /// Parse an OpenAPI document from bytes, preserving webhooks.
 pub fn parse_bytes_full(bytes: &[u8]) -> Result<ParsedSpec, SpecError> {
     let text = std::str::from_utf8(bytes)
         .map_err(|e| SpecError::Invalid(format!("spec is not valid UTF-8: {e}")))?;
-    parse_str_full(text)
+    let normalized = normalize_line_endings(text);
+    parse_str_full(&normalized)
+}
+
+/// Collapse CRLF and lone CR into LF so the YAML/JSON parsers don't choke on
+/// carriage returns (a common Windows-checkout artifact).
+fn normalize_line_endings(text: &str) -> String {
+    if !text.contains('\r') {
+        return text.to_string();
+    }
+    text.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 /// Parse an OpenAPI document from a string (JSON or YAML, auto-detected).
