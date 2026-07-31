@@ -145,7 +145,7 @@ mod tests {
             "info": { "title": "A", "version": "1.0" },
             "paths": { "/a": {} }
         });
-        let result = merge_specs(&[spec.clone()]).unwrap();
+        let result = merge_specs(std::slice::from_ref(&spec)).unwrap();
         assert_eq!(result, spec);
     }
 
