@@ -87,3 +87,39 @@ fn generated_sdk_compiles() {
         "generated Rust SDK failed to compile (`cargo check` exited {status})"
     );
 }
+
+/// Deterministic output: generating the same spec twice must produce
+/// byte-identical files. This is a core stability guarantee (STABILITY.md).
+#[test]
+fn output_is_deterministic() {
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+
+    let opts = |dir: &std::path::Path| specforge_rust::GeneratorOptions {
+        out_dir: dir.to_path_buf(),
+        crate_name: None,
+        i18n: None,
+    };
+
+    let dir_a = tempfile::tempdir().unwrap();
+    let dir_b = tempfile::tempdir().unwrap();
+    let files_a = specforge_rust::generate(&doc, &opts(dir_a.path())).expect("emit A");
+    let files_b = specforge_rust::generate(&doc, &opts(dir_b.path())).expect("emit B");
+
+    // Same set of files produced.
+    assert_eq!(files_a.len(), files_b.len());
+
+    // Every file is byte-identical across both runs.
+    for rel in &files_a {
+        let path_a = dir_a.path().join(rel);
+        let path_b = dir_b.path().join(rel);
+        let content_a = std::fs::read(&path_a).unwrap_or_else(|e| panic!("read A/{rel}: {e}"));
+        let content_b = std::fs::read(&path_b).unwrap_or_else(|e| panic!("read B/{rel}: {e}"));
+        assert_eq!(
+            content_a, content_b,
+            "non-deterministic output in {rel}"
+        );
+    }
+}
