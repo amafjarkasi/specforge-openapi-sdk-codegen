@@ -3935,3 +3935,70 @@ fn chrono_free_timestamp() -> String {
 fn is_leap(y: i64) -> bool {
     (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── pascal ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn pascal_casifies() {
+        assert_eq!(pascal("pet"), "Pet");
+        assert_eq!(pascal("pet_store"), "PetStore");
+        assert_eq!(pascal("pet-store"), "PetStore");
+    }
+
+    #[test]
+    fn pascal_handles_digits_and_empty() {
+        assert_eq!(pascal("42"), "X42");
+        assert_eq!(pascal(""), "X");
+    }
+
+    // ── snake ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn snake_lowercases_and_separates() {
+        assert_eq!(snake("PetStore"), "pet_store");
+        assert_eq!(snake("pet_store"), "pet_store");
+        assert_eq!(snake("HTTPClient"), "h_t_t_p_client");
+    }
+
+    #[test]
+    fn snake_handles_digits_and_empty() {
+        assert_eq!(snake("42"), "n_42");
+        assert_eq!(snake("X"), "x");
+    }
+
+    // ── safe_model_name ────────────────────────────────────────────────
+
+    #[test]
+    fn safe_model_name_sufflicts_builtins() {
+        assert_eq!(safe_model_name("Error"), "ErrorModel");
+        assert_eq!(safe_model_name("Client"), "ClientModel");
+        assert_eq!(safe_model_name("Semaphore"), "SemaphoreModel");
+        // Non-colliding names pass through unchanged.
+        assert_eq!(safe_model_name("Pet"), "Pet");
+        assert_eq!(safe_model_name("MyApi"), "MyApi");
+    }
+
+    // ── is_rust_reserved ───────────────────────────────────────────────
+
+    #[test]
+    fn reserved_keywords_recognized() {
+        assert!(is_rust_reserved("fn"));
+        assert!(is_rust_reserved("let"));
+        assert!(is_rust_reserved("struct"));
+        assert!(!is_rust_reserved("name"));
+        assert!(!is_rust_reserved("pet"));
+    }
+
+    // ── sanitize_semver ────────────────────────────────────────────────
+
+    #[test]
+    fn sanitize_semver_basic() {
+        assert_eq!(sanitize_semver("1.2.3"), "1.2.3");
+        assert_eq!(sanitize_semver("v1.2.3"), "1.2.3");
+        assert_eq!(sanitize_semver(""), "0.1.0");
+    }
+}

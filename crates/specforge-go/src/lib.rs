@@ -3564,3 +3564,68 @@ fn chrono_free_timestamp() -> String {
 fn is_leap(y: i64) -> bool {
     (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── pascal ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn pascal_casifies() {
+        assert_eq!(pascal("pet"), "Pet");
+        assert_eq!(pascal("pet_store"), "PetStore");
+        assert_eq!(pascal("pet-store"), "PetStore");
+    }
+
+    #[test]
+    fn pascal_handles_digits_and_empty() {
+        assert_eq!(pascal("42"), "X42");
+        assert_eq!(pascal(""), "X");
+    }
+
+    // ── snake ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn snake_lowercases_and_separates() {
+        assert_eq!(snake("PetStore"), "pet_store");
+        assert_eq!(snake("pet_store"), "pet_store");
+        assert_eq!(snake("HTTPClient"), "h_t_t_p_client");
+    }
+
+    #[test]
+    fn snake_handles_digits_and_empty() {
+        assert_eq!(snake("42"), "42");
+        assert_eq!(snake(""), "");
+    }
+
+    // ── export_ident ───────────────────────────────────────────────────
+
+    #[test]
+    fn export_ident_caps_and_avoids_collisions() {
+        assert_eq!(export_ident("pet"), "Pet");
+        assert_eq!(export_ident("error"), "Error");
+        // collision avoidance via "Model" suffix
+        assert_eq!(export_ident("validation_error"), "ValidationErrorModel");
+    }
+
+    // ── field_name ─────────────────────────────────────────────────────
+
+    #[test]
+    fn field_name_avoids_reserved_keywords() {
+        assert_eq!(field_name("name"), "Name"); // pascal-cased, not reserved
+        assert_eq!(field_name("type"), "TypeField"); // reserved → "Field" suffix
+        assert_eq!(field_name("for"), "ForField");   // reserved → "Field" suffix
+    }
+
+    // ── is_go_reserved ─────────────────────────────────────────────────
+
+    #[test]
+    fn reserved_keywords_recognized() {
+        assert!(is_go_reserved("func"));
+        assert!(is_go_reserved("type"));
+        assert!(is_go_reserved("select"));
+        assert!(!is_go_reserved("name"));
+        assert!(!is_go_reserved("client"));
+    }
+}
