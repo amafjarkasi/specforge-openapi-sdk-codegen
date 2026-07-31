@@ -212,3 +212,117 @@ fn ref_depth(
     memo.insert(name.to_string(), depth);
     depth
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::*;
+
+    fn sample_doc() -> Document {
+        let mut schemas = SchemaRegistry {
+            models: indexmap::IndexMap::new(),
+        };
+        // Pet — referenced by the operation (not unused).
+        schemas.models.insert(
+            "Pet".into(),
+            Model::Object(ObjectModel {
+                name: "Pet".into(),
+                description: None,
+                properties: vec![Property {
+                    name: "name".into(),
+                    ty: Type::Scalar(Scalar::String),
+                    required: true,
+                    description: None,
+                }],
+                additional_properties: None,
+                shape_type: None,
+                base_type: None,
+            }),
+        );
+        // Orphan — not referenced by any operation (should be flagged as unused).
+        schemas.models.insert(
+            "Orphan".into(),
+            Model::Object(ObjectModel {
+                name: "Orphan".into(),
+                description: None,
+                properties: vec![],
+                additional_properties: None,
+                shape_type: None,
+                base_type: None,
+            }),
+        );
+        Document {
+            ir_version: "1".into(),
+            title: "Test".into(),
+            version: "1.0.0".into(),
+            base_url: None,
+            security: vec![],
+            schemas,
+            operations: vec![Operation {
+                operation_id: "list_pets".into(),
+                method: HttpMethod::Get,
+                path: "/pets".into(),
+                tag: Some("Pets".into()),
+                summary: None,
+                description: None,
+                parameters: vec![],
+                request_body: None,
+                responses: vec![Response {
+                    status: "200".into(),
+                    description: None,
+                    body: Some(Type::Reference {
+                        name: "Pet".into(),
+                        nullable: false,
+                        description: None,
+                    }),
+                }],
+                retry_policy: None,
+            }],
+            webhooks: vec![],
+        }
+    }
+
+    #[test]
+    fn detects_unused_schemas() {
+        let report = analyze_spec(&sample_doc());
+        assert!(report.unused_schemas.contains(&"Orphan".to_string()));
+        assert!(!report.unused_schemas.contains(&"Pet".to_string()));
+    }
+
+    #[test]
+    fn counts_operations_and_schemas() {
+        let report = analyze_spec(&sample_doc());
+        assert_eq!(report.total_schemas, 2);
+        assert_eq!(report.total_operations, 1);
+    }
+
+    #[test]
+    fn large_schemas_detected() {
+        let mut doc = sample_doc();
+        // Add an object with >20 properties to trigger large-schema detection.
+        let props: Vec<Property> = (0..25)
+            .map(|i| Property {
+                name: format!("prop_{i}"),
+                ty: Type::Scalar(Scalar::String),
+                required: false,
+                description: None,
+            })
+            .collect();
+        doc.schemas.models.insert(
+            "BigModel".into(),
+            Model::Object(ObjectModel {
+                name: "BigModel".into(),
+                description: None,
+                properties: props,
+                additional_properties: None,
+                shape_type: None,
+                base_type: None,
+            }),
+        );
+        let report = analyze_spec(&doc);
+        assert!(report
+            .large_schemas
+            .iter()
+            .any(|(name, count)| name == "BigModel" && *count == 25));
+    }
+}
