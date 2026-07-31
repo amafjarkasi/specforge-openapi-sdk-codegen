@@ -385,7 +385,7 @@ function handle(event: PetEvent) {{
 ```
 
 Guard names are union-scoped (`isPetEventPetCreated`, not `isPetCreated`) so two
-unions sharing an arm type don't collide. `narrow{Union}()` is the ergonomic
+unions sharing an arm type don't collide. `narrow{{Union}}()` is the ergonomic
 entry point for most use cases.
 
 ---
