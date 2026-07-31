@@ -211,7 +211,53 @@ fn snake(input: &str) -> String {
 
 fn export_ident(input: &str) -> String {
     // Go requires exported names to start with uppercase.
-    pascal(input)
+    let name = pascal(input);
+    // Avoid colliding with built-in SDK types emitted into the same package
+    // (e.g. a spec that defines its own `ValidationError` model would otherwise
+    // redeclare the emitter's validation type and break compilation).
+    if is_sdk_builtin_type(&name) {
+        format!("{name}Model")
+    } else {
+        name
+    }
+}
+
+/// Whether `name` matches a type the Go SDK emitter hardcodes into the
+/// generated package. User models with these names get a `Model` suffix to
+/// avoid redeclaration errors.
+fn is_sdk_builtin_type(name: &str) -> bool {
+    matches!(
+        name,
+        "ValidationError"
+            | "ValidationErrors"
+            | "TokenBucket"
+            | "TelemetryHooks"
+            | "StreamMiddleware"
+            | "SseIterator"
+            | "SlidingWindow"
+            | "ServiceContainer"
+            | "ServerSentEvent"
+            | "Semaphore"
+            | "RouteSchemaMap"
+            | "RetryOptions"
+            | "ResponseTransformer"
+            | "ResponseInterceptor"
+            | "ResponseCache"
+            | "RequestInterceptor"
+            | "RequestDeduper"
+            | "RateLimiter"
+            | "OffsetPage"
+            | "MiddlewareResponse"
+            | "MiddlewareRequest"
+            | "Middleware"
+            | "MetricsCollector"
+            | "Metrics"
+            | "CursorPage"
+            | "Client"
+            | "Auth"
+            | "Logger"
+            | "WebhookHandler"
+    )
 }
 
 fn field_name(input: &str) -> String {
