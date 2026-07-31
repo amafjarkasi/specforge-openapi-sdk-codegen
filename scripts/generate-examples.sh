@@ -6,10 +6,10 @@ cd "$ROOT"
 export PATH="${HOME}/.cargo/bin:/usr/local/go/bin:${PATH}"
 
 BIN="${ROOT}/target/debug/specforge"
-if [[ ! -x "$BIN" ]]; then
-  echo "==> building specforge"
-  cargo build -p specforge-cli -q
-fi
+# Always rebuild: a stale binary silently regenerates examples with old
+# emitter logic (this has bitten us before). The incremental build is fast.
+echo "==> building specforge"
+cargo build -p specforge-cli -q
 
 gen() {
   local lang="$1" dest="$2" name="$3"

@@ -140,7 +140,7 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | **Idempotency keys** | Auto-generated `Idempotency-Key` on unsafe methods | Safe retries on POST/PUT/PATCH/DELETE without duplicate side effects |
 | **SSE streaming** | Server-Sent Event parser with proper error handling | Real-time data streams without manual parsing |
 | **Runtime validation** | Validate request/response bodies against the spec | Catch API contract violations in dev and tests, not production |
-| **oneOf type guards** | `isPetCreated()`, `narrowPetEvent()` (TS); `is_pet_created()`, `discriminant()` (Rust) | Safely narrow union types at runtime |
+| **oneOf type guards** | `isPetEventPetCreated()`, `narrowPetEvent()` (TS); `is_pet_created()`, `discriminant()` (Rust) | Safely narrow union types at runtime (TS guards are union-scoped to avoid collisions when two unions share an arm) |
 
 ### Language-specific highlights
 
@@ -707,10 +707,10 @@ Streaming calls **do not retry** (bodies are not replayable).
 ### oneOf narrowing (TypeScript)
 
 ```ts
-import { isPetCreated, narrowPetEvent, type PetEvent } from "./models/PetEvent";
+import { isPetEventPetCreated, narrowPetEvent, type PetEvent } from "./models/PetEvent";
 
 function handle(event: PetEvent) {
-  if (isPetCreated(event)) {
+  if (isPetEventPetCreated(event)) {
     console.log(event.pet.name); // narrowed
     return;
   }

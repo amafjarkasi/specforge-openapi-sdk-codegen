@@ -48,7 +48,7 @@ pub fn emit_model_file_with_registry(model: &Model, registry: Option<&SchemaRegi
 
 /// (filename_stem, body, referenced-model-names)
 fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, String, BTreeSet<String>) {
-    let name = pascal(&o.name);
+    let name = crate::name::safe_model_name(&pascal(&o.name));
     let mut refs = BTreeSet::new();
     let mut body = String::new();
 
@@ -142,7 +142,12 @@ fn emit_union_guards(
 
     for arm in &arms {
         let arm_ty = pascal(arm);
-        let guard_name = format!("is{arm_ty}");
+        // Guard names are union-scoped (`is{Union}{Arm}`) because top-level
+        // functions named purely after the arm type collide when two unions
+        // share an arm (e.g. Stripe's DeletedExternalAccount and
+        // DeletedPaymentSource both contain DeletedBankAccount). The
+        // `narrow{Union}` helper below is the ergonomic entry point.
+        let guard_name = format!("is{union_name}{arm_ty}");
         let check = arm_type_check(arm, disc_prop, registry, comp.discriminator.as_ref());
         out.push_str(&format!(
             "export function {guard_name}(value: {union_name}): value is {arm_ty} {{\n"
@@ -166,7 +171,7 @@ fn emit_union_guards(
     for arm in &arms {
         let arm_ty = pascal(arm);
         out.push_str(&format!(
-            "  if (is{arm_ty}(value)) return \"{arm_ty}\";\n"
+            "  if (is{union_name}{arm_ty}(value)) return \"{arm_ty}\";\n"
         ));
     }
     out.push_str("  return undefined;\n");
@@ -306,7 +311,7 @@ fn escape_str(s: &str) -> String {
 }
 
 fn emit_enum(e: &EnumModel) -> (String, String, BTreeSet<String>) {
-    let name = pascal(&e.name);
+    let name = crate::name::safe_model_name(&pascal(&e.name));
     let mut body = String::new();
     if let Some(desc) = &e.description {
         body.push_str(&format_doc_comment(desc, ""));
@@ -475,7 +480,7 @@ mod tests {
         assert!(file.contains("import { PetCreated } from \"./PetCreated\";"));
         assert!(file.contains("import { PetUpdated } from \"./PetUpdated\";"));
         // Guards are emitted even without a registry (structural fallback).
-        assert!(file.contains("export function isPetCreated(value: PetEvent): value is PetCreated"));
+        assert!(file.contains("export function isPetEventPetCreated(value: PetEvent): value is PetCreated"));
         assert!(file.contains("export function narrowPetEvent(value: PetEvent)"));
     }
 
@@ -552,8 +557,8 @@ mod tests {
         let file = emit_model_file_with_registry(&Model::Object(o), Some(&registry));
         assert!(file.contains("=== \"pet.created\""));
         assert!(file.contains("=== \"pet.updated\""));
-        assert!(file.contains("export function isPetCreated"));
-        assert!(file.contains("export function isPetUpdated"));
+        assert!(file.contains("export function isPetEventPetCreated"));
+        assert!(file.contains("export function isPetEventPetUpdated"));
         assert!(file.contains("export function narrowPetEvent"));
     }
 
@@ -631,8 +636,8 @@ mod tests {
         let file = emit_model_file_with_registry(&Model::Object(o), Some(&registry));
         assert!(file.contains("=== \"dog\""), "should use mapping value 'dog'");
         assert!(file.contains("=== \"cat\""), "should use mapping value 'cat'");
-        assert!(file.contains("export function isDog"));
-        assert!(file.contains("export function isCat"));
+        assert!(file.contains("export function isPetDog"));
+        assert!(file.contains("export function isPetCat"));
         assert!(file.contains("export function narrowPet"));
     }
 

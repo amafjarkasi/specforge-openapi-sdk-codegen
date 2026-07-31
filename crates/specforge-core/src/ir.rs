@@ -27,6 +27,12 @@ pub struct EnumModel { pub name: String, pub description: Option<String>, pub va
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct EnumVariant { pub value: String, pub description: Option<String> }
 
+// The ObjectModel variant (~336 bytes) is much larger than EnumModel (~72),
+// which trips clippy::large_enum_variant. Boxing ObjectModel would force a
+// deref at all 70+ match sites across the emitters and core for no real win —
+// Model values are not stack-hot (they live in the resolved Document, accessed
+// by reference). Suppressing rather than paying the ergonomic cost everywhere.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum Model { Object(ObjectModel), Enum(EnumModel) }
 impl Model { pub fn name(&self) -> &str { match self { Model::Object(o) => &o.name, Model::Enum(e) => &e.name } } }
