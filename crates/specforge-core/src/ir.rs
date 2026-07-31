@@ -238,3 +238,22 @@ pub struct Document {
     pub operations: Vec<Operation>,
     pub webhooks: Vec<Webhook>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::mem::size_of;
+
+    #[test]
+    fn model_enum_size_reasonable() {
+        // Model values live in SchemaRegistry's IndexMap (heap-allocated),
+        // so the enum size doesn't affect stack usage in practice. But
+        // monitor it so we don't accidentally regress to an absurd size.
+        let size = size_of::<Model>();
+        assert!(
+            size < 1024,
+            "Model enum is {size} bytes — expected < 1024. \
+             If it grew intentionally, update this threshold."
+        );
+    }
+}
