@@ -277,6 +277,12 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
     body.push_str("export * from \"./auth\";\n");
     body.push_str("export * from \"./retry\";\n");
     body.push_str("export * from \"./paginate\";\n");
+    body.push_str("export * from \"./concurrency\";\n");
+    body.push_str("export * from \"./dedup\";\n");
+    body.push_str("export * from \"./idempotency\";\n");
+    body.push_str("export * from \"./middleware\";\n");
+    body.push_str("export * from \"./streaming\";\n");
+    body.push_str("export * from \"./cache\";\n");
     body.push_str("export * from \"./validate\";\n");
     body.push_str("export * from \"./validation-middleware\";\n");
     body.push_str("export * from \"./ratelimit\";\n");
