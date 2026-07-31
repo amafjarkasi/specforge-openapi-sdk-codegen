@@ -154,7 +154,7 @@ Every generated SDK is a **complete, production-ready client** — not just type
 - Dual ESM/CJS package (`sideEffects: false` for tree-shaking)
 - Native `fetch` — no runtime dependencies
 - Discriminated union error types (`ApiError`)
-- `isX()` / `narrowX()` type guards for oneOf unions
+- `is{Union}{Arm}()` / `narrow{Union}()` union-scoped type guards for oneOf unions
 - Per-model `validatePet()` functions
 - Response caching with ETags
 - Token bucket / sliding window rate limiting
@@ -223,14 +223,16 @@ Every generated SDK is a **complete, production-ready client** — not just type
 
 ### Quality gates
 
-- **259 unit tests** across core, emitters, and CLI
-- **21 test fixtures** (0.02MB to 14MB): petstore, GitHub, Stripe, Kubernetes, Atlassian, OpenAI, Vercel, Linode, Bitbucket, Adyen, Notion, Spotify, Adobe AEM, CircleCI, Okta, and more
+- **304 unit tests** across core, emitters, and CLI (255 core + 17 TS + 14 Go + 18 Rust)
+- **24 test fixtures** (0.02MB to 14MB): petstore, GitHub, Stripe, Kubernetes, Atlassian, OpenAI, Vercel, Linode, Bitbucket, Adyen, Notion, Spotify, Adobe AEM, CircleCI, Okta, and more
 - **Compile gates**: every emitter has a test that regenerates the SDK into a temp crate and compiles it — Go (`go build`), Rust (`cargo check`), TypeScript (`tsc --noEmit`). On top of that, `regression.rs` generates + compiles SDKs from real-world specs (GitHub ~9MB, Stripe ~7.6MB) in all three languages.
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
 - **E2E advanced**: concurrency serialisation, dedupe single-flight, middleware rewrite, idempotency-key on POST, SSE parse (all 3 langs)
 - **Performance benchmarks**: criterion benchmarks + 13 perf tests (petstore < 100ms, GitHub/Stripe < 10s)
 - **Multi-platform CI**: Linux, macOS, Windows (GitHub Actions matrix)
 - **Cross-compiled releases**: 5 targets (linux amd64/arm64, macOS Intel/Apple Silicon, Windows)
+- **Deterministic output verified**: all 3 emitters have a byte-identical regeneration test (same spec + version = same output)
+- **Zero clippy warnings**: `cargo clippy --workspace --all-targets -- -D warnings` enforced in CI
 - **Production hardening**: thread safety audit, unwrap/expect audit, SDK integration tests, stability enforcement
 
 ### VS Code Extension
@@ -582,8 +584,13 @@ specforge/
 │   └── generate-examples.sh
 ├── assets/                 # logo + banner
 ├── CHANGELOG.md
+├── CONTRIBUTING.md       # setup, PR checklist, architecture rules
+├── SECURITY.md           # vulnerability reporting policy
 ├── RELEASE.md
-└── .github/workflows/ci.yml
+└── .github/
+    ├── workflows/ci.yml
+    ├── ISSUE_TEMPLATE/   # bug report + feature request templates
+    └── PULL_REQUEST_TEMPLATE.md
 ```
 
 ### Pipeline stages
@@ -673,17 +680,24 @@ sdk-ts/
 ```text
 sdk-go/
 ├── go.mod
-├── client.go             # Client, auth, DoJSON + DoStream pipeline
-├── retry.go
-├── paginate.go           # CursorPaginate / OffsetPaginate generics
+├── README.md
+├── client.go             # Client + ServiceContainer, auth, DoJSON + DoStream pipeline
+├── cache.go              # ETag/conditional GET response cache
 ├── concurrency.go        # Semaphore
 ├── dedup.go              # RequestDeduper
-├── middleware.go
 ├── idempotency.go        # Idempotency-Key UUID
+├── interceptors.go       # request/response body interceptors
+├── logging.go            # pluggable Logger (ConsoleLogger)
+├── middleware.go         # composable request/response middleware
+├── models.go             # typed models + per-model validators
+├── paginate.go           # CursorPaginate / OffsetPaginate generics
+├── ratelimit.go          # token-bucket + sliding-window rate limiters
+├── retry.go              # exponential backoff + jitter
 ├── streaming.go          # NewSseIterator / StreamLines
-├── models.go
-├── api_<tag>.go          # methods on *Client
-└── README.md
+├── telemetry.go          # TelemetryHooks interface + MetricsCollector
+├── validate.go           # runtime request/response validation
+├── validation_middleware.go  # validation as middleware
+└── api_<tag>.go          # methods on *Client
 ```
 
 Zero third-party deps for the happy path (`net/http`, `encoding/json`).
@@ -895,7 +909,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 |------|----------------|
 | **Rust 1.75+** (rustc/cargo) | Building specforge itself; Rust SDK `cargo check` |
 | **Go 1.22+** | Go SDK `go build` + e2e (optional but recommended) |
-| **Node 20+ / npm** | TypeScript `tsc` + e2e (optional but recommended) |
+| **Node 18+ / npm** | TypeScript `tsc` + e2e (optional but recommended) |
 
 ---
 

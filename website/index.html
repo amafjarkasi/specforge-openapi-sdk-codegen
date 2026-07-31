@@ -433,28 +433,199 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     ARCHITECTURE PIPELINE
+     ARCHITECTURE PIPELINE (revamped)
      ══════════════════════════════════════════════════════════════ */
+  .pipeline-wrap {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+  }
   .pipeline {
+    position: relative;
+    display: flex; align-items: stretch; justify-content: center;
+    gap: 0; flex-wrap: wrap;
+    padding: 2.5rem 0;
+  }
+  .pipeline-track {
+    position: absolute;
+    left: 0; right: 0; top: 50%;
+    height: 2px;
+    background: linear-gradient(to right, transparent, rgba(249,115,22,0.18), rgba(249,115,22,0.18), transparent);
+    z-index: 0;
+    pointer-events: none;
+    /* Track is occluded by stage cards (z-index 1) — so the line only shows in the gaps between cards */
+  }
+  .pipeline .stage {
+    position: relative;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.6rem 1.8rem;
+    text-align: left;
+    min-width: 230px;
+    flex: 1 1 230px;
+    max-width: 280px;
+    transition: all 0.4s ease;
+    z-index: 1;
+    cursor: pointer;
+  }
+  .pipeline .stage:hover {
+    border-color: rgba(249,115,22,0.45);
+    box-shadow: 0 0 32px rgba(249,115,22,0.12);
+    transform: translateY(-3px);
+  }
+  .pipeline .stage.lit {
+    border-color: rgba(249,115,22,0.5);
+    box-shadow: 0 0 30px rgba(249,115,22,0.18);
+  }
+  .stage-num {
+    position: absolute;
+    top: -10px; right: 14px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .stage-icon {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .stage-title {
+    color: var(--text);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .stage-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    margin-bottom: 0.7rem;
+  }
+  .stage-desc {
+    font-size: 0.85rem;
+    color: var(--dim);
+    line-height: 1.5;
+  }
+  .stage-tags {
+    display: flex; flex-wrap: wrap; gap: 0.35rem;
+    margin-top: 0.7rem;
+  }
+  .stage-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    background: rgba(249,115,22,0.08);
+    border: 1px solid rgba(249,115,22,0.18);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+  .pipeline .connector {
+    color: var(--muted);
+    font-size: 1.5rem;
     display: flex; align-items: center; justify-content: center;
-    gap: 0.8rem; flex-wrap: wrap;
-    padding: 3rem 0;
+    min-width: 36px;
+    transition: color 0.4s;
+    z-index: 1;
+    background: var(--bg);
   }
-  .pipeline .step {
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 14px; padding: 1.5rem 2rem;
-    text-align: center; min-width: 170px;
-    transition: all 0.5s ease;
+  .pipeline .connector.lit { color: var(--accent); }
+  .pipeline .connector.lit::before {
+    content: '';
+    position: absolute;
+    width: 36px; height: 36px;
+    background: radial-gradient(circle, rgba(249,115,22,0.35), transparent 70%);
+    border-radius: 50%;
+    animation: connector-pulse 1s ease-out infinite;
   }
-  .pipeline .step.lit {
-    border-color: rgba(249,115,22,0.35);
-    box-shadow: 0 0 30px rgba(249,115,22,0.1);
+  @keyframes connector-pulse {
+    0%   { transform: scale(0.6); opacity: 0.8; }
+    100% { transform: scale(1.4); opacity: 0;   }
   }
-  .pipeline .step .emoji { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
-  .pipeline .step .label { font-size: 0.9rem; color: var(--dim); }
-  .pipeline .step .label b { color: var(--text); display: block; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem; }
-  .pipeline .arrow { color: var(--muted); font-size: 1.5rem; transition: color 0.5s; }
-  .pipeline .arrow.lit { color: var(--accent); }
+  /* Track sits behind stage cards so the line doesn't draw across content */
+  .pipeline-track {
+    z-index: 0;
+    pointer-events: none;
+  }
+  /* Packet rides the track above the line but below cards */
+  .data-packet {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(249,115,22,0.6);
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .data-packet.travel {
+    animation: packet-travel 4.5s linear infinite;
+  }
+  @keyframes packet-travel {
+    0%   { left: 0%;   opacity: 0; }
+    4%   { opacity: 1; }
+    96%  { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+  }
+
+  .stage-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.8rem;
+    margin-top: 1.5rem;
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: opacity 0.35s ease, max-height 0.4s ease, padding 0.3s ease;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .stage-detail.active {
+    opacity: 1;
+    max-height: 320px;
+    padding: 1.5rem 1.8rem;
+  }
+  .stage-detail h4 {
+    color: var(--text);
+    margin-bottom: 0.6rem;
+    font-size: 1rem;
+  }
+  .stage-detail p {
+    color: var(--dim);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    margin-bottom: 0.7rem;
+  }
+  .stage-detail ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem 1.5rem;
+  }
+  .stage-detail li {
+    color: var(--dim);
+    font-size: 0.88rem;
+    padding-left: 1.1rem;
+    position: relative;
+  }
+  .stage-detail li::before {
+    content: '→';
+    color: var(--accent);
+    position: absolute;
+    left: 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
 
   /* ══════════════════════════════════════════════════════════════
      FEATURES GRID
@@ -796,8 +967,10 @@
     .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
     .pricing-grid { grid-template-columns: 1fr; }
     .vs-grid { grid-template-columns: 1fr; }
-    .pipeline { flex-direction: column; }
-    .pipeline .arrow { transform: rotate(90deg); }
+    .pipeline { flex-direction: column; padding: 1rem 0; }
+    .pipeline-track { left: 50%; top: 0; bottom: 0; width: 2px; height: auto; }
+    .pipeline .stage { max-width: 100%; }
+    .pipeline .connector { transform: rotate(90deg); min-width: 24px; }
     .cli-grid { grid-template-columns: 1fr; }
     .hero { padding: 8rem 1.5rem 4rem; }
     .hero-mascot { width: 90px; height: 90px; }
@@ -1377,37 +1550,87 @@
 <div class="section-divider"></div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     ARCHITECTURE PIPELINE
+     ARCHITECTURE PIPELINE (revamped)
      ══════════════════════════════════════════════════════════════ -->
 <section id="how-it-works">
   <h2 class="reveal">How It Works</h2>
-  <p class="section-desc reveal">Parse once, emit many. A language-neutral IR decouples parsing from code generation.</p>
-  <div class="pipeline reveal" id="pipeline">
-    <div class="step" data-step="0"><span class="emoji">📄</span><span class="label"><b>OpenAPI 3.x</b>YAML / JSON</span></div>
-    <div class="arrow" data-step="1">→</div>
-    <div class="step" data-step="2"><span class="emoji">⚙️</span><span class="label"><b>specforge-core</b>parse · resolve · IR</span></div>
-    <div class="arrow" data-step="3">→</div>
-    <div class="step" data-step="4"><span class="emoji">🔧</span><span class="label"><b>Emitters</b>TS · Go · Rust · WASM</span></div>
+  <p class="section-desc reveal">A four-stage pipeline that turns one OpenAPI spec into four production-ready SDKs — with the same auth, retry, and pagination logic across every language.</p>
+
+  <div class="pipeline-wrap">
+    <div class="pipeline reveal" id="pipeline">
+      <div class="pipeline-track"></div>
+      <div class="data-packet travel" id="data-packet"></div>
+
+      <div class="stage" data-stage="0">
+        <span class="stage-num">01</span>
+        <span class="stage-icon">📄</span>
+        <div class="stage-sub">Input</div>
+        <div class="stage-title">OpenAPI 3.x Spec</div>
+        <div class="stage-desc">YAML or JSON, 3.0 or 3.1. From a file, a URL, or a workspace of versioned specs.</div>
+        <div class="stage-tags"><span class="stage-tag">.yaml</span><span class="stage-tag">.json</span><span class="stage-tag">3.0 / 3.1</span></div>
+      </div>
+
+      <div class="connector" data-stage="1">→</div>
+
+      <div class="stage" data-stage="2">
+        <span class="stage-num">02</span>
+        <span class="stage-icon">⚙️</span>
+        <div class="stage-sub">Parse · Resolve</div>
+        <div class="stage-title">specforge-core</div>
+        <div class="stage-desc">Validates the document, resolves every <code>$ref</code>, merges <code>allOf</code>, and lowers 3.1→3.0 quirks.</div>
+        <div class="stage-tags"><span class="stage-tag">resolve $ref</span><span class="stage-tag">allOf merge</span><span class="stage-tag">cycle-safe</span></div>
+      </div>
+
+      <div class="connector" data-stage="3">→</div>
+
+      <div class="stage" data-stage="4">
+        <span class="stage-num">03</span>
+        <span class="stage-icon">🧬</span>
+        <div class="stage-sub">Language-Neutral</div>
+        <div class="stage-title">Intermediate Representation</div>
+        <div class="stage-desc">A versioned JSON IR. Every emitter walks the same IR — so behavior is consistent across all targets.</div>
+        <div class="stage-tags"><span class="stage-tag">Document</span><span class="stage-tag">Operation</span><span class="stage-tag">Type</span></div>
+      </div>
+
+      <div class="connector" data-stage="5">→</div>
+
+      <div class="stage" data-stage="6">
+        <span class="stage-num">04</span>
+        <span class="stage-icon">🔧</span>
+        <div class="stage-sub">Emit</div>
+        <div class="stage-title">4 Targets in Parallel</div>
+        <div class="stage-desc">Rayon-parallel file emission to TS, Go, Rust, or WASM plugin SDKs. Deterministic, tree-shakeable.</div>
+        <div class="stage-tags"><span class="stage-tag">TS</span><span class="stage-tag">Go</span><span class="stage-tag">Rust</span><span class="stage-tag">WASM</span></div>
+      </div>
+    </div>
+
+    <!-- Stage detail panel -->
+    <div class="stage-detail" id="stage-detail">
+      <h4 id="stage-detail-title">Click any stage above to learn more</h4>
+      <p id="stage-detail-text">Each stage is independent and testable. The IR is documented in <code>assets/ir-schema.json</code> — build custom emitters against it with <code>specforge emit</code>.</p>
+      <ul id="stage-detail-list"></ul>
+    </div>
   </div>
+
   <div class="code-block reveal">
     <div class="code-header">
       <div class="code-dots"><span></span><span></span><span></span></div>
-      <span>terminal</span>
+      <span id="code-tab-label">terminal · bash</span>
     </div>
-    <div class="code-body">
-<pre><span class="cm"># TypeScript</span>
+    <div class="code-body" id="code-body">
+<pre id="code-content"><span class="cm"># TypeScript — native fetch, dual ESM/CJS package, tree-shakeable</span>
 <span class="kw">specforge generate</span> openapi.yaml -o ./sdk-ts -l ts
 
-<span class="cm"># Go</span>
+<span class="cm"># Go — stdlib net/http only, zero third-party deps</span>
 <span class="kw">specforge generate</span> openapi.yaml -o ./sdk-go -l go -n github.com/acme/widget-go
 
-<span class="cm"># Rust</span>
+<span class="cm"># Rust — reqwest + serde + tokio, async-first</span>
 <span class="kw">specforge generate</span> openapi.yaml -o ./sdk-rs -l rust -n widget_sdk
 
-<span class="cm"># Lint with strict mode</span>
+<span class="cm"># Lint a spec (strict mode treats warnings as errors)</span>
 <span class="kw">specforge check</span> openapi.yaml --strict
 
-<span class="cm"># Detect breaking changes</span>
+<span class="cm"># Detect breaking changes — exit 1 on breaking, perfect for CI gates</span>
 <span class="kw">specforge diff</span> v1.yaml v2.yaml</pre>
     </div>
   </div>
@@ -2155,51 +2378,130 @@ const observer = new IntersectionObserver((entries) => {
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 /* ══════════════════════════════════════════════════════════════
-   PIPELINE ANIMATION
+   PIPELINE ANIMATION + INTERACTIVE STAGES
    ══════════════════════════════════════════════════════════════ */
-const pipelineObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      animatePipeline();
-      pipelineObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.5 });
-const pipeline = document.getElementById('pipeline');
-if (pipeline) pipelineObserver.observe(pipeline);
+const STAGE_DETAILS = {
+  0: {
+    title: '1. Bring your spec',
+    text: 'Point specforge at a local file, a directory of versioned specs, or a remote URL. Both 3.0 and 3.1 are accepted — 3.1\'s `type` arrays, `$ref` siblings, and numeric `exclusiveMinimum` are auto-normalized so downstream stages never see them.',
+    items: ['Single file or workspace', 'YAML or JSON', '3.0 ↔ 3.1 transparent', 'URL or filesystem']
+  },
+  2: {
+    title: '2. Parse & resolve in specforge-core',
+    text: 'The core crate parses to openapiv3, walks every `$ref`, merges `allOf` properties (last-wins on name conflict, union on `required`), and builds a deterministic, cycle-safe IR. Self-referential and mutual `$ref` cycles are handled by name.',
+    items: ['Full $ref resolution', 'allOf composition', 'Discriminator mapping', 'Cycle-safe by construction']
+  },
+  4: {
+    title: '3. The language-neutral IR',
+    text: 'A versioned, documented JSON model (`assets/ir-schema.json`). Every emitter walks the same IR — so retries, pagination, and auth behave identically across TypeScript, Go, and Rust. Want Kotlin? Implement one emitter against this IR.',
+    items: ['Document · Operation · Type', 'Stable across emitter versions', 'Documented JSON Schema', 'External emitter API']
+  },
+  6: {
+    title: '4. Emit four targets in parallel',
+    text: 'specforge-core feeds four emitters concurrently via rayon. Each one writes a complete, standalone project to disk: a tree-shakeable TS package, a stdlib-only Go module, an async Rust crate, or a WASM plugin. Output is bit-stable for caching.',
+    items: ['TypeScript (ESM + CJS)', 'Go (stdlib only)', 'Rust (reqwest + serde)', 'WASM plugins']
+  }
+};
 
-function animatePipeline() {
-  const steps = document.querySelectorAll('.pipeline [data-step]');
-  steps.forEach((step, i) => {
-    setTimeout(() => {
-      step.classList.add('lit');
-    }, i * 300);
+const pipeline = document.getElementById('pipeline');
+if (pipeline) {
+  const stages  = pipeline.querySelectorAll('.stage');
+  const conns   = pipeline.querySelectorAll('.connector');
+  const detail  = document.getElementById('stage-detail');
+  const dTitle  = document.getElementById('stage-detail-title');
+  const dText   = document.getElementById('stage-detail-text');
+  const dList   = document.getElementById('stage-detail-list');
+
+  function lightUpTo(idx) {
+    stages.forEach((s, i) => s.classList.toggle('lit', i <= idx));
+    conns.forEach((c, i) => c.classList.toggle('lit', i <= Math.floor(idx / 2)));
+  }
+
+  function showDetail(stageIdx) {
+    const info = STAGE_DETAILS[stageIdx];
+    if (!info) return;
+    dTitle.textContent = info.title;
+    dText.innerHTML   = info.text;
+    dList.innerHTML   = info.items.map(i => `<li>${i}</li>`).join('');
+    detail.classList.add('active');
+  }
+
+  function hideDetail() {
+    detail.classList.remove('active');
+  }
+
+  stages.forEach((stage, i) => {
+    stage.addEventListener('mouseenter', () => { lightUpTo(i); showDetail(stage.dataset.stage); });
+    stage.addEventListener('focus',      () => { lightUpTo(i); showDetail(stage.dataset.stage); });
+    stage.addEventListener('mouseleave', () => { lightUpTo(-1); hideDetail(); });
   });
+
+  // Sequential reveal on scroll-into-view
+  const pipelineObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        stages.forEach((s, i) => setTimeout(() => s.classList.add('lit'), i * 280));
+        conns.forEach((c, i)  => setTimeout(() => c.classList.add('lit'), i * 280 + 140));
+        pipelineObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.3 });
+  pipelineObserver.observe(pipeline);
+
+  // Initial flicker — turn off after reveal completes
+  setTimeout(() => {
+    stages.forEach(s => s.classList.remove('lit'));
+    conns.forEach(c => c.classList.remove('lit'));
+  }, stages.length * 280 + 800);
+}
+
+/* Code-block typewriter on first scroll into view */
+const codeBody = document.getElementById('code-body');
+if (codeBody) {
+  const fullHTML = codeBody.innerHTML;
+  let typed = false;
+  const codeObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !typed) {
+        typed = true;
+        codeBody.style.opacity = '0';
+        setTimeout(() => {
+          codeBody.style.transition = 'opacity 0.4s ease';
+          codeBody.style.opacity = '1';
+          codeBody.innerHTML = fullHTML;
+        }, 250);
+        codeObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.4 });
+  codeObserver.observe(codeBody);
 }
 
 /* ══════════════════════════════════════════════════════════════
-   FORGE SPARKLE PARTICLES
+   FORGE SPARKLE PARTICLES (toned-down)
    ══════════════════════════════════════════════════════════════ */
 (function() {
   const hero = document.querySelector('.hero');
-  const colors = ['#f97316', '#fbbf24', '#dc2626', '#fde68a'];
+  if (!hero) return;
+  const colors = ['#f97316', '#fbbf24', '#fde68a'];
   function createSparkle() {
     const spark = document.createElement('div');
     spark.className = 'sparkle';
-    const size = Math.random() * 4 + 2;
+    const size = Math.random() * 2 + 2;          // smaller particles
     const color = colors[Math.floor(Math.random() * colors.length)];
-    spark.style.width = size + 'px';
+    spark.style.width  = size + 'px';
     spark.style.height = size + 'px';
-    spark.style.left = Math.random() * 100 + '%';
+    spark.style.left   = Math.random() * 100 + '%';
     spark.style.bottom = '0';
     spark.style.background = color;
-    spark.style.animationDuration = (Math.random() * 5 + 5) + 's';
-    spark.style.animationDelay = (Math.random() * 2) + 's';
-    spark.style.boxShadow = '0 0 ' + (size * 3) + 'px ' + color;
+    spark.style.animationDuration = (Math.random() * 6 + 10) + 's';  // slower rise
+    spark.style.animationDelay   = (Math.random() * 4) + 's';
+    spark.style.boxShadow = '0 0 ' + (size * 1.5) + 'px ' + color;     // softer glow
+    spark.style.opacity = '0.5';
     hero.appendChild(spark);
-    setTimeout(() => spark.remove(), 12000);
+    setTimeout(() => spark.remove(), 18000);
   }
-  setInterval(createSparkle, 500);
+  setInterval(createSparkle, 1400);             // less frequent
 })();
 
 /* ══════════════════════════════════════════════════════════════
