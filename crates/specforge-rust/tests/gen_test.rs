@@ -140,7 +140,16 @@ fn oneof_guards_present_as_methods() {
 
     let models = std::fs::read_to_string(dir.path().join("src/models.rs")).unwrap();
     // The enum should have discriminant() and is_*() methods.
-    assert!(models.contains("fn discriminant(&self)"), "should have discriminant() method");
-    assert!(models.contains("fn is_pet_created(&self)"), "should have is_pet_created() method");
-    assert!(models.contains("fn into_pet_created(self)"), "should have into_pet_created() method");
+    assert!(
+        models.contains("fn discriminant(&self)"),
+        "should have discriminant() method"
+    );
+    assert!(
+        models.contains("fn is_pet_created(&self)"),
+        "should have is_pet_created() method"
+    );
+    assert!(
+        models.contains("fn into_pet_created(self)"),
+        "should have into_pet_created() method"
+    );
 }

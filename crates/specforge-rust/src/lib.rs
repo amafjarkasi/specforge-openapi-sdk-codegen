@@ -4051,19 +4051,19 @@ fn safe_model_name_all_builtins() {
     assert_eq!(safe_model_name("TokenBucket"), "TokenBucketModel");
 }
 
-    // ── rust_doc / rust_doc_indented ──────────────────────────────────
+// ── rust_doc / rust_doc_indented ──────────────────────────────────
 
-    #[test]
-    fn rust_doc_escapes_block_comments() {
-        let result = rust_doc("use FooApi*/ instead");
-        assert!(result.contains("&#42;/"), "should escape */");
-        assert!(result.starts_with("/// "), "should prefix with ///");
-    }
+#[test]
+fn rust_doc_escapes_block_comments() {
+    let result = rust_doc("use FooApi*/ instead");
+    assert!(result.contains("&#42;/"), "should escape */");
+    assert!(result.starts_with("/// "), "should prefix with ///");
+}
 
-    #[test]
-    fn rust_doc_indented_prefixes_every_line() {
-        let result = rust_doc_indented("line1\nline2\nline3", "    ");
-        assert!(result.contains("    /// line1"));
-        assert!(result.contains("    /// line2"));
-        assert!(result.contains("    /// line3"));
-    }
+#[test]
+fn rust_doc_indented_prefixes_every_line() {
+    let result = rust_doc_indented("line1\nline2\nline3", "    ");
+    assert!(result.contains("    /// line1"));
+    assert!(result.contains("    /// line2"));
+    assert!(result.contains("    /// line3"));
+}
