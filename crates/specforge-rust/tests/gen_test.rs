@@ -120,3 +120,27 @@ fn output_is_deterministic() {
         assert_eq!(content_a, content_b, "non-deterministic output in {rel}");
     }
 }
+
+/// oneOf type guards in Rust are methods on the enum impl (inherently scoped),
+/// so `is_pet_created` is correct — no collision risk even when two unions
+/// share an arm, because each is `Self::is_pet_created(&self)`.
+#[test]
+fn oneof_guards_present_as_methods() {
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+    let dir = tempfile::tempdir().unwrap();
+    let opts = specforge_rust::GeneratorOptions {
+        out_dir: dir.path().to_path_buf(),
+        crate_name: None,
+        i18n: None,
+    };
+    let _files = specforge_rust::generate(&doc, &opts).expect("emit Rust");
+
+    let models = std::fs::read_to_string(dir.path().join("src/models.rs")).unwrap();
+    // The enum should have discriminant() and is_*() methods.
+    assert!(models.contains("fn discriminant(&self)"), "should have discriminant() method");
+    assert!(models.contains("fn is_pet_created(&self)"), "should have is_pet_created() method");
+    assert!(models.contains("fn into_pet_created(self)"), "should have into_pet_created() method");
+}

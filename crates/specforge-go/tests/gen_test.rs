@@ -111,3 +111,27 @@ fn output_is_deterministic() {
         assert_eq!(content_a, content_b, "non-deterministic output in {rel}");
     }
 }
+
+/// oneOf type guards should be union-scoped (is{Union}{Arm}, not is{Arm}).
+#[test]
+fn oneof_guards_are_union_scoped() {
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+    let dir = tempfile::tempdir().unwrap();
+    let opts = specforge_go::GeneratorOptions {
+        out_dir: dir.path().to_path_buf(),
+        module_path: Some("example.com/test".into()),
+        package_name: None,
+        i18n: None,
+    };
+    let _files = specforge_go::generate(&doc, &opts).expect("emit Go");
+
+    // Read models.go — it should contain PetEvent oneOf type guards.
+    let models = std::fs::read_to_string(dir.path().join("models.go")).unwrap();
+    assert!(
+        models.contains("PetEvent") || models.contains("IsPetEvent"),
+        "models.go should contain PetEvent oneOf guards"
+    );
+}
