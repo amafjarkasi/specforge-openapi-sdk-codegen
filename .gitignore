@@ -4,3 +4,10 @@
 *~
 .DS_Store
 node_modules/
+
+# Block stray root-level JSON. Failed spec downloads have written 14-byte
+# "404 Not Found" bodies to the repo root before (cloudflare.json, etc.).
+# Legitimate JSON lives under assets/, fixtures/, examples/, docs-site/,
+# or vscode-extension/ — never loose in the root. (action.yml is YAML and
+# stays tracked.)
+/*.json
