@@ -199,6 +199,7 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge migrate` | Generate a migration guide between two spec versions |
 | `specforge docs` | Generate a static HTML API documentation site |
 | `specforge test` | Generate mock server tests from spec examples |
+| `specforge version` | Apply API versioning (URL/header/query) to a spec's endpoints |
 | `specforge versions` | List API versions in a spec directory |
 | `specforge workspace` | Generate SDKs for all specs in a workspace config |
 | `specforge workspace-init` | Generate a workspace config from a directory |
@@ -305,8 +306,12 @@ cargo build -p specforge-cli
 <summary><b>TypeScript</b></summary>
 
 ```ts
-import { createClient, bearerAuth, streamSse } from "./sdk-ts/src/index.ts";
+import { createClient, bearerAuth } from "./sdk-ts/src/index.ts";
+import { ApiClient } from "./sdk-ts/src/client";
+import { streamSse } from "./sdk-ts/src/streaming";
 
+// `bearerAuth` / `apiKeyAuth` are emitted only when the spec declares those
+// security schemes. Specs with no security emit `anonymousAuth` instead.
 const client = createClient({
   baseUrl: "https://api.example.com",
   auth: bearerAuth(() => process.env.API_TOKEN!),
@@ -318,12 +323,15 @@ const client = createClient({
 
 const page = await client.pets.listPets({ limit: 20 });
 
-// Streaming (SSE)
-const res = await client.request("GET", "/events");
+// Streaming (SSE) — request() lives on the underlying ApiClient.
+const api = new ApiClient({ baseUrl: "https://api.example.com" });
+const res = await api.request("GET", "/events");
 for await (const ev of streamSse(res)) {
   console.log(ev.event, ev.data);
 }
 ```
+
+> `createClient()` returns a tree-shakeable tag namespace (`client.pets.listPets`). For raw requests / streaming, use the `ApiClient` directly. The auth helpers (`bearerAuth`, `apiKeyAuth`) appear only when your spec declares those schemes.
 
 </details>
 
@@ -394,24 +402,14 @@ while let Some(ev) = sse.next_event().await? {
 
 ## CLI reference
 
-```text
-specforge <COMMAND>
+Run `specforge --help` for the full, current command list (the CLI is the source of truth — see the table above). The most-used commands:
 
-Commands:
-  generate        Generate an SDK from an OpenAPI spec
-  check           Lint and validate an OpenAPI spec without generating
-  diff            Compare two OpenAPI specs and report breaking changes
-  emit            Emit the resolved IR as JSON (for external emitters / plugins)
-  init            Scaffold a new minimal OpenAPI spec
-  convert         Convert between OpenAPI 3.0 and 3.1
-  merge           Merge multiple OpenAPI spec files into one
-  migrate         Generate a migration guide between two spec versions
-  docs            Generate static HTML API documentation
-  test            Generate mock server tests for generated SDKs
-  versions        List API versions in a spec directory
-  workspace       Generate SDKs for all specs in a workspace config
-  workspace-init  Generate a workspace config from a directory
-  help            Print this message or the help of the given subcommand
+```text
+specforge generate <SPEC>   # Generate an SDK (the main command)
+specforge check <SPEC>      # Lint a spec (--strict = warnings as errors)
+specforge diff <OLD> <NEW>  # Breaking-change detection (exit 1 on breaking)
+specforge emit <SPEC>       # Dump resolved IR as JSON (for external emitters)
+specforge <CMD> --help      # Per-command flags
 ```
 
 ### `specforge generate`
@@ -423,15 +421,22 @@ Arguments:
   <SPEC>   Path to OpenAPI YAML or JSON
 
 Options:
-  -o, --out <DIR>           Output directory            [default: ./generated]
-  -l, --lang <LANG>         ts | go | rust              [default: ts]
-  -n, --name <NAME>         Package / module / crate name override
-  --version <VERSION>       API version (when spec is a directory)
-  --profile                 Output timing breakdown for each pipeline stage
-  -v, --log-level <LEVEL>   error|warn|info|debug|trace [default: info]
+  -o, --out <DIR>            Output directory            [default: ./generated]
+  -l, --lang <LANG>          ts | go | rust              [default: ts]
+  -n, --name <NAME>          Package / module / crate name override
+  --version <VERSION>        API version (when spec is a directory)
+  --profile                  Output timing breakdown for each pipeline stage
+  --include-webhooks         Emit webhook handler types (OpenAPI 3.1)
+  --locale <LOCALE>          Comma-separated locale codes for i18n errors (e.g. en,es)
+  --changelog                Auto-generate CHANGELOG.md in the output dir
+  --changelog-previous <F>   Previous spec to diff against (use with --changelog)
+  --version-prefix <PFX>     Apply a URL path versioning prefix (e.g. v1)
+  --plugin <NAME>            Use a WASM plugin emitter by name
+  -v, --log-level <LEVEL>    error|warn|info|debug|trace [default: info]
   -h, --help
-  -V, --version
 ```
+
+> `-V, --version` is a top-level flag (`specforge -V`), not a `generate` option.
 
 | Language | `-n` means | Default if omitted |
 |----------|------------|--------------------|
@@ -449,6 +454,11 @@ Arguments:
 
 Options:
   --strict                   Treat warnings as errors
+  --deprecations             List deprecated operations and schemas
+  --disable <RULE>           Disable a lint rule (repeatable)
+  --enable <RULE>            Enable a lint rule (repeatable)
+  --severity <RULE:SEV>      Set rule severity: error|warning|off (repeatable)
+  --config <FILE>            Path to a lint config YAML file (.specforge.yaml)
   -v, --log-level <LEVEL>    error|warn|info|debug|trace [default: info]
 ```
 
@@ -869,8 +879,8 @@ See **[RELEASE.md](./RELEASE.md)** for the full checklist. Short version:
 # 2. update CHANGELOG.md
 ./scripts/ci.sh full
 ./scripts/generate-examples.sh
-git tag -a v0.1.0 -m "specforge v0.1.0"
-git push origin v0.1.0
+git tag -a v1.6.1 -m "specforge v1.6.1"
+git push origin v1.6.1
 ```
 
 Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
@@ -888,6 +898,20 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 ---
 
 ## Status & roadmap
+
+**v1.6.1** — codegen robustness + readability cleanup:
+
+- [x] Doc-comment escaping (Rust + Go emitters) — real-world specs (GitHub, Stripe) with backticks, `/*`/`*/`, and multi-paragraph descriptions no longer break generated code
+- [x] Reserved-name collision protection (Go + Rust) — spec models named like built-in SDK types (`ValidationError`, etc.) get a `Model` suffix
+- [x] Per-emitter compile gates — generated SDKs are regenerated into a temp crate and compiled (`cargo check` / `go build` / `tsc --noEmit`) in CI
+- [x] Regression tests now cover GitHub (~9MB) + Stripe (~7.6MB) specs in Rust + Go — 4 previously-failing tests now pass
+- [x] **259 tests** passing; clippy warnings 120 → 2
+
+**v1.6.0** — compile-gate tests + telemetry/validation middleware:
+
+- [x] `ServiceContainer` DI, `RequestInterceptor`/`ResponseInterceptor`, response transformers
+- [x] Validation middleware (`validation_middleware.rs`) wired into all emitters
+- [x] Telemetry hooks wired into the TypeScript client
 
 **v1.5.0** — web UI redesign, spec marketplace:
 
@@ -1030,7 +1054,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 - [x] Multi-platform CI (Linux, macOS, Windows)  
 - [x] Richer generated READMEs (errors, pagination, concurrency, middleware, streaming)  
 
-**All roadmap items completed through v1.5.0. Production-ready with professional web UI and marketplace.**
+**All roadmap items completed through v1.6.1. Production-ready: real-world specs (GitHub, Stripe) generate + compile in all languages, with per-emitter compile gates in CI.**
 
 ---
 
@@ -1041,7 +1065,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 Use specforge in CI with the official GitHub Action:
 
 ```yaml
-- uses: amafjarkasi/specforge-openapi-sdk-codegen@v0.2.2
+- uses: amafjarkasi/specforge-openapi-sdk-codegen@v1
   with:
     command: generate
     spec: openapi.yaml
@@ -1049,7 +1073,7 @@ Use specforge in CI with the official GitHub Action:
     output: ./sdk
 ```
 
-Commands: `generate`, `check`, `diff`, `emit`
+Commands: `generate`, `check`, `diff`, `emit`. Pin to a major version (`@v1`) for non-breaking updates, or a specific tag (`@v1.0.0`) for reproducibility.
 
 ### VS Code Extension
 
