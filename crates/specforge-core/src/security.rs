@@ -382,6 +382,9 @@ mod tests {
         };
         let r = analyze_security_detailed(&doc, &spec);
         // Should have at least the "no security schemes" warning.
-        assert!(r.issues.iter().any(|i| i.message.contains("No security schemes")));
+        assert!(r
+            .issues
+            .iter()
+            .any(|i| i.message.contains("No security schemes")));
     }
 }

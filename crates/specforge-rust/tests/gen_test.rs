@@ -117,9 +117,6 @@ fn output_is_deterministic() {
         let path_b = dir_b.path().join(rel);
         let content_a = std::fs::read(&path_a).unwrap_or_else(|e| panic!("read A/{rel}: {e}"));
         let content_b = std::fs::read(&path_b).unwrap_or_else(|e| panic!("read B/{rel}: {e}"));
-        assert_eq!(
-            content_a, content_b,
-            "non-deterministic output in {rel}"
-        );
+        assert_eq!(content_a, content_b, "non-deterministic output in {rel}");
     }
 }
