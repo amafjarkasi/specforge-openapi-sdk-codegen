@@ -21,3 +21,7 @@
 # Binary files: don't touch line endings.
 *.png  binary
 *.svg  text eol=lf
+
+# Auto-generated files — also need LF.
+Cargo.lock text eol=lf
+go.sum     text eol=lf

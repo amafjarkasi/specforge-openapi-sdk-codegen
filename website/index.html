@@ -440,6 +440,7 @@
     grid-template-columns: 1fr;
     gap: 2rem;
     margin-bottom: 2.5rem;
+    overflow-x: auto;
   }
   .pipeline {
     position: relative;
@@ -461,10 +462,10 @@
     background: var(--bg2);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 1.6rem 1.8rem;
+    padding: 1.6rem 1.5rem;
     text-align: left;
-    width: 230px;
-    height: 260px;
+    width: 220px;
+    height: 270px;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -656,71 +657,118 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     RUNTIME CHECKLIST — grouped category cards
+     RUNTIME CARDS — detailed, structured design
      ══════════════════════════════════════════════════════════════ */
   .runtime-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.25rem;
   }
   .runtime-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: border-color 0.25s, box-shadow 0.25s;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
   .runtime-card:hover {
-    border-color: rgba(255,255,255,0.08);
-    box-shadow: 0 0 24px rgba(0,0,0,0.3);
+    border-color: rgba(249,115,22,0.25);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.35);
   }
-  .runtime-card-header {
-    display: flex; align-items: center; gap: 0.7rem;
-    margin-bottom: 1rem;
-    padding-bottom: 0.8rem;
+  .runtime-card-top {
+    padding: 1.4rem 1.5rem;
+    display: flex; align-items: center; gap: 0.9rem;
     border-bottom: 1px solid var(--border);
+    position: relative;
   }
   .runtime-card-icon {
-    width: 32px; height: 32px; border-radius: 8px;
+    width: 40px; height: 40px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1rem;
+    font-size: 1.15rem;
     flex-shrink: 0;
   }
   .runtime-card-icon.cyan   { background: rgba(56,189,248,0.12); color: var(--cyan); }
   .runtime-card-icon.green  { background: rgba(34,197,94,0.12);  color: var(--green); }
   .runtime-card-icon.gold   { background: rgba(249,115,22,0.12);  color: var(--accent); }
   .runtime-card-icon.purple { background: rgba(167,139,250,0.12); color: #a78bfa; }
+  .runtime-card-heading {
+    flex: 1; min-width: 0;
+  }
   .runtime-card-title {
-    font-size: 1.05rem;
-    font-weight: 600;
+    font-size: 1.1rem;
+    font-weight: 700;
     color: var(--text);
     letter-spacing: -0.01em;
+    margin-bottom: 0.15rem;
   }
-  .runtime-card ul {
+  .runtime-card-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+  .runtime-card-stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.35rem 0.7rem;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .runtime-card-stat.cyan   { background: rgba(56,189,248,0.10); color: var(--cyan); }
+  .runtime-card-stat.green  { background: rgba(34,197,94,0.10);  color: var(--green); }
+  .runtime-card-stat.gold   { background: rgba(249,115,22,0.10);  color: var(--accent); }
+  .runtime-card-stat.purple { background: rgba(167,139,250,0.10); color: #a78bfa; }
+
+  .runtime-card-list {
+    padding: 0.8rem 0.4rem;
     list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
   }
-  .runtime-card li {
-    display: flex; align-items: flex-start; gap: 0.6rem;
-    font-size: 0.92rem;
-    color: var(--dim);
-    line-height: 1.45;
+  .runtime-card-item {
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    cursor: default;
   }
-  .runtime-card li::before {
-    content: '';
+  .runtime-card-item:hover { background-color: rgba(255,255,255,0.025); }
+  .runtime-card-item-head {
+    display: flex; align-items: center; gap: 0.55rem;
+    margin-bottom: 0.3rem;
+  }
+  .runtime-card-item-bullet {
     width: 6px; height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 0.45rem;
   }
-  .runtime-card.cyan li::before   { background: var(--cyan);  box-shadow: 0 0 6px var(--cyan); }
-  .runtime-card.green li::before  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .runtime-card.gold li::before   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-  .runtime-card.purple li::before { background: #a78bfa; box-shadow: 0 0 6px #a78bfa; }
+  .runtime-card.cyan .runtime-card-item-bullet   { background: var(--cyan);  box-shadow: 0 0 6px var(--cyan); }
+  .runtime-card.green .runtime-card-item-bullet  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .runtime-card.gold .runtime-card-item-bullet   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .runtime-card.purple .runtime-card-item-bullet { background: #a78bfa; box-shadow: 0 0 6px #a78bfa; }
+  .runtime-card-item-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .runtime-card-item-tag {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: rgba(249,115,22,0.06);
+    border: 1px solid rgba(249,115,22,0.12);
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+  .runtime-card-item-desc {
+    font-size: 0.83rem;
+    color: var(--dim);
+    line-height: 1.5;
+    padding-left: 1.1rem;
+  }
 
   /* ══════════════════════════════════════════════════════════════
      LANGUAGE CODE EXAMPLES
@@ -785,48 +833,129 @@
   .punct { color: var(--muted); }
 
   /* ══════════════════════════════════════════════════════════════
-     CLI GRID
+     CLI CHEAT SHEET — terminal-style grouped reference
      ══════════════════════════════════════════════════════════════ */
-  .cli-tier {
-    color: var(--accent2);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin: 2.5rem 0 1rem;
-    padding-bottom: 0.5rem;
+  .cli-cheatsheet {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .cli-cheatsheet-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: rgba(249,115,22,0.04);
     border-bottom: 1px solid var(--border);
   }
-  .cli-tier:first-of-type { margin-top: 1.5rem; }
-  .cli-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 0.8rem;
-  }
-  .cli-item {
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 1.1rem 1.4rem;
+  .cli-cheatsheet-title {
+    display: flex; align-items: center; gap: 0.7rem;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.95rem;
-    transition: border-color 0.2s;
+    font-size: 0.92rem;
+    color: var(--dim);
   }
-  .cli-item:hover { border-color: rgba(249,115,22,0.2); }
-  .cli-item .cmd { 
-    color: var(--accent); font-weight: 700; 
-    font-size: 1.05rem;
-    display: inline-block;
-    background: rgba(249,115,22,0.08);
-    border-left: 3px solid var(--accent);
-    padding: 0.3rem 0.8rem;
-    border-radius: 0 6px 6px 0;
-    margin-bottom: 0.4rem;
-    letter-spacing: 0.01em;
+  .cli-cheatsheet-dots { display: flex; gap: 7px; }
+  .cli-cheatsheet-dots span {
+    width: 12px; height: 12px; border-radius: 50%;
   }
-  .cli-item:hover .cmd {
-    background: rgba(249,115,22,0.14);
-    border-left-color: var(--accent2);
+  .cli-cheatsheet-dots span:nth-child(1) { background: #ef4444; }
+  .cli-cheatsheet-dots span:nth-child(2) { background: #f59e0b; }
+  .cli-cheatsheet-dots span:nth-child(3) { background: #22c55e; }
+  .cli-cheatsheet-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
   }
-  .cli-item .desc { color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; margin-top: 0.3rem; }
+
+  .cli-tiers {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .cli-tiers:last-child { border-bottom: none; }
+  .cli-tier-label {
+    padding: 1.4rem 1.5rem;
+    border-right: 1px solid var(--border);
+    background: rgba(255,255,255,0.01);
+    display: flex; flex-direction: column; gap: 0.3rem;
+  }
+  .cli-tier-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .cli-tier-name .count {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 0.4rem;
+  }
+  .cli-tier-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .cli-commands {
+    padding: 0.6rem 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cli-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.8fr) 2fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 1.5rem;
+    transition: background-color 0.15s;
+  }
+  .cli-row:hover { background-color: rgba(249,115,22,0.05); }
+  .cli-row:hover .cli-cmd-name { color: var(--accent2); }
+  .cli-cmd-name {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.92rem;
+    transition: color 0.15s;
+  }
+  .cli-cmd-syntax {
+    color: var(--dim);
+    font-size: 0.82rem;
+    line-height: 1.5;
+  }
+  .cli-cmd-syntax .flag { color: var(--accent2); }
+  .cli-cmd-syntax .arg  { color: #94a3b8; }
+  .cli-cmd-syntax .opt  { color: var(--muted); }
+
+  /* CLI search box */
+  .cli-search {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 1rem 0.65rem 2.2rem;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(0.85rem + 6px) 50%, calc(0.85rem + 1px) 50%;
+    background-size: 6px 6px, 6px 6px;
+    background-repeat: no-repeat;
+  }
+  .cli-search::placeholder { color: var(--muted); }
+  .cli-search:focus {
+    border-color: rgba(249,115,22,0.4);
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.08);
+  }
+  .cli-row.hidden { display: none; }
+  .cli-tiers-empty {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.9rem;
+    display: none;
+  }
+  .cli-tiers-empty.show { display: block; }
 
   /* ══════════════════════════════════════════════════════════════
      INSTALL STEPPER TIMELINE
@@ -962,9 +1091,10 @@
     .vs-grid { grid-template-columns: 1fr; }
     .pipeline { flex-direction: column; padding: 1rem 0; }
     .pipeline-track { left: 50%; top: 0; bottom: 0; width: 2px; height: auto; }
-    .pipeline .stage { max-width: 100%; }
+    .pipeline .stage { width: 100%; max-width: 100%; height: auto; min-height: 220px; }
     .pipeline .connector { transform: rotate(90deg); min-width: 24px; }
-    .cli-grid { grid-template-columns: 1fr; }
+    .cli-tiers { grid-template-columns: 1fr; }
+    .cli-tier-label { border-right: none; border-bottom: 1px solid var(--border); }
     .hero { padding: 8rem 1.5rem 4rem; }
     .hero-mascot { width: 90px; height: 90px; }
     .hero .lang-strip span { font-size: 0.85rem; padding: 0.35rem 0.9rem; }
@@ -1702,58 +1832,207 @@
   <div class="runtime-grid reveal">
 
     <div class="runtime-card cyan">
-      <div class="runtime-card-header">
+      <div class="runtime-card-top">
         <div class="runtime-card-icon cyan">⚡</div>
-        <div class="runtime-card-title">Client Core</div>
+        <div class="runtime-card-heading">
+          <div class="runtime-card-title">Client Core</div>
+          <div class="runtime-card-sub">Foundation</div>
+        </div>
+        <div class="runtime-card-stat cyan">5</div>
       </div>
-      <ul>
-        <li>Typed models + operations</li>
-        <li>Auth providers (Bearer, API key, custom)</li>
-        <li>Pagination helpers (cursor &amp; offset)</li>
-        <li>oneOf type guards (isX / narrowX)</li>
-        <li>HTTP client dependency injection</li>
-      </ul>
+      <div class="runtime-card-list">
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Typed models &amp; operations</span>
+            <span class="runtime-card-item-tag">strict</span>
+          </div>
+          <div class="runtime-card-item-desc">Full request/response types with proper optionality — errors caught at compile time, not in production.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Auth providers</span>
+            <span class="runtime-card-item-tag">3 schemes</span>
+          </div>
+          <div class="runtime-card-item-desc">Bearer (static + dynamic), API key (header/query), custom providers — swap credentials without touching client code.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Pagination helpers</span>
+            <span class="runtime-card-item-tag">cursor · offset</span>
+          </div>
+          <div class="runtime-card-item-desc">Walk every page in one call. No manual cursor juggling or off-by-one errors.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">oneOf type guards</span>
+            <span class="runtime-card-item-tag">narrowX</span>
+          </div>
+          <div class="runtime-card-item-desc">Generated <code>isX()</code> / <code>narrowX()</code> helpers to safely narrow union types at runtime.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">HTTP client DI</span>
+            <span class="runtime-card-item-tag">mockable</span>
+          </div>
+          <div class="runtime-card-item-desc">Inject your own <code>fetch</code>, <code>http.Client</code>, or <code>reqwest::Client</code> for testing.</div>
+        </div>
+      </div>
     </div>
 
     <div class="runtime-card green">
-      <div class="runtime-card-header">
+      <div class="runtime-card-top">
         <div class="runtime-card-icon green">🛡</div>
-        <div class="runtime-card-title">Resilience</div>
+        <div class="runtime-card-heading">
+          <div class="runtime-card-title">Resilience</div>
+          <div class="runtime-card-sub">Survives failure</div>
+        </div>
+        <div class="runtime-card-stat green">5</div>
       </div>
-      <ul>
-        <li>Retry — full-jitter exponential backoff</li>
-        <li>Per-attempt timeouts</li>
-        <li>Idempotency keys on unsafe methods</li>
-        <li>Rate limiting (token bucket + sliding window)</li>
-        <li>Response caching with ETag support</li>
-      </ul>
+      <div class="runtime-card-list">
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Retry w/ jitter</span>
+            <span class="runtime-card-item-tag">full-jitter</span>
+          </div>
+          <div class="runtime-card-item-desc">Full-jitter exponential backoff. Configurable max retries and retriable status codes (408, 429, 502–504).</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Per-attempt timeouts</span>
+            <span class="runtime-card-item-tag">configurable</span>
+          </div>
+          <div class="runtime-card-item-desc">Set a deadline for each retry attempt — prevents hung requests from blocking your app.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Idempotency keys</span>
+            <span class="runtime-card-item-tag">unsafe only</span>
+          </div>
+          <div class="runtime-card-item-desc">Auto-generated <code>Idempotency-Key</code> on POST/PUT/PATCH/DELETE — one key per retry loop, safe to replay.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Rate limiting</span>
+            <span class="runtime-card-item-tag">2 algos</span>
+          </div>
+          <div class="runtime-card-item-desc">Token bucket and sliding window rate limiters, configurable per-client or per-call.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Response caching</span>
+            <span class="runtime-card-item-tag">ETag</span>
+          </div>
+          <div class="runtime-card-item-desc">ETag-based caching with TTL expiry and 304 handling — avoid re-fetching unchanged data.</div>
+        </div>
+      </div>
     </div>
 
     <div class="runtime-card gold">
-      <div class="runtime-card-header">
+      <div class="runtime-card-top">
         <div class="runtime-card-icon gold">⚙</div>
-        <div class="runtime-card-title">Concurrency &amp; Middleware</div>
+        <div class="runtime-card-heading">
+          <div class="runtime-card-title">Concurrency &amp; Middleware</div>
+          <div class="runtime-card-sub">Control flow</div>
+        </div>
+        <div class="runtime-card-stat gold">5</div>
       </div>
-      <ul>
-        <li>Concurrency semaphore (maxConcurrent)</li>
-        <li>In-flight request deduplication</li>
-        <li>Composable middleware chain</li>
-        <li>Request/Response interceptors</li>
-        <li>Structured logging middleware</li>
-      </ul>
+      <div class="runtime-card-list">
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Concurrency semaphore</span>
+            <span class="runtime-card-item-tag">maxConcurrent</span>
+          </div>
+          <div class="runtime-card-item-desc">Async semaphore limits in-flight requests — prevents overwhelming the API or hitting rate limits.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">In-flight dedupe</span>
+            <span class="runtime-card-item-tag">single-flight</span>
+          </div>
+          <div class="runtime-card-item-desc">Coalesces identical GET/HEAD/OPTIONS — N callers share 1 upstream call and N fresh bodies.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Middleware chain</span>
+            <span class="runtime-card-item-tag">composable</span>
+          </div>
+          <div class="runtime-card-item-desc">Add logging, tracing, header injection without modifying the generated client.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Interceptors</span>
+            <span class="runtime-card-item-tag">req/res</span>
+          </div>
+          <div class="runtime-card-item-desc">Request/response body transformers — post-process data without writing middleware.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Structured logging</span>
+            <span class="runtime-card-item-tag">pluggable</span>
+          </div>
+          <div class="runtime-card-item-desc">Pluggable <code>Logger</code> interface with <code>ConsoleLogger</code> and <code>NoopLogger</code> defaults.</div>
+        </div>
+      </div>
     </div>
 
     <div class="runtime-card purple">
-      <div class="runtime-card-header">
+      <div class="runtime-card-top">
         <div class="runtime-card-icon purple">📊</div>
-        <div class="runtime-card-title">Streaming &amp; Observability</div>
+        <div class="runtime-card-heading">
+          <div class="runtime-card-title">Streaming &amp; Observability</div>
+          <div class="runtime-card-sub">Visibility</div>
+        </div>
+        <div class="runtime-card-stat purple">4</div>
       </div>
-      <ul>
-        <li>SSE streaming with error handling</li>
-        <li>Runtime request/response validation</li>
-        <li>Telemetry &amp; metrics collection</li>
-        <li>i18n (internationalization) support</li>
-      </ul>
+      <div class="runtime-card-list">
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">SSE streaming</span>
+            <span class="runtime-card-item-tag">typed events</span>
+          </div>
+          <div class="runtime-card-item-desc">Server-Sent Events with proper error handling. Stream events as async iterators across all 3 languages.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Runtime validation</span>
+            <span class="runtime-card-item-tag">opt-in</span>
+          </div>
+          <div class="runtime-card-item-desc">Validate request/response bodies against the spec. Catch contract violations in dev, not production.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">Telemetry hooks</span>
+            <span class="runtime-card-item-tag">metrics</span>
+          </div>
+          <div class="runtime-card-item-desc">Request metrics, error tracking, cache hit/miss ratios — pipe to Prometheus, OTel, or your backend.</div>
+        </div>
+        <div class="runtime-card-item">
+          <div class="runtime-card-item-head">
+            <span class="runtime-card-item-bullet"></span>
+            <span class="runtime-card-item-name">i18n errors</span>
+            <span class="runtime-card-item-tag">8 locales</span>
+          </div>
+          <div class="runtime-card-item-desc">Localized error messages (en, es, fr, de, ja, zh, pt, it) via <code>--locale</code> flag at generate time.</div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1907,49 +2186,96 @@
      ══════════════════════════════════════════════════════════════ -->
 <section id="cli">
   <h2 class="reveal">CLI Commands</h2>
-  <p class="section-desc reveal">One binary, dozens of commands. Cross-compiled for Linux, macOS, and Windows.</p>
+  <p class="section-desc reveal">One binary, 27 commands. Cross-compiled for Linux, macOS, and Windows. Use <code>specforge &lt;cmd&gt; --help</code> for full flags.</p>
 
-  <h3 class="cli-tier">Core — you'll use these daily</h3>
-  <div class="cli-grid reveal">
-    <div class="cli-item"><div class="cmd">specforge generate</div><div class="desc">Generate an SDK from an OpenAPI spec (TS, Go, or Rust)</div></div>
-    <div class="cli-item"><div class="cmd">specforge check</div><div class="desc">Lint and validate a spec with configurable rules</div></div>
-    <div class="cli-item"><div class="cmd">specforge diff</div><div class="desc">Compare two specs and report breaking changes (exit code 1)</div></div>
-    <div class="cli-item"><div class="cmd">specforge emit</div><div class="desc">Dump the resolved IR as JSON for external tools and plugins</div></div>
-    <div class="cli-item"><div class="cmd">specforge profile</div><div class="desc">Profile generation performance per pipeline stage</div></div>
-  </div>
+  <div class="cli-cheatsheet reveal">
+    <div class="cli-cheatsheet-header">
+      <div class="cli-cheatsheet-title">
+        <div class="cli-cheatsheet-dots"><span></span><span></span><span></span></div>
+        <span>specforge — v1.6.1</span>
+      </div>
+      <div class="cli-cheatsheet-meta">~/projects/api-sdk</div>
+    </div>
 
-  <h3 class="cli-tier">Validation, security &amp; CI</h3>
-  <div class="cli-grid reveal">
-    <div class="cli-item"><div class="cmd">specforge security</div><div class="desc">Analyze security schemes and vulnerabilities</div></div>
-    <div class="cli-item"><div class="cmd">specforge analyze</div><div class="desc">Deep analysis of spec structure and usage</div></div>
-    <div class="cli-item"><div class="cmd">specforge graph</div><div class="desc">Generate dependency graphs (Mermaid/DOT)</div></div>
-    <div class="cli-item"><div class="cmd">specforge migrate</div><div class="desc">Generate migration guides between API versions</div></div>
-    <div class="cli-item"><div class="cmd">specforge verify</div><div class="desc">Validate a running API against the spec</div></div>
-  </div>
+    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);">
+      <input type="text" class="cli-search" id="cli-search" placeholder="Filter commands… (try: generate, diff, mock)" autocomplete="off" spellcheck="false">
+    </div>
 
-  <h3 class="cli-tier">Docs, mock &amp; test</h3>
-  <div class="cli-grid reveal">
-    <div class="cli-item"><div class="cmd">specforge docs</div><div class="desc">Generate a static HTML API documentation site</div></div>
-    <div class="cli-item"><div class="cmd">specforge test</div><div class="desc">Generate mock server tests from spec example responses</div></div>
-    <div class="cli-item"><div class="cmd">specforge mock</div><div class="desc">Start a local mock server from spec examples</div></div>
-    <div class="cli-item"><div class="cmd">specforge demo</div><div class="desc">Generate a realistic demo Petstore spec</div></div>
-  </div>
+    <div class="cli-tiers" data-tier="core">
+      <div class="cli-tier-label">
+        <div class="cli-tier-name">Core<span class="count">5</span></div>
+        <div class="cli-tier-hint">You'll use these every day</div>
+      </div>
+      <div class="cli-commands">
+        <div class="cli-row" data-name="generate"><span class="cli-cmd-name">generate</span><span class="cli-cmd-syntax">specforge generate <span class="arg">&lt;spec&gt;</span> <span class="opt">-o</span> <span class="arg">&lt;dir&gt;</span> <span class="opt">-l</span> ts|go|rust <span class="opt">-n</span> <span class="arg">&lt;name&gt;</span></span></div>
+        <div class="cli-row" data-name="check"><span class="cli-cmd-name">check</span><span class="cli-cmd-syntax">specforge check <span class="arg">&lt;spec&gt;</span> <span class="flag">--strict</span> <span class="flag">--disable</span> <span class="arg">&lt;rule&gt;</span></span></div>
+        <div class="cli-row" data-name="diff"><span class="cli-cmd-name">diff</span><span class="cli-cmd-syntax">specforge diff <span class="arg">&lt;old.yaml&gt;</span> <span class="arg">&lt;new.yaml&gt;</span> <span class="flag">--breaking-only</span></span></div>
+        <div class="cli-row" data-name="emit"><span class="cli-cmd-name">emit</span><span class="cli-cmd-syntax">specforge emit <span class="arg">&lt;spec&gt;</span> <span class="flag">--stream</span> | <span class="flag">--schema</span></span></div>
+        <div class="cli-row" data-name="profile"><span class="cli-cmd-name">profile</span><span class="cli-cmd-syntax">specforge generate <span class="arg">&lt;spec&gt;</span> <span class="flag">--profile</span></span></div>
+      </div>
+    </div>
 
-  <h3 class="cli-tier">Workspace &amp; spec plumbing</h3>
-  <div class="cli-grid reveal">
-    <div class="cli-item"><div class="cmd">specforge init</div><div class="desc">Scaffold a new minimal OpenAPI spec with a /health endpoint</div></div>
-    <div class="cli-item"><div class="cmd">specforge convert</div><div class="desc">Convert between OpenAPI 3.0 and 3.1 formats</div></div>
-    <div class="cli-item"><div class="cmd">specforge merge</div><div class="desc">Merge multiple OpenAPI spec files into one</div></div>
-    <div class="cli-item"><div class="cmd">specforge versions</div><div class="desc">List API versions in a spec directory</div></div>
-    <div class="cli-item"><div class="cmd">specforge workspace</div><div class="desc">Generate SDKs for all specs in a workspace config</div></div>
-    <div class="cli-item"><div class="cmd">specforge workspace-init</div><div class="desc">Generate a workspace config from a directory of specs</div></div>
-    <div class="cli-item"><div class="cmd">specforge export</div><div class="desc">Export Swagger Editor-compatible spec (inline $ref)</div></div>
-    <div class="cli-item"><div class="cmd">specforge evolution</div><div class="desc">Track schema changes over git commits</div></div>
-    <div class="cli-item"><div class="cmd">specforge dashboard</div><div class="desc">HTML metrics visualization with Chart.js</div></div>
-    <div class="cli-item"><div class="cmd">specforge infer</div><div class="desc">Generate an OpenAPI spec from sample JSON</div></div>
-    <div class="cli-item"><div class="cmd">specforge plugin</div><div class="desc">Manage WASM emitter plugins</div></div>
-    <div class="cli-item"><div class="cmd">specforge market</div><div class="desc">Browse, search, and manage specs in the marketplace</div></div>
-    <div class="cli-item"><div class="cmd">specforge changelog</div><div class="desc">Auto-generate CHANGELOG from spec changes</div></div>
+    <div class="cli-tiers" data-tier="validation">
+      <div class="cli-tier-label">
+        <div class="cli-tier-name">Validation &amp; CI<span class="count">5</span></div>
+        <div class="cli-tier-hint">Lint, security, and CI gates</div>
+      </div>
+      <div class="cli-commands">
+        <div class="cli-row" data-name="security"><span class="cli-cmd-name">security</span><span class="cli-cmd-syntax">specforge security <span class="arg">&lt;spec&gt;</span> <span class="opt">--format</span> text|json|md</span></div>
+        <div class="cli-row" data-name="analyze"><span class="cli-cmd-name">analyze</span><span class="cli-cmd-syntax">specforge analyze <span class="arg">&lt;spec&gt;</span></span></div>
+        <div class="cli-row" data-name="graph"><span class="cli-cmd-name">graph</span><span class="cli-cmd-syntax">specforge graph <span class="arg">&lt;spec&gt;</span> <span class="opt">--format</span> mermaid|dot</span></div>
+        <div class="cli-row" data-name="migrate"><span class="cli-cmd-name">migrate</span><span class="cli-cmd-syntax">specforge migrate <span class="arg">&lt;old.yaml&gt;</span> <span class="arg">&lt;new.yaml&gt;</span> <span class="opt">-o</span> <span class="arg">guide.md</span></span></div>
+        <div class="cli-row" data-name="verify"><span class="cli-cmd-name">verify</span><span class="cli-cmd-syntax">specforge verify <span class="arg">&lt;spec&gt;</span> <span class="opt">--url</span> <span class="arg">&lt;base_url&gt;</span></span></div>
+      </div>
+    </div>
+
+    <div class="cli-tiers" data-tier="docs">
+      <div class="cli-tier-label">
+        <div class="cli-tier-name">Docs, Mock &amp; Test<span class="count">4</span></div>
+        <div class="cli-tier-hint">Ship testable docs and mocks</div>
+      </div>
+      <div class="cli-commands">
+        <div class="cli-row" data-name="docs"><span class="cli-cmd-name">docs</span><span class="cli-cmd-syntax">specforge docs <span class="arg">&lt;spec&gt;</span> <span class="opt">-o</span> <span class="arg">./docs</span></span></div>
+        <div class="cli-row" data-name="test"><span class="cli-cmd-name">test</span><span class="cli-cmd-syntax">specforge test <span class="arg">&lt;spec&gt;</span> <span class="opt">-l</span> ts|go|rust <span class="opt">-o</span> <span class="arg">./tests</span></span></div>
+        <div class="cli-row" data-name="mock"><span class="cli-cmd-name">mock</span><span class="cli-cmd-syntax">specforge mock <span class="arg">&lt;spec&gt;</span> <span class="opt">--port</span> <span class="arg">3000</span></span></div>
+        <div class="cli-row" data-name="demo"><span class="cli-cmd-name">demo</span><span class="cli-cmd-syntax">specforge demo <span class="opt">-o</span> <span class="arg">./demo.yaml</span></span></div>
+      </div>
+    </div>
+
+    <div class="cli-tiers" data-tier="workspace">
+      <div class="cli-tier-label">
+        <div class="cli-tier-name">Workspace<span class="count">6</span></div>
+        <div class="cli-tier-hint">Multi-spec and version handling</div>
+      </div>
+      <div class="cli-commands">
+        <div class="cli-row" data-name="init"><span class="cli-cmd-name">init</span><span class="cli-cmd-syntax">specforge init <span class="arg">&lt;dir&gt;</span></span></div>
+        <div class="cli-row" data-name="convert"><span class="cli-cmd-name">convert</span><span class="cli-cmd-syntax">specforge convert <span class="arg">&lt;spec&gt;</span> <span class="opt">--to</span> 3.0|3.1</span></div>
+        <div class="cli-row" data-name="merge"><span class="cli-cmd-name">merge</span><span class="cli-cmd-syntax">specforge merge <span class="arg">&lt;a.yaml&gt;</span> <span class="arg">&lt;b.yaml&gt;</span> <span class="opt">-o</span> <span class="arg">merged.yaml</span></span></div>
+        <div class="cli-row" data-name="version"><span class="cli-cmd-name">version</span><span class="cli-cmd-syntax">specforge version <span class="arg">&lt;spec&gt;</span> <span class="opt">--mode</span> url|header|query</span></div>
+        <div class="cli-row" data-name="versions"><span class="cli-cmd-name">versions</span><span class="cli-cmd-syntax">specforge versions <span class="arg">&lt;dir&gt;</span></span></div>
+        <div class="cli-row" data-name="workspace"><span class="cli-cmd-name">workspace</span><span class="cli-cmd-syntax">specforge workspace <span class="arg">.specforge.yaml</span></span></div>
+      </div>
+    </div>
+
+    <div class="cli-tiers" data-tier="ecosystem">
+      <div class="cli-tier-label">
+        <div class="cli-tier-name">Ecosystem<span class="count">7</span></div>
+        <div class="cli-tier-hint">Plugins, marketplace, and history</div>
+      </div>
+      <div class="cli-commands">
+        <div class="cli-row" data-name="plugin"><span class="cli-cmd-name">plugin</span><span class="cli-cmd-syntax">specforge plugin <span class="arg">install|list|remove</span> <span class="arg">&lt;name&gt;</span></span></div>
+        <div class="cli-row" data-name="market"><span class="cli-cmd-name">market</span><span class="cli-cmd-syntax">specforge market <span class="arg">list|search|info|add</span></span></div>
+        <div class="cli-row" data-name="export"><span class="cli-cmd-name">export</span><span class="cli-cmd-syntax">specforge export <span class="arg">&lt;spec&gt;</span> <span class="opt">-o</span> <span class="arg">swagger.json</span></span></div>
+        <div class="cli-row" data-name="evolution"><span class="cli-cmd-name">evolution</span><span class="cli-cmd-syntax">specforge evolution <span class="arg">&lt;dir&gt;</span> <span class="opt">--since</span> <span class="arg">main</span></span></div>
+        <div class="cli-row" data-name="dashboard"><span class="cli-cmd-name">dashboard</span><span class="cli-cmd-syntax">specforge dashboard <span class="arg">&lt;spec&gt;</span> <span class="opt">-o</span> <span class="arg">./dash</span></span></div>
+        <div class="cli-row" data-name="infer"><span class="cli-cmd-name">infer</span><span class="cli-cmd-syntax">specforge infer <span class="arg">&lt;sample.json&gt;</span> <span class="opt">-o</span> <span class="arg">openapi.yaml</span></span></div>
+        <div class="cli-row" data-name="changelog"><span class="cli-cmd-name">changelog</span><span class="cli-cmd-syntax">specforge changelog <span class="arg">&lt;spec&gt;</span> <span class="opt">--since</span> <span class="arg">v1.0.0</span></span></div>
+      </div>
+    </div>
+
+    <div class="cli-tiers-empty" id="cli-empty">
+      <span style="font-family: 'JetBrains Mono', monospace; color: var(--muted);">⎯ no commands match</span>
+    </div>
   </div>
 </section>
 
@@ -2532,6 +2858,34 @@ function copyCode(btn) {
       btn.style.color = '';
       btn.style.borderColor = '';
     }, 2000);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CLI SEARCH FILTER
+   ══════════════════════════════════════════════════════════════ */
+const cliSearch = document.getElementById('cli-search');
+if (cliSearch) {
+  cliSearch.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    const tiers = document.querySelectorAll('.cli-tiers');
+    const empty = document.getElementById('cli-empty');
+    let anyMatch = false;
+
+    tiers.forEach(tier => {
+      const rows = tier.querySelectorAll('.cli-row');
+      let tierHasMatch = false;
+      rows.forEach(row => {
+        const name = row.dataset.name.toLowerCase();
+        const syntax = row.querySelector('.cli-cmd-syntax').textContent.toLowerCase();
+        const match = !q || name.includes(q) || syntax.includes(q);
+        row.classList.toggle('hidden', !match);
+        if (match) { tierHasMatch = true; anyMatch = true; }
+      });
+      tier.style.display = tierHasMatch ? 'grid' : 'none';
+    });
+
+    if (empty) empty.classList.toggle('show', !anyMatch);
   });
 }
 
