@@ -958,84 +958,144 @@
   .cli-tiers-empty.show { display: block; }
 
   /* ══════════════════════════════════════════════════════════════
-     INSTALL STEPPER TIMELINE
+     INSTALL — platform picker + terminal
      ══════════════════════════════════════════════════════════════ */
-  .install-stepper {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding-left: 3.5rem;
+  .install-shell {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
   }
-  .install-stepper::before {
+
+  /* Platform tab bar */
+  .install-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .install-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 1rem 1rem 1rem 1.2rem;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    border-right: 1px solid var(--border);
+    transition: background-color 0.2s, color 0.2s;
+    display: flex; flex-direction: column; gap: 0.15rem;
+    position: relative;
+  }
+  .install-tab:last-child { border-right: none; }
+  .install-tab:hover {
+    background: rgba(249,115,22,0.04);
+    color: var(--text);
+  }
+  .install-tab.active {
+    background: var(--bg);
+    color: var(--text);
+  }
+  .install-tab.active::after {
     content: '';
     position: absolute;
-    left: 1.25rem;
-    top: 1.25rem;
-    bottom: 1.25rem;
-    width: 2px;
-    background: linear-gradient(to bottom, var(--accent), var(--accent2), var(--green));
-    border-radius: 1px;
-    opacity: 0.4;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
   }
-  .install-step {
-    position: relative;
-    padding: 1.8rem 0;
+  .install-tab-icon { font-size: 1.05rem; }
+  .install-tab-label {
+    font-size: 0.92rem;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 0.4rem;
   }
-  .install-step + .install-step {
-    border-top: 1px solid rgba(249,115,22,0.06);
+  .install-tab-meta {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
   }
-  .install-step-marker {
-    position: absolute;
-    left: -3.5rem;
-    top: 1.8rem;
-    width: 2.5rem;
-    height: 2.5rem;
+
+  /* Terminal */
+  .install-terminal { background: var(--bg); }
+  .install-terminal-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .install-terminal-cwd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    flex: 1;
+    text-align: center;
+  }
+  .install-copy {
+    background: rgba(249,115,22,0.08);
+    border: 1px solid rgba(249,115,22,0.18);
+    color: var(--dim);
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.2s;
+  }
+  .install-copy:hover {
+    background: rgba(249,115,22,0.16);
+    color: var(--accent);
+    border-color: rgba(249,115,22,0.35);
+  }
+  .install-panes {
+    padding: 1.2rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 240px;
+  }
+  .install-pane {
+    display: none;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: var(--green);
+  }
+  .install-pane.active { display: block; }
+  .install-pane pre {
+    margin: 0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .install-pane .cm { color: #475569; font-style: italic; }
+  .install-pane .kw { color: var(--accent); font-weight: 600; }
+
+  /* Verification strip */
+  .install-verify {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: rgba(34,197,94,0.04);
+  }
+  .install-verify-icon {
+    width: 32px; height: 32px;
     border-radius: 50%;
-    background: var(--bg2);
-    border: 2px solid var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: rgba(34,197,94,0.15);
+    color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+  .install-verify-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: var(--accent);
-    font-family: 'JetBrains Mono', monospace;
-    z-index: 1;
-    box-shadow: 0 0 12px rgba(249,115,22,0.15);
-  }
-  .install-step-header h3 {
-    font-size: 1.15rem;
-    font-weight: 700;
     color: var(--text);
-    margin-bottom: 0.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
+    margin-bottom: 0.15rem;
   }
-  .install-step-label {
-    font-size: 0.82rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 600;
-    margin-bottom: 1rem;
-  }
-  .install-code {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.2rem 1.4rem;
-    font-size: 0.88rem;
-    color: var(--green);
+  .install-verify-code {
     font-family: 'JetBrains Mono', monospace;
-    overflow-x: auto;
-    position: relative;
-    line-height: 1.7;
-    width: 100%;
-    box-sizing: border-box;
+    font-size: 0.82rem;
+    color: var(--dim);
   }
-  .install-code code {
+  .install-verify-code .kw { color: var(--accent); }
+  .install-verify-code .cm { color: var(--muted); font-style: italic; }
     color: inherit;
     white-space: pre;
     display: block;
@@ -1084,8 +1144,9 @@
     section { padding: 4rem 1.2rem; }
     .features-grid { grid-template-columns: 1fr; }
     .runtime-grid { grid-template-columns: 1fr; }
-    .install-stepper { padding-left: 2.8rem; }
-    .install-step-marker { left: -2.8rem; width: 2rem; height: 2rem; font-size: 0.75rem; }
+    .install-tabs { flex-wrap: wrap; }
+    .install-tab { flex: 1 1 50%; border-bottom: 1px solid var(--border); }
+    .install-tab:nth-child(odd) { border-right: 1px solid var(--border); }
     .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
     .pricing-grid { grid-template-columns: 1fr; }
     .vs-grid { grid-template-columns: 1fr; }
@@ -2286,74 +2347,131 @@
      ══════════════════════════════════════════════════════════════ -->
 <section id="install">
   <h2 class="reveal">Installation</h2>
-  <p class="section-desc reveal">Get specforge running on your machine in under a minute.</p>
-  <div class="install-stepper reveal">
+  <p class="section-desc reveal">Pick your platform. Run one command. You'll have specforge generating SDKs in under a minute.</p>
 
-    <div class="install-step">
-      <div class="install-step-marker">1</div>
-      <div class="install-step-header">
-        <h3>💻 Prebuilt Binary</h3>
-        <div class="install-step-label">Fastest path — 60 seconds to first SDK</div>
+  <div class="install-shell reveal">
+
+    <!-- Platform tab bar -->
+    <div class="install-tabs" role="tablist">
+      <button class="install-tab active" data-target="linux" role="tab" aria-selected="true">
+        <span class="install-tab-icon">🐧</span>
+        <span class="install-tab-label">Linux</span>
+        <span class="install-tab-meta">amd64 · arm64</span>
+      </button>
+      <button class="install-tab" data-target="macos" role="tab" aria-selected="false">
+        <span class="install-tab-icon">🍎</span>
+        <span class="install-tab-label">macOS</span>
+        <span class="install-tab-meta">Intel · Apple Silicon</span>
+      </button>
+      <button class="install-tab" data-target="windows" role="tab" aria-selected="false">
+        <span class="install-tab-icon">🪟</span>
+        <span class="install-tab-label">Windows</span>
+        <span class="install-tab-meta">x64 · arm64</span>
+      </button>
+      <button class="install-tab" data-target="cargo" role="tab" aria-selected="false">
+        <span class="install-tab-icon">📦</span>
+        <span class="install-tab-label">Cargo</span>
+        <span class="install-tab-meta">from source</span>
+      </button>
+      <button class="install-tab" data-target="ci" role="tab" aria-selected="false">
+        <span class="install-tab-icon">⚡</span>
+        <span class="install-tab-label">CI</span>
+        <span class="install-tab-meta">GitHub Action</span>
+      </button>
+    </div>
+
+    <!-- Terminal body with all platforms -->
+    <div class="install-terminal">
+      <div class="install-terminal-bar">
+        <div class="cli-cheatsheet-dots"><span></span><span></span><span></span></div>
+        <span class="install-terminal-cwd" id="install-cwd">~/projects</span>
+        <button class="install-copy" id="install-copy">Copy</button>
       </div>
-      <div class="install-code">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code><span class="cm"># Linux (x86_64) — also available for macOS &amp; Windows on Releases</span>
-curl -sSL https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-linux-amd64 -o specforge
-chmod +x specforge
-sudo mv specforge /usr/local/bin/
 
-<span class="cm"># Then generate your first SDK:</span>
-specforge generate petstore.yaml -o ./sdk-ts -l ts -n @acme/petstore-sdk</code>
+      <div class="install-panes">
+        <div class="install-pane active" data-pane="linux">
+<pre><span class="cm"># Download the latest Linux release (~7 MB)</span>
+<span class="kw">curl</span> -sSL https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-linux-amd64 -o specforge
+
+<span class="cm"># Make it executable and install</span>
+<span class="kw">chmod</span> +x specforge
+<span class="kw">sudo mv</span> specforge /usr/local/bin/
+
+<span class="cm"># For ARM64 (Raspberry Pi, Graviton, etc.):</span>
+<span class="cm"># download specforge-linux-arm64 instead</span>
+
+<span class="cm"># ✓ specforge is now on your $PATH</span></pre>
+        </div>
+
+        <div class="install-pane" data-pane="macos">
+<pre><span class="cm"># Apple Silicon (M1/M2/M3)</span>
+<span class="kw">curl</span> -sSL https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-darwin-arm64 -o specforge
+<span class="kw">chmod</span> +x specforge
+<span class="kw">sudo mv</span> specforge /usr/local/bin/
+
+<span class="cm"># Intel Macs:</span>
+<span class="cm"># download specforge-darwin-amd64 instead</span>
+
+<span class="cm"># macOS may quarantine the binary — strip it first:</span>
+<span class="kw">xattr</span> -d com.apple.quarantine /usr/local/bin/specforge
+
+<span class="cm"># ✓ specforge is now on your $PATH</span></pre>
+        </div>
+
+        <div class="install-pane" data-pane="windows">
+<pre><span class="cm"># PowerShell — Windows 10/11 (x64)</span>
+<span class="kw">Invoke-WebRequest</span> -Uri "https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest/download/specforge-windows-amd64.exe" -OutFile "specforge.exe"
+
+<span class="cm"># Move it somewhere on your $env:PATH</span>
+<span class="kw">Move-Item</span> specforge.exe C:\Windows\System32\
+
+<span class="cm"># Or use Scoop:</span>
+<span class="kw">scoop install</span> specforge
+
+<span class="cm"># ✓ specforge is now on your PATH</span></pre>
+        </div>
+
+        <div class="install-pane" data-pane="cargo">
+<pre><span class="cm"># Requires Rust 1.75+ — get it at rustup.rs</span>
+<span class="kw">git clone</span> https://github.com/amafjarkasi/specforge-openapi-sdk-codegen.git
+<span class="kw">cd</span> specforge-openapi-sdk-codegen
+
+<span class="cm"># Build and install the CLI (~2 min, cached after)</span>
+<span class="kw">cargo install</span> --path crates/specforge-cli --locked
+
+<span class="cm"># ✓ specforge is now on your $PATH</span></pre>
+        </div>
+
+        <div class="install-pane" data-pane="ci">
+<span class="cm"># .github/workflows/sdk.yml</span>
+<span class="kw">name:</span> Generate SDK
+<span class="kw">on:</span> [push]
+<span class="kw">jobs:</span>
+  <span class="kw">build:</span>
+    <span class="kw">runs-on:</span> ubuntu-latest
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> actions/checkout@v4
+      - <span class="kw">uses:</span> amafjarkasi/specforge-openapi-sdk-codegen@v1
+        <span class="kw">with:</span>
+          <span class="kw">spec:</span> openapi.yaml
+          <span class="kw">lang:</span> ts
+          <span class="kw">out:</span> ./sdk
+      - <span class="kw">uses:</span> actions/upload-artifact@v4
+        <span class="kw">with:</span>
+          <span class="kw">name:</span> sdk
+          <span class="kw">path:</span> ./sdk</pre>
+        </div>
       </div>
     </div>
 
-    <div class="install-step">
-      <div class="install-step-marker">2</div>
-      <div class="install-step-header">
-        <h3>📦 Cargo (from source)</h3>
-        <div class="install-step-label">If you prefer to build from source</div>
-      </div>
-      <div class="install-code">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code><span class="cm"># Clone &amp; build (requires Rust 1.75+)</span>
-git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen.git
-cd specforge-openapi-sdk-codegen
-cargo install --path crates/specforge-cli</code>
+    <!-- Verification strip -->
+    <div class="install-verify">
+      <div class="install-verify-icon">✓</div>
+      <div class="install-verify-body">
+        <div class="install-verify-title">Verify your install</div>
+        <div class="install-verify-code"><span class="kw">specforge --version</span> <span class="cm"># → specforge 1.6.1</span></div>
       </div>
     </div>
-
-    <div class="install-step">
-      <div class="install-step-marker">3</div>
-      <div class="install-step-header">
-        <h3>⚡ GitHub Action</h3>
-        <div class="install-step-label">CI/CD integration</div>
-      </div>
-      <div class="install-code">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code><span class="cm"># .github/workflows/sdk.yml</span>
-- uses: amafjarkasi/specforge-openapi-sdk-codegen@v1
-  with:
-    spec: openapi.yaml
-    lang: ts
-    out: ./sdk</code>
-      </div>
-    </div>
-
-    <div class="install-step">
-      <div class="install-step-marker">4</div>
-      <div class="install-step-header">
-        <h3>✅ Verify Installation</h3>
-        <div class="install-step-label">Check that everything works</div>
-      </div>
-      <div class="install-code">
-        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        <code>specforge --version
-<span class="cm"># specforge 1.6.0</span>
-
-specforge --help</code>
-      </div>
-    </div>
-
   </div>
 </section>
 
@@ -2886,6 +3004,52 @@ if (cliSearch) {
     });
 
     if (empty) empty.classList.toggle('show', !anyMatch);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INSTALL PLATFORM PICKER
+   ══════════════════════════════════════════════════════════════ */
+const installTabs = document.querySelectorAll('.install-tab');
+const installPanes = document.querySelectorAll('.install-pane');
+const installCopy  = document.getElementById('install-copy');
+const installCwd   = document.getElementById('install-cwd');
+const cwdMap = {
+  linux:   '~/projects',
+  macos:   '~/projects',
+  windows: 'C:\\Users\\you',
+  cargo:   '~/projects',
+  ci:      '.github/workflows'
+};
+
+installTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.target;
+    installTabs.forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+    installPanes.forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    tab.setAttribute('aria-selected', 'true');
+    const pane = document.querySelector(`.install-pane[data-pane="${target}"]`);
+    if (pane) pane.classList.add('active');
+    if (installCwd && cwdMap[target]) installCwd.textContent = cwdMap[target];
+  });
+});
+
+if (installCopy) {
+  installCopy.addEventListener('click', () => {
+    const activePane = document.querySelector('.install-pane.active pre');
+    if (!activePane) return;
+    const text = activePane.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      installCopy.textContent = 'Copied!';
+      installCopy.style.color = '#22c55e';
+      installCopy.style.borderColor = '#22c55e';
+      setTimeout(() => {
+        installCopy.textContent = 'Copy';
+        installCopy.style.color = '';
+        installCopy.style.borderColor = '';
+      }, 2000);
+    });
   });
 }
 
