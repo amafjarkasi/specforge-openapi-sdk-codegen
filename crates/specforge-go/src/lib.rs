@@ -3630,25 +3630,25 @@ mod tests {
     }
 }
 
-    // ── edge cases ────────────────────────────────────────────────────
+// ── edge cases ────────────────────────────────────────────────────
 
-    #[test]
-    fn pascal_unicode_passthrough() {
-        // Unicode chars that don't change under lowercasing should pass through.
-        assert_eq!(pascal("cafe"), "Cafe"); // non-ASCII chars are dropped by pascal
-    }
+#[test]
+fn pascal_unicode_passthrough() {
+    // Unicode chars that don't change under lowercasing should pass through.
+    assert_eq!(pascal("cafe"), "Cafe"); // non-ASCII chars are dropped by pascal
+}
 
-    #[test]
-    fn snake_preserves_numbers() {
-        assert_eq!(snake("v2beta1"), "v2beta1");
-        assert_eq!(snake("HTTP2"), "h_t_t_p2");
-    }
+#[test]
+fn snake_preserves_numbers() {
+    assert_eq!(snake("v2beta1"), "v2beta1");
+    assert_eq!(snake("HTTP2"), "h_t_t_p2");
+}
 
-    #[test]
-    fn export_ident_safe_model_name_collision() {
-        // Built-in SDK types get "Model" suffix.
-        assert_eq!(export_ident("middleware"), "MiddlewareModel");
-        assert_eq!(export_ident("auth"), "AuthModel");
-        // Non-colliding names pass through.
-        assert_eq!(export_ident("pet_store"), "PetStore");
-    }
+#[test]
+fn export_ident_safe_model_name_collision() {
+    // Built-in SDK types get "Model" suffix.
+    assert_eq!(export_ident("middleware"), "MiddlewareModel");
+    assert_eq!(export_ident("auth"), "AuthModel");
+    // Non-colliding names pass through.
+    assert_eq!(export_ident("pet_store"), "PetStore");
+}

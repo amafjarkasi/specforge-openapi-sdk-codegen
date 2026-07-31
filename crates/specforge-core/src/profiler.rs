@@ -576,7 +576,10 @@ mod tests {
         let md = format_markdown(&report);
         assert!(md.contains("| /pets | GET |"), "should have table row");
         assert!(md.contains("**Total requests:** 100"), "should have totals");
-        assert!(md.contains("Consider caching"), "should have recommendation");
+        assert!(
+            md.contains("Consider caching"),
+            "should have recommendation"
+        );
     }
 
     #[test]

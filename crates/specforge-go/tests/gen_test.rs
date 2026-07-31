@@ -85,3 +85,29 @@ fn generated_sdk_compiles() {
         "generated Go SDK failed to compile (`go build ./...` exited {status})"
     );
 }
+
+/// Deterministic output: generating the same spec twice must produce
+/// byte-identical files.
+#[test]
+fn output_is_deterministic() {
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec = specforge_core::parse_file(&spec_path).expect("parse");
+    let doc = specforge_core::resolve(&spec).expect("resolve");
+    let opts = |dir: &std::path::Path| specforge_go::GeneratorOptions {
+        out_dir: dir.to_path_buf(),
+        module_path: Some("example.com/test".into()),
+        package_name: None,
+        i18n: None,
+    };
+    let dir_a = tempfile::tempdir().unwrap();
+    let dir_b = tempfile::tempdir().unwrap();
+    let files_a = specforge_go::generate(&doc, &opts(dir_a.path())).expect("emit A");
+    let files_b = specforge_go::generate(&doc, &opts(dir_b.path())).expect("emit B");
+    assert_eq!(files_a.len(), files_b.len());
+    for rel in &files_a {
+        let content_a = std::fs::read(dir_a.path().join(rel)).unwrap();
+        let content_b = std::fs::read(dir_b.path().join(rel)).unwrap();
+        assert_eq!(content_a, content_b, "non-deterministic output in {rel}");
+    }
+}
