@@ -242,4 +242,26 @@ mod tests {
         assert_eq!(string_literal("a\"b"), "\"a\\\"b\"");
         assert_eq!(string_literal("dog"), "\"dog\"");
     }
+
+    #[test]
+    fn safe_model_name_all_builtins_suffixed() {
+        let builtins = [
+            "ApiClient", "ApiClientOptions", "ApiError", "AuthProvider",
+            "AnonymousAuthProvider", "BearerAuthProvider", "ApiKeyAuthProvider",
+            "CacheEntry", "ConfigurationError", "ConsoleLogger", "CursorPage",
+            "EndpointSchema", "HttpError", "Logger", "Metrics", "MetricsCollector",
+            "Middleware", "MiddlewareRequest", "MiddlewareResponse", "NetworkError",
+            "OffsetPage", "RateLimiter", "RequestInterceptor", "RequestDeduper",
+            "RequestOptions", "ResponseCache", "ResponseInterceptor",
+            "ResponseTransformer", "RetryOptions", "RouteSchemaMap",
+            "SchemaType", "Semaphore", "ServerSentEvent", "ServiceContainer",
+            "SlidingWindow", "TelemetryHooks", "TimeoutError", "TokenBucket",
+            "ValidationError", "QueryRecord",
+        ];
+        for name in builtins {
+            let result = safe_model_name(name);
+            assert!(result.ends_with("Model"), "{name} should get Model suffix, got {result}");
+        }
+        assert_eq!(safe_model_name("Pet"), "Pet");
+    }
 }

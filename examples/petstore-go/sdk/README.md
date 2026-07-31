@@ -135,4 +135,56 @@ c := sdk.NewClient().
     WithIdempotency(true)
 ```
 
+## Interceptors
+
+Transform the request body before it is serialized, or the response body after it
+is deserialized, by implementing an interface and registering it on the client:
+
+```go
+// AddTraceId adds a trace_id field to every outgoing request body.
+type AddTraceId struct{}
+func (AddTraceId) Transform(body json.RawMessage) json.RawMessage {
+    var m map[string]any
+    json.Unmarshal(body, &m)
+    m["trace_id"] = "abc-123"
+    out, _ := json.Marshal(m)
+    return out
+}
+
+c := sdk.NewClient().
+    WithBearerToken("…").
+    WithRequestInterceptors(AddTraceId{})
+```
+
+## Validation
+
+Validate request/response bodies against the OpenAPI schema at runtime:
+
+```go
+// Enable whole-client validation.
+c := sdk.NewClient().
+    WithBearerToken("…").
+    WithValidation(true)
+```
+
+Or attach `ValidationMiddleware` to the middleware chain for finer control with
+per-route schemas.
+
+## Telemetry & dependency injection
+
+Observe the request lifecycle with `TelemetryHooks`, or group injectable
+dependencies into a `ServiceContainer`:
+
+```go
+metrics := sdk.NewMetricsCollector()
+sc := sdk.NewServiceContainer().
+    WithTelemetry(metrics)
+
+c := sdk.NewClient().
+    WithBearerToken("…").
+    WithServiceContainer(sc)
+
+// After requests: metrics.RequestCount, metrics.ErrorCount, etc.
+```
+
 _Do not edit generated files directly._
