@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn infer_float() {
-        let s = infer_schema(&json!(3.14), "x");
+        let s = infer_schema(&json!(2.5), "x");
         assert_eq!(s["type"], "number");
     }
 

@@ -6,12 +6,12 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use specforge_core::{parse_file, resolve};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 fn fixtures_dir() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures")
-        .leak()
+    static DIR: OnceLock<PathBuf> = OnceLock::new();
+    DIR.get_or_init(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures"))
 }
 
 fn bench_parse_resolve(c: &mut Criterion) {
@@ -86,6 +86,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_ts::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 package_name: Some("@bench/petstore".into()),
+                i18n: None,
             };
             let written = specforge_ts::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -102,6 +103,7 @@ fn bench_full_generate(c: &mut Criterion) {
                 out_dir: out.path().to_path_buf(),
                 module_path: Some("github.com/bench/petstore-go".into()),
                 package_name: None,
+                i18n: None,
             };
             let written = specforge_go::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -117,6 +119,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_rust::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 crate_name: Some("bench_petstore_sdk".into()),
+                i18n: None,
             };
             let written = specforge_rust::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -134,6 +137,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_ts::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 package_name: Some("@bench/github".into()),
+                i18n: None,
             };
             let written = specforge_ts::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -150,6 +154,7 @@ fn bench_full_generate(c: &mut Criterion) {
                 out_dir: out.path().to_path_buf(),
                 module_path: Some("github.com/bench/github-go".into()),
                 package_name: None,
+                i18n: None,
             };
             let written = specforge_go::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -165,6 +170,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_rust::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 crate_name: Some("bench_github_sdk".into()),
+                i18n: None,
             };
             let written = specforge_rust::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -182,6 +188,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_ts::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 package_name: Some("@bench/stripe".into()),
+                i18n: None,
             };
             let written = specforge_ts::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -198,6 +205,7 @@ fn bench_full_generate(c: &mut Criterion) {
                 out_dir: out.path().to_path_buf(),
                 module_path: Some("github.com/bench/stripe-go".into()),
                 package_name: None,
+                i18n: None,
             };
             let written = specforge_go::generate(&doc, &opts).unwrap();
             black_box(written);
@@ -213,6 +221,7 @@ fn bench_full_generate(c: &mut Criterion) {
             let opts = specforge_rust::GeneratorOptions {
                 out_dir: out.path().to_path_buf(),
                 crate_name: Some("bench_stripe_sdk".into()),
+                i18n: None,
             };
             let written = specforge_rust::generate(&doc, &opts).unwrap();
             black_box(written);

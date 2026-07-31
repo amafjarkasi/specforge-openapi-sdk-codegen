@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn valid_float() {
-        let errors = validate(&json!(3.14), &float_type(), &SchemaRegistry::default());
+        let errors = validate(&json!(2.5), &float_type(), &SchemaRegistry::default());
         assert!(errors.is_empty());
     }
 
