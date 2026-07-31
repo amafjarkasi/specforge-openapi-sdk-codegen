@@ -3615,7 +3615,7 @@ mod tests {
     fn field_name_avoids_reserved_keywords() {
         assert_eq!(field_name("name"), "Name"); // pascal-cased, not reserved
         assert_eq!(field_name("type"), "TypeField"); // reserved → "Field" suffix
-        assert_eq!(field_name("for"), "ForField");   // reserved → "Field" suffix
+        assert_eq!(field_name("for"), "ForField"); // reserved → "Field" suffix
     }
 
     // ── is_go_reserved ─────────────────────────────────────────────────
