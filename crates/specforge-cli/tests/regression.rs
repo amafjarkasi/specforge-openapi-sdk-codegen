@@ -278,6 +278,16 @@ fn stripe_generates_and_compiles_rust() {
     generate_and_compile_rust(&FIXTURES[2], "stripe_sdk");
 }
 
+#[test]
+fn github_generates_and_typechecks_ts() {
+    generate_and_compile_ts(&FIXTURES[1], "@test/github-ts-sdk");
+}
+
+#[test]
+fn stripe_generates_and_typechecks_ts() {
+    generate_and_compile_ts(&FIXTURES[2], "@test/stripe-ts-sdk");
+}
+
 fn generate_and_compile_go(f: &Fixture, module: &str) {
     let path = match spec_path(f) {
         Ok(p) => p,
@@ -373,6 +383,55 @@ fn generate_and_compile_rust(f: &Fixture, crate_name: &str) {
     }
 }
 
+fn generate_and_compile_ts(f: &Fixture, package_name: &str) {
+    let path = match spec_path(f) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("skip {} ts gate: {e}", f.name);
+            return;
+        }
+    };
+    let spec = match specforge_core::parse_file(&path) {
+        Ok(s) => s,
+        Err(e) => panic!("{} ts: parse failed: {e}", f.name),
+    };
+    let doc = match specforge_core::resolve(&spec) {
+        Ok(d) => d,
+        Err(e) => panic!("{} ts: resolve failed: {e}", f.name),
+    };
+
+    let out = std::env::temp_dir().join(format!("specforge-gate-{}-ts", f.name));
+    let _ = std::fs::remove_dir_all(&out);
+    let opts = specforge_ts::GeneratorOptions {
+        out_dir: out.clone(),
+        package_name: Some(package_name.into()),
+        i18n: None,
+    };
+    let written = specforge_ts::generate(&doc, &opts)
+        .unwrap_or_else(|e| panic!("{} ts: emit failed: {e}", f.name));
+    assert!(
+        written.iter().any(|p| p == "package.json"),
+        "{} ts: missing package.json",
+        f.name
+    );
+    assert!(
+        written.len() >= 5,
+        "{} ts: expected several files, got {}",
+        f.name,
+        written.len()
+    );
+
+    match assert_tsc(&out) {
+        Ok(()) => eprintln!(
+            "{} ts: generate + tsc --noEmit OK ({} files)",
+            f.name,
+            written.len()
+        ),
+        Err(e) if e.contains("tsc not available") => eprintln!("skip {} ts check: {e}", f.name),
+        Err(e) => panic!("{} ts typecheck failed: {e}", f.name),
+    }
+}
+
 /// Run `go build ./...` in `dir`. Returns Err("go not found") when the toolchain
 /// is missing so callers can skip; any other failure is a real compile error.
 fn assert_go_build(dir: &Path) -> Result<(), String> {
@@ -431,6 +490,54 @@ fn assert_cargo_check(dir: &Path) -> Result<(), String> {
             online.status.code(),
             String::from_utf8_lossy(&offline.stderr),
             String::from_utf8_lossy(&online.stderr)
+        ))
+    }
+}
+
+/// Run `npm install` then `tsc --noEmit` in `dir`. Returns Err("tsc not
+/// available") when node/npm are missing so callers can skip; any other failure
+/// is a real type error.
+fn assert_tsc(dir: &Path) -> Result<(), String> {
+    // Resolve node/npm — skip gracefully if absent (TS gate is optional).
+    for tool in ["node", "npm"] {
+        let ok = std::process::Command::new(tool)
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if !ok {
+            return Err(format!("{tool} not found — tsc not available"));
+        }
+    }
+
+    // Install devDependencies (typescript) quietly.
+    let install = std::process::Command::new("npm")
+        .args(["install", "--no-audit", "--no-fund", "--loglevel=error"])
+        .current_dir(dir)
+        .output()
+        .map_err(|e| format!("spawn npm install: {e}"))?;
+    if !install.status.success() {
+        return Err(format!(
+            "npm install failed (exit {:?}):\n{}",
+            install.status.code(),
+            String::from_utf8_lossy(&install.stderr)
+        ));
+    }
+
+    // Typecheck. The generated package.json has a `typecheck` script
+    // (`tsc --noEmit`); invoke it directly so we exercise the shipped config.
+    let tsc = std::process::Command::new("npm")
+        .args(["run", "--silent", "typecheck"])
+        .current_dir(dir)
+        .output()
+        .map_err(|e| format!("spawn tsc: {e}"))?;
+    if tsc.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "tsc --noEmit failed (exit {:?}):\n{}",
+            tsc.status.code(),
+            String::from_utf8_lossy(&tsc.stdout),
         ))
     }
 }
