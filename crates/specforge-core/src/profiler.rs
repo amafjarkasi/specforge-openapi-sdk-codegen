@@ -548,4 +548,48 @@ mod tests {
         assert!(text.contains("SDK Performance Profile"));
         assert!(text.contains("Test recommendation"));
     }
+
+    #[test]
+    fn format_markdown_contains_table_and_recommendations() {
+        let report = ProfileReport {
+            results: vec![ProfileResult {
+                endpoint: "/pets".into(),
+                method: "GET".into(),
+                avg_latency_ms: 50.0,
+                p50_latency_ms: 45.0,
+                p95_latency_ms: 80.0,
+                p99_latency_ms: 95.0,
+                throughput_rps: 100.0,
+                error_rate: 0.01,
+                cache_hit_rate: 0.0,
+                success_count: 99,
+                error_count: 1,
+                total_requests: 100,
+                min_latency_ms: 10.0,
+                max_latency_ms: 200.0,
+            }],
+            total_requests: 100,
+            total_duration_ms: 1000.0,
+            overall_throughput_rps: 100.0,
+            recommendations: vec!["Consider caching".into()],
+        };
+        let md = format_markdown(&report);
+        assert!(md.contains("| /pets | GET |"), "should have table row");
+        assert!(md.contains("**Total requests:** 100"), "should have totals");
+        assert!(md.contains("Consider caching"), "should have recommendation");
+    }
+
+    #[test]
+    fn format_json_roundtrips() {
+        let report = ProfileReport {
+            results: vec![],
+            total_requests: 0,
+            total_duration_ms: 0.0,
+            overall_throughput_rps: 0.0,
+            recommendations: vec![],
+        };
+        let json = format_json(&report).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["total_requests"], 0);
+    }
 }
