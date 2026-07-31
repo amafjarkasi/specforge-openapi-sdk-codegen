@@ -169,12 +169,28 @@ fn contains_deprecated(text: &str) -> bool {
 /// - "replaced by X"
 /// - "replaced with X"
 /// - "migrate to X"
+///
+/// Searches case-insensitively on the lowercased string but slices `text`
+/// using char-boundary mapping, so Unicode chars that change byte length
+/// under lowercasing (e.g. `İ` → `i̇`) cannot cause a byte-boundary panic.
 fn extract_alternative(text: &str) -> Option<String> {
     let lower = text.to_lowercase();
 
+    // Map a byte offset in `lower` back to the corresponding byte offset in
+    // `text` by walking char indices in parallel. Safe because `lower` and
+    // `text` have the same char count.
+    let lower_to_text = |lower_pos: usize| -> usize {
+        text.char_indices()
+            .zip(lower.char_indices())
+            .find(|(_, (li, _))| *li >= lower_pos)
+            .map(|((ti, _), _)| ti)
+            .unwrap_or(text.len())
+    };
+
     // "use <alternative> instead"
     if let Some(pos) = lower.find("use ") {
-        let after = &text[pos + 4..];
+        let text_pos = lower_to_text(pos + 4);
+        let after = &text[text_pos..];
         if let Some(end) = after.to_lowercase().find(" instead") {
             let alt = after[..end].trim();
             if !alt.is_empty() {
@@ -186,8 +202,8 @@ fn extract_alternative(text: &str) -> Option<String> {
     // "replaced by <alternative>" or "replaced with <alternative>"
     for pattern in &["replaced by ", "replaced with "] {
         if let Some(pos) = lower.find(pattern) {
-            let after = &text[pos + pattern.len()..];
-            // Take until end of sentence or end of text.
+            let text_pos = lower_to_text(pos + pattern.len());
+            let after = &text[text_pos..];
             let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
@@ -198,7 +214,8 @@ fn extract_alternative(text: &str) -> Option<String> {
 
     // "migrate to <alternative>"
     if let Some(pos) = lower.find("migrate to ") {
-        let after = &text[pos + 11..];
+        let text_pos = lower_to_text(pos + 11);
+        let after = &text[text_pos..];
         let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
         let alt = after[..end].trim();
         if !alt.is_empty() {
