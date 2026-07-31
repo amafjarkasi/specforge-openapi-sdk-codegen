@@ -1361,4 +1361,18 @@ components:
         // Both should produce the same title.
         assert_eq!(result.unwrap().info.title, result_lf.unwrap().info.title);
     }
+
+    #[test]
+    fn normalize_line_endings_basic() {
+        // CRLF → LF
+        assert_eq!(normalize_line_endings("a\r\nb"), "a\nb");
+        // Lone CR → LF
+        assert_eq!(normalize_line_endings("a\rb"), "a\nb");
+        // LF unchanged
+        assert_eq!(normalize_line_endings("a\nb"), "a\nb");
+        // No allocation when no CR present
+        assert_eq!(normalize_line_endings("abc"), "abc");
+        // Mixed
+        assert_eq!(normalize_line_endings("a\r\nb\rc\nd"), "a\nb\nc\nd");
+    }
 }
