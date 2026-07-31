@@ -1125,7 +1125,7 @@ function matchesPath(pattern: string, actualPath: string): boolean {
  * after a successful response. Validation errors are thrown as Error objects
  * with a `validationErrors` property containing the details.
  */
-export function createValidationMiddleware(schemas: RouteSchemaMap): Middleware {
+export function createValidationMiddleware(schemas: RouteSchemaMap, telemetry?: TelemetryHooks): Middleware {
   return async (req: MiddlewareRequest, next: (req: MiddlewareRequest) => Promise<Response>): Promise<Response> => {
     const method = req.method.toUpperCase();
     // Strip query string for route matching.
@@ -1172,6 +1172,7 @@ export function createValidationMiddleware(schemas: RouteSchemaMap): Middleware 
             `[validation] ${method} ${path} request body: ${errors.map((e) => `${e.path}: ${e.message}`).join("; ")}`,
           );
           (err as any).validationErrors = errors;
+          telemetry?.onRequestError?.(method, path, 0, err);
           throw err;
         }
       }
@@ -1196,6 +1197,7 @@ export function createValidationMiddleware(schemas: RouteSchemaMap): Middleware 
                 `[validation] ${method} ${path} response ${response.status}: ${errors.map((e) => `${e.path}: ${e.message}`).join("; ")}`,
               );
               (err as any).validationErrors = errors;
+              telemetry?.onRequestError?.(method, path, 0, err);
               throw err;
             }
           }
@@ -2033,9 +2035,9 @@ async function parseBody(response: Response): Promise<unknown> {{
  * const client = createClient(withValidation(schemas));
  * ```
  */
-export function withValidation(schemas: RouteSchemaMap): ApiClientOptions {{
+export function withValidation(schemas: RouteSchemaMap, telemetry?: TelemetryHooks): ApiClientOptions {{
   return {{
-    middleware: [createValidationMiddleware(schemas)],
+    middleware: [createValidationMiddleware(schemas, telemetry)],
   }};
 }}
 

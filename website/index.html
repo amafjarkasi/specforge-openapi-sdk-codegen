@@ -100,8 +100,18 @@
     font-size: 1.4rem; font-weight: 700;
     color: var(--accent);
     letter-spacing: 0.02em;
+    text-decoration: none;
   }
-  .nav-logo svg { width: 40px; height: 40px; }
+  .nav-logo-svg {
+    width: 42px; height: 42px;
+    filter: drop-shadow(0 0 8px rgba(249,115,22,0.25));
+    transition: filter 0.3s, transform 0.3s;
+  }
+  .nav-logo:hover .nav-logo-svg {
+    filter: drop-shadow(0 0 14px rgba(249,115,22,0.55));
+    transform: rotate(-3deg);
+  }
+  .nav-logo-text { display: flex; align-items: baseline; }
   .nav-logo .dot { color: var(--muted); }
   .nav-links { display: flex; gap: 2rem; align-items: center; list-style: none; }
   .nav-links a {
@@ -444,7 +454,7 @@
   }
   .pipeline {
     position: relative;
-    display: flex; align-items: flex-start; justify-content: center;
+    display: flex; align-items: stretch; justify-content: center;
     gap: 0; flex-wrap: wrap;
     padding: 2.5rem 0;
   }
@@ -465,7 +475,7 @@
     padding: 1.6rem 1.5rem;
     text-align: left;
     width: 220px;
-    height: 270px;
+    min-height: 300px;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -514,9 +524,10 @@
     margin-bottom: 0.7rem;
   }
   .stage-desc {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--dim);
-    line-height: 1.5;
+    line-height: 1.45;
+    flex: 1;
   }
   .stage-tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem;
@@ -657,11 +668,11 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     RUNTIME CARDS — detailed, structured design
+     RUNTIME CARDS — detailed, structured design (2x2 grid)
      ══════════════════════════════════════════════════════════════ */
   .runtime-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem;
   }
   .runtime-card {
@@ -1156,6 +1167,7 @@
     .pipeline .connector { transform: rotate(90deg); min-width: 24px; }
     .cli-tiers { grid-template-columns: 1fr; }
     .cli-tier-label { border-right: none; border-bottom: 1px solid var(--border); }
+    .runtime-grid { grid-template-columns: 1fr; }
     .hero { padding: 8rem 1.5rem 4rem; }
     .hero-mascot { width: 90px; height: 90px; }
     .hero .lang-strip span { font-size: 0.85rem; padding: 0.35rem 0.9rem; }
@@ -1533,16 +1545,46 @@
 <nav id="nav">
   <div class="nav-inner">
     <a href="#" class="nav-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" aria-label="specforge logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" aria-label="specforge logo" class="nav-logo-svg">
         <defs>
-          <linearGradient id="navFlame" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#dc2626"/><stop offset="50%" stop-color="#f97316"/><stop offset="100%" stop-color="#fbbf24"/>
+          <linearGradient id="navFlame" x1="0%" y1="100%" x2="50%" y2="0%">
+            <stop offset="0%"  stop-color="#dc2626"/>
+            <stop offset="45%" stop-color="#f97316"/>
+            <stop offset="100%" stop-color="#fbbf24"/>
           </linearGradient>
+          <linearGradient id="navRim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%"  stop-color="#f97316"/>
+            <stop offset="100%" stop-color="#dc2626"/>
+          </linearGradient>
+          <radialGradient id="navGlow" cx="50%" cy="50%" r="60%">
+            <stop offset="0%"  stop-color="rgba(249,115,22,0.35)"/>
+            <stop offset="100%" stop-color="rgba(249,115,22,0)"/>
+          </radialGradient>
         </defs>
+        <!-- Rounded square background -->
         <rect width="128" height="128" rx="28" fill="#0f0a06"/>
-        <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-size="72" font-family="monospace" font-weight="bold" fill="url(#navFlame)">{}</text>
+        <!-- Soft inner glow -->
+        <rect width="128" height="128" rx="28" fill="url(#navGlow)"/>
+        <!-- Anvil shape -->
+        <path d="M 28 78 L 100 78 L 94 88 L 34 88 Z" fill="url(#navRim)"/>
+        <path d="M 50 78 L 50 70 L 78 70 L 78 78 Z" fill="url(#navRim)"/>
+        <!-- Code brackets framing the anvil -->
+        <path d="M 36 50 Q 26 50 26 60 L 26 70 Q 26 78 20 78 Q 26 78 26 86 L 26 96 Q 26 106 36 106"
+              fill="none" stroke="url(#navFlame)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 92 50 Q 102 50 102 60 L 102 70 Q 102 78 108 78 Q 102 78 102 86 L 102 96 Q 102 106 92 106"
+              fill="none" stroke="url(#navFlame)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Flame rising from the anvil -->
+        <path d="M 64 32 Q 56 44 60 52 Q 54 50 52 58 Q 48 66 56 72 Q 64 70 64 62 Q 70 70 76 64 Q 78 54 70 50 Q 74 42 64 32 Z"
+              fill="url(#navFlame)" opacity="0.95"/>
+        <!-- Inner flame core -->
+        <path d="M 64 50 Q 60 58 64 64 Q 68 58 64 50 Z" fill="#fef3c7" opacity="0.9"/>
+        <!-- Sparks -->
+        <circle cx="44" cy="42" r="1.6" fill="#fbbf24"/>
+        <circle cx="86" cy="38" r="1.4" fill="#f97316"/>
+        <circle cx="78" cy="46" r="1"   fill="#fde68a"/>
+        <circle cx="48" cy="48" r="1"   fill="#dc2626"/>
       </svg>
-      specforge<span class="dot">.</span>
+      <span class="nav-logo-text">specforge<span class="dot">.</span></span>
     </a>
     <ul class="nav-links" id="navLinks">
       <li><a href="#features">Features</a></li>
@@ -2762,10 +2804,14 @@ git clone https://github.com/amafjarkasi/specforge-openapi-sdk-codegen
   <div class="links">
     <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen">GitHub</a>
     <a href="https://doc.specforge.deepwhaleai.com/">Docs</a>
+    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases">Releases</a>
     <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/CHANGELOG.md">Changelog</a>
     <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/STABILITY.md">Stability</a>
     <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/PLUGINS.md">Plugins</a>
-    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/LICENSE">License</a>
+    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/SECURITY.md">Security</a>
+    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/CONTRIBUTING.md">Contributing</a>
+    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/INCREMENTAL.md">CI Caching</a>
+    <a href="https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/main/RELEASE.md">Release Guide</a>
   </div>
   <p>MIT License · Built with Rust · Built by <a href="https://github.com/amafjarkasi">amafjarkasi</a></p>
 </footer>
