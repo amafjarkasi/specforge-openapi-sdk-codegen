@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+#### Codegen (all emitters)
+- **Doc-comment escaping** — schema/operation descriptions from real-world specs (GitHub, Stripe) contain embedded newlines, backticks, and `/*`/`*/` sequences that broke generated code: continuation lines lost their comment prefix (→ parse errors), `*/` closed block comments (→ "unterminated block comment"), and backticks tripped token errors. The Rust (`rust_doc`/`rust_doc_indented`) and Go (`go_doc`/`go_doc_label`) emitters now escape these and prefix every line. **Result: the 4 `*_generates_and_compiles_{rust,go}` regression tests for GitHub + Stripe specs now pass** (they were failing).
+- **Reserved-name collisions** — a spec model whose name matches a built-in SDK type (e.g. GitHub's `ValidationError`) would redeclare it and break compilation. The Go and Rust emitters now suffix colliding model names with `Model`.
+
 #### Rust emitter
 - **Generated SDK now compiles** — fixed six template bugs that silently broke every generated Rust SDK since the interceptors/validation_middleware/ServiceContainer modules were added in 1.6.0: a response-interceptor loop nested inside the response-transformer loop; a missing `logger` field on `ClientBuilder`; telemetry call-site signature mismatches (`&Method`/`Duration` vs `&str`/`u128`); a two-arg `Result` used where the crate alias is one-arg; a `do_once` parameter-order mismatch; and `serde_json::to_vec` moving instead of borrowing. The example SDK was stale and never regenerated to catch this.
 - **Generated README expanded** — `emit_readme` now documents interceptors, runtime validation (`validation_middleware`), and the `ServiceContainer` telemetry/DI helpers.
