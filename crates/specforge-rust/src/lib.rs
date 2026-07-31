@@ -53,7 +53,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let mut files: Vec<(String, PathBuf, String)> = Vec::new();
 
     let cargo = opts.out_dir.join("Cargo.toml");
-    files.push((rel(&cargo, &opts.out_dir), cargo, emit_cargo_toml(doc, &crate_name)));
+    files.push((
+        rel(&cargo, &opts.out_dir),
+        cargo,
+        emit_cargo_toml(doc, &crate_name),
+    ));
 
     let error = src.join("error.rs");
     files.push((rel(&error, &opts.out_dir), error, emit_error()));
@@ -68,18 +72,34 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     files.push((rel(&paginate, &opts.out_dir), paginate, emit_paginate()));
 
     let concurrency = src.join("concurrency.rs");
-    files.push((rel(&concurrency, &opts.out_dir), concurrency, emit_concurrency()));
+    files.push((
+        rel(&concurrency, &opts.out_dir),
+        concurrency,
+        emit_concurrency(),
+    ));
 
     let dedup = src.join("dedup.rs");
     files.push((rel(&dedup, &opts.out_dir), dedup, emit_dedup()));
 
     let middleware = src.join("middleware.rs");
-    files.push((rel(&middleware, &opts.out_dir), middleware, emit_middleware()));
+    files.push((
+        rel(&middleware, &opts.out_dir),
+        middleware,
+        emit_middleware(),
+    ));
     let interceptors = src.join("interceptors.rs");
-    files.push((rel(&interceptors, &opts.out_dir), interceptors, emit_interceptors()));
+    files.push((
+        rel(&interceptors, &opts.out_dir),
+        interceptors,
+        emit_interceptors(),
+    ));
 
     let idempotency = src.join("idempotency.rs");
-    files.push((rel(&idempotency, &opts.out_dir), idempotency, emit_idempotency()));
+    files.push((
+        rel(&idempotency, &opts.out_dir),
+        idempotency,
+        emit_idempotency(),
+    ));
 
     let streaming = src.join("streaming.rs");
     files.push((rel(&streaming, &opts.out_dir), streaming, emit_streaming()));
@@ -100,7 +120,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     files.push((rel(&validate, &opts.out_dir), validate, emit_validate(doc)));
 
     let validation_middleware = src.join("validation_middleware.rs");
-    files.push((rel(&validation_middleware, &opts.out_dir), validation_middleware, emit_validation_middleware()));
+    files.push((
+        rel(&validation_middleware, &opts.out_dir),
+        validation_middleware,
+        emit_validation_middleware(),
+    ));
 
     let models = src.join("models.rs");
     files.push((rel(&models, &opts.out_dir), models, emit_models(doc)));
@@ -139,10 +163,18 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     // lib.rs
     let lib = src.join("lib.rs");
     let has_webhooks = !doc.webhooks.is_empty();
-    files.push((rel(&lib, &opts.out_dir), lib, emit_lib(&tag_mods, has_webhooks)));
+    files.push((
+        rel(&lib, &opts.out_dir),
+        lib,
+        emit_lib(&tag_mods, has_webhooks),
+    ));
 
     let readme = opts.out_dir.join("README.md");
-    files.push((rel(&readme, &opts.out_dir), readme, emit_readme(doc, &crate_name)));
+    files.push((
+        rel(&readme, &opts.out_dir),
+        readme,
+        emit_readme(doc, &crate_name),
+    ));
 
     // specforge-version.json — version metadata for the generated SDK.
     files.push(collect_version_file(doc, &opts.out_dir));
@@ -170,13 +202,7 @@ fn crate_name(doc: &Document, opts: &GeneratorOptions) -> String {
             .title
             .to_ascii_lowercase()
             .chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() {
-                    c
-                } else {
-                    '_'
-                }
-            })
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect::<String>()
             .trim_matches('_')
             .to_string();
@@ -198,6 +224,10 @@ fn rel(abs: &Path, base: &Path) -> String {
     abs.strip_prefix(base)
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|_| abs.to_string_lossy().into_owned())
+        // Normalize Windows backslashes to forward slashes so the returned
+        // relative paths are portable (they're the public generate() return
+        // value; consumers match against forward slashes like "src/lib.rs").
+        .replace('\\', "/")
 }
 
 // ─── Naming ──────────────────────────────────────────────────────────────────
@@ -301,10 +331,9 @@ fn snake(input: &str) -> String {
             out.extend(ch.to_lowercase());
         } else if ch.is_ascii_alphanumeric() {
             out.push(ch.to_ascii_lowercase());
-        } else if ch == '_'
-            && !out.ends_with('_') {
-                out.push('_');
-            }
+        } else if ch == '_' && !out.ends_with('_') {
+            out.push('_');
+        }
     }
     let out = out.trim_matches('_').to_string();
     let out = if out.is_empty() {
@@ -513,8 +542,10 @@ pub mod validation_middleware;
     );
 
     if has_webhooks {
-        out.push_str("pub mod webhooks;
-");
+        out.push_str(
+            "pub mod webhooks;
+",
+        );
     }
 
     out.push_str(
@@ -1163,7 +1194,6 @@ impl ResponseCache {
 "#
     .to_string()
 }
-
 
 fn emit_ratelimit() -> String {
     r#"// Code generated by specforge. DO NOT EDIT.
@@ -2370,15 +2400,13 @@ use crate::cache::ResponseCache;
 	    }}
 	}}
 	"#,
-	        title = doc.title.replace('"', "\\\""),
-	        base_lit = rust_string_lit(base),
-	        api_key_header_lit = rust_string_lit(default_api_key_header),
-	    )
-	}
-
+        title = doc.title.replace('"', "\\\""),
+        base_lit = rust_string_lit(base),
+        api_key_header_lit = rust_string_lit(default_api_key_header),
+    )
+}
 
 // ─── telemetry.rs ────────────────────────────────────────────────────────────
-
 
 // ─── validate.rs ─────────────────────────────────────────────────────────────
 
@@ -2778,10 +2806,7 @@ use serde::{Deserialize, Serialize};
     for wh in &doc.webhooks {
         let payload_ty = pascal(&format!("{}WebhookPayload", wh.name));
         let method_name = snake(&format!("handle_{}", wh.name));
-        out.push_str(&format!(
-            "    /// Handle the `{}` webhook.\n",
-            wh.name
-        ));
+        out.push_str(&format!("    /// Handle the `{}` webhook.\n", wh.name));
         out.push_str(&format!(
             "    fn {method_name}(&self, payload: {payload_ty}) -> crate::error::Result<()>;\n"
         ));
@@ -2818,13 +2843,9 @@ fn emit_enum(e: &EnumModel) -> String {
         out.push_str(&rust_doc(d));
         if d.to_lowercase().contains("deprecated") {
             if let Some(alt) = rust_schema_deprecation_alternative(d) {
-                out.push_str(&format!(
-                    "#[deprecated(note = \"Use {alt} instead\")]\n"
-                ));
+                out.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
             } else {
-                out.push_str(&format!(
-                    "#[deprecated(note = \"{name} is deprecated\")]\n"
-                ));
+                out.push_str(&format!("#[deprecated(note = \"{name} is deprecated\")]\n"));
             }
         }
     }
@@ -2872,9 +2893,10 @@ fn emit_enum(e: &EnumModel) -> String {
 fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> String {
     let name = safe_model_name(&pascal(&o.name));
     let mut out = String::new();
-    let is_deprecated = o.description.as_deref().is_some_and(|d| {
-        d.to_lowercase().contains("deprecated")
-    });
+    let is_deprecated = o
+        .description
+        .as_deref()
+        .is_some_and(|d| d.to_lowercase().contains("deprecated"));
     if let Some(d) = &o.description {
         out.push_str(&rust_doc(d));
     }
@@ -2894,7 +2916,11 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
                 .collect();
             if !arms.is_empty() {
                 if is_deprecated {
-                    if let Some(alt) = o.description.as_deref().and_then(rust_schema_deprecation_alternative) {
+                    if let Some(alt) = o
+                        .description
+                        .as_deref()
+                        .and_then(rust_schema_deprecation_alternative)
+                    {
                         out.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
                     } else {
                         out.push_str(&format!("#[deprecated(note = \"{name} is deprecated\")]\n"));
@@ -2934,10 +2960,16 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
                         out.push_str(&rust_doc(d));
                     }
                     if is_deprecated {
-                        if let Some(alt) = o.description.as_deref().and_then(rust_schema_deprecation_alternative) {
+                        if let Some(alt) = o
+                            .description
+                            .as_deref()
+                            .and_then(rust_schema_deprecation_alternative)
+                        {
                             out.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
                         } else {
-                            out.push_str(&format!("#[deprecated(note = \"{name} is deprecated\")]\n"));
+                            out.push_str(&format!(
+                                "#[deprecated(note = \"{name} is deprecated\")]\n"
+                            ));
                         }
                     }
                     out.push_str("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]\n");
@@ -2967,7 +2999,11 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
 
     if !o.properties.is_empty() {
         if is_deprecated {
-            if let Some(alt) = o.description.as_deref().and_then(rust_schema_deprecation_alternative) {
+            if let Some(alt) = o
+                .description
+                .as_deref()
+                .and_then(rust_schema_deprecation_alternative)
+            {
                 out.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
             } else {
                 out.push_str(&format!("#[deprecated(note = \"{name} is deprecated\")]\n"));
@@ -3018,7 +3054,11 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
         out.push_str(&format!("pub type {name} = {};\n", render_type(shape)));
     } else {
         if is_deprecated {
-            if let Some(alt) = o.description.as_deref().and_then(rust_schema_deprecation_alternative) {
+            if let Some(alt) = o
+                .description
+                .as_deref()
+                .and_then(rust_schema_deprecation_alternative)
+            {
                 out.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
             } else {
                 out.push_str(&format!("#[deprecated(note = \"{name} is deprecated\")]\n"));
@@ -3097,9 +3137,7 @@ fn emit_union_impl(
         out.push_str(&format!(
             "    /// Returns `true` if this is a [`{arm_ty}`] variant.\n"
         ));
-        out.push_str(&format!(
-            "    pub fn is_{is_fn}(&self) -> bool {{\n"
-        ));
+        out.push_str(&format!("    pub fn is_{is_fn}(&self) -> bool {{\n"));
         out.push_str(&format!("        matches!(self, Self::{arm_ty}(_))\n"));
         out.push_str("    }\n\n");
 
@@ -3196,18 +3234,12 @@ fn emit_method(op: &Operation) -> String {
     if let Some(s) = &op.summary {
         body.push_str(&rust_doc(s));
     } else {
-        body.push_str(&format!(
-            "/// {} {}.\n",
-            op.method.upper(),
-            op.path
-        ));
+        body.push_str(&format!("/// {} {}.\n", op.method.upper(), op.path));
     }
     // Deprecation attribute.
     if is_operation_deprecated(op) {
         if let Some(alt) = rust_deprecation_alternative(op) {
-            body.push_str(&format!(
-                "#[deprecated(note = \"Use {alt} instead\")]\n"
-            ));
+            body.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
         } else {
             body.push_str(&format!(
                 "#[deprecated(note = \"Use {} instead\")]\n",
@@ -3227,9 +3259,7 @@ fn emit_method(op: &Operation) -> String {
             if p.required {
                 body.push_str(&format!("    let {ident} = {ident}.into();\n"));
             } else {
-                body.push_str(&format!(
-                    "    let {ident} = {ident}.map(|v| v.into());\n"
-                ));
+                body.push_str(&format!("    let {ident} = {ident}.map(|v| v.into());\n"));
             }
         }
     }
@@ -3288,18 +3318,12 @@ fn emit_method(op: &Operation) -> String {
         if let Some(s) = &op.summary {
             body.push_str(&rust_doc(s));
         } else {
-            body.push_str(&format!(
-                "/// {} {}.\n",
-                op.method.upper(),
-                op.path
-            ));
+            body.push_str(&format!("/// {} {}.\n", op.method.upper(), op.path));
         }
         // Deprecation attribute.
         if is_operation_deprecated(op) {
             if let Some(alt) = rust_deprecation_alternative(op) {
-                body.push_str(&format!(
-                    "#[deprecated(note = \"Use {alt} instead\")]\n"
-                ));
+                body.push_str(&format!("#[deprecated(note = \"Use {alt} instead\")]\n"));
             } else {
                 body.push_str(&format!(
                     "#[deprecated(note = \"Use {} instead\")]\n",
@@ -3317,9 +3341,7 @@ fn emit_method(op: &Operation) -> String {
                 if p.required {
                     body.push_str(&format!("    let {ident} = {ident}.into();\n"));
                 } else {
-                    body.push_str(&format!(
-                        "    let {ident} = {ident}.map(|v| v.into());\n"
-                    ));
+                    body.push_str(&format!("    let {ident} = {ident}.map(|v| v.into());\n"));
                 }
             }
         }
@@ -3351,7 +3373,9 @@ fn emit_method(op: &Operation) -> String {
         ));
         body.push_str("        .await\n");
         body.push_str("        .or_else(|e| match &e {\n");
-        body.push_str("            crate::error::Error::Http { status, .. } if *status == 204 => Ok(()),\n");
+        body.push_str(
+            "            crate::error::Error::Http { status, .. } if *status == 204 => Ok(()),\n",
+        );
         body.push_str("            crate::error::Error::Serde(_) => Ok(()),\n");
         body.push_str("            _ => Err(e),\n");
         body.push_str("        })?;\n");
@@ -3366,7 +3390,6 @@ fn emit_method(op: &Operation) -> String {
     body.push_str("}\n");
     body
 }
-
 
 /// Generate the full doc comment block + deprecation attribute for a method.
 fn build_rust_path(path: &str, path_params: &[&specforge_core::Parameter]) -> String {
@@ -3422,10 +3445,16 @@ fn rust_coerce_string(ty: &Type, ident: &str) -> String {
         Type::Scalar(Scalar::Integer)
         | Type::Scalar(Scalar::Integer64)
         | Type::Scalar(Scalar::Float)
-        | Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => format!("{ident}.to_string()"),
+        | Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => {
+            format!("{ident}.to_string()")
+        }
         // Arrays/maps/any: JSON-stringify for query (OpenAPI often uses explode
         // forms; JSON is a safe compile-time default).
-        Type::Array { .. } | Type::Map { .. } | Type::Any | Type::Unknown | Type::Composition(_) => {
+        Type::Array { .. }
+        | Type::Map { .. }
+        | Type::Any
+        | Type::Unknown
+        | Type::Composition(_) => {
             format!("serde_json::to_string(&{ident}).unwrap_or_default()")
         }
     }
@@ -3442,9 +3471,11 @@ fn rust_coerce_string_ref(ty: &Type) -> String {
         | Type::Scalar(Scalar::Integer64)
         | Type::Scalar(Scalar::Float)
         | Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => "v.to_string()".into(),
-        Type::Array { .. } | Type::Map { .. } | Type::Any | Type::Unknown | Type::Composition(_) => {
-            "serde_json::to_string(v).unwrap_or_default()".into()
-        }
+        Type::Array { .. }
+        | Type::Map { .. }
+        | Type::Any
+        | Type::Unknown
+        | Type::Composition(_) => "serde_json::to_string(v).unwrap_or_default()".into(),
     }
 }
 
@@ -3472,7 +3503,10 @@ fn rust_doc(text: &str) -> String {
 fn rust_doc_indented(text: &str, indent: &str) -> String {
     text.lines()
         .map(|l| {
-            let escaped = l.replace("/*", "/&#42;").replace("*/", "&#42;/").replace('`', "\\`");
+            let escaped = l
+                .replace("/*", "/&#42;")
+                .replace("*/", "&#42;/")
+                .replace('`', "\\`");
             format!("{indent}/// {escaped}\n")
         })
         .collect()
@@ -3521,9 +3555,7 @@ fn rust_deprecation_alternative(op: &Operation) -> Option<String> {
     for pattern in &["replaced by ", "replaced with "] {
         if let Some(pos) = lower.find(pattern) {
             let after = &text[pos + pattern.len()..];
-            let end = after
-                .find(['.', ',', '\n', ';'])
-                .unwrap_or(after.len());
+            let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
                 return Some(alt.to_string());
@@ -3548,9 +3580,7 @@ fn rust_schema_deprecation_alternative(desc: &str) -> Option<String> {
     for pattern in &["replaced by ", "replaced with "] {
         if let Some(pos) = lower.find(pattern) {
             let after = &desc[pos + pattern.len()..];
-            let end = after
-                .find(['.', ',', '\n', ';'])
-                .unwrap_or(after.len());
+            let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
                 return Some(alt.to_string());
@@ -3876,7 +3906,16 @@ fn chrono_free_timestamp() -> String {
     let month_days: [i64; 12] = [
         31,
         if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut m = 1u32;
     for &md in &month_days {

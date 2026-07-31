@@ -71,7 +71,11 @@ fn spec_path(f: &Fixture) -> Result<PathBuf, String> {
         Source::Url(url) => {
             let cache = cache_dir();
             std::fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
-            let ext = if url.ends_with(".json") { "json" } else { "yaml" };
+            let ext = if url.ends_with(".json") {
+                "json"
+            } else {
+                "yaml"
+            };
             let dest = cache.join(format!("{}.{}", f.name, ext));
             if dest.exists() {
                 return Ok(dest);
@@ -85,13 +89,7 @@ fn spec_path(f: &Fixture) -> Result<PathBuf, String> {
 fn download(url: &str, dest: &Path) -> Result<(), String> {
     // Use the system curl. Offline CI skips the test rather than failing.
     let status = std::process::Command::new("curl")
-        .args([
-            "-sSL",
-            "--fail",
-            "--max-time",
-            "120",
-            "-o",
-        ])
+        .args(["-sSL", "--fail", "--max-time", "120", "-o"])
         .arg(dest)
         .arg(url)
         .status()
@@ -136,8 +134,17 @@ fn assert_resolves(f: &Fixture) {
     );
     // Every operation must have a non-empty id and a resolved method/path.
     for op in &doc.operations {
-        assert!(!op.operation_id.is_empty(), "{}: empty operation_id", f.name);
-        assert!(!op.path.is_empty(), "{}: empty path on {}", f.name, op.operation_id);
+        assert!(
+            !op.operation_id.is_empty(),
+            "{}: empty operation_id",
+            f.name
+        );
+        assert!(
+            !op.path.is_empty(),
+            "{}: empty path on {}",
+            f.name,
+            op.operation_id
+        );
     }
     eprintln!(
         "{}: {} schemas, {} operations — OK",
@@ -179,7 +186,11 @@ fn petstore_generates_full_sdk() {
         i18n: None,
     };
     let written = specforge_ts::generate(&doc, &opts).expect("petstore emits");
-    assert!(written.len() > 10, "expected multiple files, got {}", written.len());
+    assert!(
+        written.len() > 10,
+        "expected multiple files, got {}",
+        written.len()
+    );
     // At least one model file and one api file.
     assert!(
         written.iter().any(|p| p.contains("models/")),
@@ -207,9 +218,18 @@ fn petstore_generates_go_sdk() {
         i18n: None,
     };
     let written = specforge_go::generate(&doc, &opts).expect("petstore go emits");
-    assert!(written.iter().any(|p| p == "go.mod"), "missing go.mod: {written:?}");
-    assert!(written.iter().any(|p| p == "client.go"), "missing client.go");
-    assert!(written.iter().any(|p| p == "models.go"), "missing models.go");
+    assert!(
+        written.iter().any(|p| p == "go.mod"),
+        "missing go.mod: {written:?}"
+    );
+    assert!(
+        written.iter().any(|p| p == "client.go"),
+        "missing client.go"
+    );
+    assert!(
+        written.iter().any(|p| p == "models.go"),
+        "missing models.go"
+    );
     assert!(
         written.iter().any(|p| p.starts_with("api_")),
         "missing api_*.go files"
@@ -239,8 +259,14 @@ fn petstore_generates_rust_sdk() {
         written.iter().any(|p| p == "Cargo.toml"),
         "missing Cargo.toml: {written:?}"
     );
-    assert!(written.iter().any(|p| p == "src/lib.rs"), "missing src/lib.rs");
-    assert!(written.iter().any(|p| p == "src/models.rs"), "missing models");
+    assert!(
+        written.iter().any(|p| p == "src/lib.rs"),
+        "missing src/lib.rs"
+    );
+    assert!(
+        written.iter().any(|p| p == "src/models.rs"),
+        "missing models"
+    );
     assert!(
         written.iter().any(|p| p.starts_with("src/api/")),
         "missing api modules"
@@ -328,7 +354,11 @@ fn generate_and_compile_go(f: &Fixture, module: &str) {
     );
 
     match assert_go_build(&out) {
-        Ok(()) => eprintln!("{} go: generate + go build OK ({} files)", f.name, written.len()),
+        Ok(()) => eprintln!(
+            "{} go: generate + go build OK ({} files)",
+            f.name,
+            written.len()
+        ),
         Err(e) if e.contains("go not found") => eprintln!("skip {} go build: {e}", f.name),
         Err(e) => panic!("{} go build failed: {e}", f.name),
     }
@@ -551,7 +581,11 @@ fn generated_files(dir: &Path) -> BTreeSet<String> {
             if path.is_dir() {
                 walk(&path, base, out);
             } else {
-                let rel = path.strip_prefix(base).unwrap().to_string_lossy().to_string();
+                let rel = path
+                    .strip_prefix(base)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
                 out.insert(rel);
             }
         }
@@ -571,37 +605,74 @@ fn profile_flag_does_not_affect_output() {
     let _ = std::fs::remove_dir_all(&out_normal);
     let status = std::process::Command::new("cargo")
         .args([
-            "run", "-q", "-p", "specforge-cli", "--", "generate",
+            "run",
+            "-q",
+            "-p",
+            "specforge-cli",
+            "--",
+            "generate",
             path.to_str().unwrap(),
-            "-o", out_normal.to_str().unwrap(),
-            "-l", "ts",
+            "-o",
+            out_normal.to_str().unwrap(),
+            "-l",
+            "ts",
         ])
         .output()
         .expect("run generate without --profile");
-    assert!(status.status.success(), "generate without --profile failed:\n{}", String::from_utf8_lossy(&status.stderr));
+    assert!(
+        status.status.success(),
+        "generate without --profile failed:\n{}",
+        String::from_utf8_lossy(&status.stderr)
+    );
 
     // Generate with --profile.
     let out_profile = std::env::temp_dir().join("specforge-profile-test-profile");
     let _ = std::fs::remove_dir_all(&out_profile);
     let status = std::process::Command::new("cargo")
         .args([
-            "run", "-q", "-p", "specforge-cli", "--", "generate",
+            "run",
+            "-q",
+            "-p",
+            "specforge-cli",
+            "--",
+            "generate",
             path.to_str().unwrap(),
-            "-o", out_profile.to_str().unwrap(),
-            "-l", "ts",
+            "-o",
+            out_profile.to_str().unwrap(),
+            "-l",
+            "ts",
             "--profile",
         ])
         .output()
         .expect("run generate with --profile");
-    assert!(status.status.success(), "generate with --profile failed:\n{}", String::from_utf8_lossy(&status.stderr));
+    assert!(
+        status.status.success(),
+        "generate with --profile failed:\n{}",
+        String::from_utf8_lossy(&status.stderr)
+    );
 
     // Profile output goes to stderr, verify it contains expected keys.
     let stderr = String::from_utf8_lossy(&status.stderr);
-    assert!(stderr.contains("Profile:"), "expected 'Profile:' in stderr, got:\n{stderr}");
-    assert!(stderr.contains("parse:"), "expected 'parse:' in stderr, got:\n{stderr}");
-    assert!(stderr.contains("resolve:"), "expected 'resolve:' in stderr, got:\n{stderr}");
-    assert!(stderr.contains("emit:"), "expected 'emit:' in stderr, got:\n{stderr}");
-    assert!(stderr.contains("total:"), "expected 'total:' in stderr, got:\n{stderr}");
+    assert!(
+        stderr.contains("Profile:"),
+        "expected 'Profile:' in stderr, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("parse:"),
+        "expected 'parse:' in stderr, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("resolve:"),
+        "expected 'resolve:' in stderr, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("emit:"),
+        "expected 'emit:' in stderr, got:\n{stderr}"
+    );
+    assert!(
+        stderr.contains("total:"),
+        "expected 'total:' in stderr, got:\n{stderr}"
+    );
 
     // Both runs must produce the same set of files.
     let files_normal = generated_files(&out_normal);

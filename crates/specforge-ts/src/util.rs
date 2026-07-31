@@ -10,10 +10,16 @@ pub fn file_header() -> String {
 
 /// Express `abs` relative to `base` as a forward-slashed string. Falls back to
 /// the absolute path if `abs` isn't under `base`.
+///
+/// Backslashes (Windows path separators) are normalized to forward slashes so
+/// the returned relative paths are portable — they're part of the public
+/// `generate()` return value and consumers match against forward slashes
+/// (e.g. `paths.iter().any(|p| p == "src/index.ts")`).
 pub fn path_str(abs: &Path, base: &Path) -> String {
     abs.strip_prefix(base)
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|_| abs.to_string_lossy().into_owned())
+        .replace('\\', "/")
 }
 
 /// Indent every line of `s` by `n` spaces.

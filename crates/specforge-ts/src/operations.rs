@@ -82,11 +82,7 @@ fn emit_tag_file(doc: &Document, tag: &str, ops: &[&Operation]) -> String {
     if refs.model_imports() {
         // Collect distinct referenced model names and emit one import each.
         // Names are pascalized to match the generated model filenames/identifiers.
-        let mut names: Vec<String> = refs
-            .names
-            .iter()
-            .map(|n| crate::name::pascal(n))
-            .collect();
+        let mut names: Vec<String> = refs.names.iter().map(|n| crate::name::pascal(n)).collect();
         names.sort();
         names.dedup();
         for name in &names {
@@ -116,7 +112,11 @@ fn emit_tag_file(doc: &Document, tag: &str, ops: &[&Operation]) -> String {
 
 /// Emit one operation. Returns `(params_interface, method_body, validator_imports)` so the caller
 /// can place the interface before the class definition.
-fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<String>, String, Vec<String>) {
+fn emit_method(
+    _doc: &Document,
+    op: &Operation,
+    refs: &mut TypeRefs,
+) -> (Option<String>, String, Vec<String>) {
     let method_name = camel(&op.operation_id);
 
     // Partition parameters by location.
@@ -340,7 +340,11 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
     // @param tags for parameters.
     for p in &op.parameters {
         let pname = crate::name::member_access("params", &p.name);
-        let suffix = if p.required { String::new() } else { " (optional)".to_string() };
+        let suffix = if p.required {
+            String::new()
+        } else {
+            " (optional)".to_string()
+        };
         if let Some(desc) = &p.description {
             doc.push_str(&format!(" * @param {pname} - {desc}{suffix}\n"));
         } else {
@@ -349,7 +353,11 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
     }
     // @param tag for request body.
     if let Some(body) = &op.request_body {
-        let suffix = if body.required { String::new() } else { " (optional)".to_string() };
+        let suffix = if body.required {
+            String::new()
+        } else {
+            " (optional)".to_string()
+        };
         if let Some(desc) = &body.description {
             doc.push_str(&format!(" * @param params.body - {desc}{suffix}\n"));
         } else {
@@ -357,7 +365,9 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
         }
     }
     // @returns tag from success response description.
-    let success_desc = op.responses.iter()
+    let success_desc = op
+        .responses
+        .iter()
         .filter(|r| r.status.starts_with('2'))
         .min_by_key(|r| r.status.clone())
         .and_then(|r| r.description.clone());
@@ -461,7 +471,7 @@ impl TypeRefs {
 mod tests {
     use super::*;
     use specforge_core::{
-        HttpMethod, Operation, Parameter as IrParameter, ParamLocation, Response, Type,
+        HttpMethod, Operation, ParamLocation, Parameter as IrParameter, Response, Type,
     };
 
     fn op() -> Operation {

@@ -28,24 +28,96 @@ pub fn emit(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<String>> {
 pub fn collect(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
     let files = vec![
-        (path_str(&src.join("errors.ts"), out_dir), src.join("errors.ts"), errors_source()),
-        (path_str(&src.join("auth.ts"), out_dir), src.join("auth.ts"), auth_source(doc)),
-        (path_str(&src.join("retry.ts"), out_dir), src.join("retry.ts"), retry_source()),
-        (path_str(&src.join("paginate.ts"), out_dir), src.join("paginate.ts"), paginate_source()),
-        (path_str(&src.join("concurrency.ts"), out_dir), src.join("concurrency.ts"), concurrency_source()),
-        (path_str(&src.join("dedup.ts"), out_dir), src.join("dedup.ts"), dedup_source()),
-        (path_str(&src.join("idempotency.ts"), out_dir), src.join("idempotency.ts"), idempotency_source()),
-        (path_str(&src.join("middleware.ts"), out_dir), src.join("middleware.ts"), middleware_source()),
-        (path_str(&src.join("interceptors.ts"), out_dir), src.join("interceptors.ts"), interceptors_source()),
-        (path_str(&src.join("streaming.ts"), out_dir), src.join("streaming.ts"), streaming_source()),
-        (path_str(&src.join("validate.ts"), out_dir), src.join("validate.ts"), validate_source(doc)),
-        (path_str(&src.join("cache.ts"), out_dir), src.join("cache.ts"), cache_source()),
-        (path_str(&src.join("ratelimit.ts"), out_dir), src.join("ratelimit.ts"), ratelimit_source()),
-        (path_str(&src.join("telemetry.ts"), out_dir), src.join("telemetry.ts"), telemetry_source()),
-        (path_str(&src.join("logging.ts"), out_dir), src.join("logging.ts"), logging_source()),
-        (path_str(&src.join("validation-middleware.ts"), out_dir), src.join("validation-middleware.ts"), validation_middleware_source()),
-        (path_str(&src.join("service_container.ts"), out_dir), src.join("service_container.ts"), service_container_source()),
-        (path_str(&src.join("client.ts"), out_dir), src.join("client.ts"), client_source(doc)),
+        (
+            path_str(&src.join("errors.ts"), out_dir),
+            src.join("errors.ts"),
+            errors_source(),
+        ),
+        (
+            path_str(&src.join("auth.ts"), out_dir),
+            src.join("auth.ts"),
+            auth_source(doc),
+        ),
+        (
+            path_str(&src.join("retry.ts"), out_dir),
+            src.join("retry.ts"),
+            retry_source(),
+        ),
+        (
+            path_str(&src.join("paginate.ts"), out_dir),
+            src.join("paginate.ts"),
+            paginate_source(),
+        ),
+        (
+            path_str(&src.join("concurrency.ts"), out_dir),
+            src.join("concurrency.ts"),
+            concurrency_source(),
+        ),
+        (
+            path_str(&src.join("dedup.ts"), out_dir),
+            src.join("dedup.ts"),
+            dedup_source(),
+        ),
+        (
+            path_str(&src.join("idempotency.ts"), out_dir),
+            src.join("idempotency.ts"),
+            idempotency_source(),
+        ),
+        (
+            path_str(&src.join("middleware.ts"), out_dir),
+            src.join("middleware.ts"),
+            middleware_source(),
+        ),
+        (
+            path_str(&src.join("interceptors.ts"), out_dir),
+            src.join("interceptors.ts"),
+            interceptors_source(),
+        ),
+        (
+            path_str(&src.join("streaming.ts"), out_dir),
+            src.join("streaming.ts"),
+            streaming_source(),
+        ),
+        (
+            path_str(&src.join("validate.ts"), out_dir),
+            src.join("validate.ts"),
+            validate_source(doc),
+        ),
+        (
+            path_str(&src.join("cache.ts"), out_dir),
+            src.join("cache.ts"),
+            cache_source(),
+        ),
+        (
+            path_str(&src.join("ratelimit.ts"), out_dir),
+            src.join("ratelimit.ts"),
+            ratelimit_source(),
+        ),
+        (
+            path_str(&src.join("telemetry.ts"), out_dir),
+            src.join("telemetry.ts"),
+            telemetry_source(),
+        ),
+        (
+            path_str(&src.join("logging.ts"), out_dir),
+            src.join("logging.ts"),
+            logging_source(),
+        ),
+        (
+            path_str(&src.join("validation-middleware.ts"), out_dir),
+            src.join("validation-middleware.ts"),
+            validation_middleware_source(),
+        ),
+        (
+            path_str(&src.join("service_container.ts"), out_dir),
+            src.join("service_container.ts"),
+            service_container_source(),
+        ),
+        (
+            path_str(&src.join("client.ts"), out_dir),
+            src.join("client.ts"),
+            client_source(doc),
+        ),
     ];
 
     Ok(files)
@@ -257,8 +329,16 @@ export async function applyAuth(
 "#,
         bearer = bearer_block,
         apikey = apikey_block,
-        bearer_union = if wants_bearer { " | BearerAuthProvider" } else { "" },
-        apikey_union = if wants_apikey { " | ApiKeyAuthProvider" } else { "" },
+        bearer_union = if wants_bearer {
+            " | BearerAuthProvider"
+        } else {
+            ""
+        },
+        apikey_union = if wants_apikey {
+            " | ApiKeyAuthProvider"
+        } else {
+            ""
+        },
         cases = cases,
         never_assert = if wants_bearer || wants_apikey {
             "const _: never = auth;"
@@ -723,8 +803,8 @@ export async function* streamSse(response: Response): AsyncGenerator<ServerSentE
 /// Provides generic validation infrastructure plus per-model schema descriptors
 /// and validators generated from the IR.
 fn validate_source(doc: &Document) -> String {
-    use specforge_core::Model;
     use crate::name::pascal;
+    use specforge_core::Model;
 
     // Schema types + generic validator runtime.
     let mut out = String::from(
@@ -1139,9 +1219,12 @@ fn ts_schema_type(ty: &specforge_core::Type) -> String {
     use specforge_core::{CompositionKind, Scalar, Type};
     match ty {
         Type::Scalar(s) => match s {
-            Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Integer64 | Scalar::Base64 | Scalar::Binary => {
-                "{ kind: \"string\" }".into()
-            }
+            Scalar::String
+            | Scalar::DateTime
+            | Scalar::Uuid
+            | Scalar::Integer64
+            | Scalar::Base64
+            | Scalar::Binary => "{ kind: \"string\" }".into(),
             Scalar::Integer | Scalar::Float => "{ kind: \"number\" }".into(),
             Scalar::Boolean => "{ kind: \"boolean\" }".into(),
         },
@@ -1521,10 +1604,7 @@ export function createContainer(opts: ServiceContainer = {}): ServiceContainer {
 /// `client.ts` — the fetch-based core. Configurable base URL, auth, retry,
 /// timeout, and custom fetch. Emits typed errors on failure.
 fn client_source(doc: &Document) -> String {
-    let default_base = doc
-        .base_url
-        .as_deref()
-        .unwrap_or("https://example.com");
+    let default_base = doc.base_url.as_deref().unwrap_or("https://example.com");
     format!(
         r#"/* eslint-disable */
 // Generated by specforge. DO NOT EDIT.

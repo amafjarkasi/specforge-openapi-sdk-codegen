@@ -47,7 +47,10 @@ pub fn emit_model_file_with_registry(model: &Model, registry: Option<&SchemaRegi
 }
 
 /// (filename_stem, body, referenced-model-names)
-fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, String, BTreeSet<String>) {
+fn emit_object(
+    o: &ObjectModel,
+    registry: Option<&SchemaRegistry>,
+) -> (String, String, BTreeSet<String>) {
     let name = crate::name::safe_model_name(&pascal(&o.name));
     let mut refs = BTreeSet::new();
     let mut body = String::new();
@@ -57,7 +60,11 @@ fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, S
         for prop in &o.properties {
             if let Some(pd) = &prop.description {
                 let key = property_key(&prop.name);
-                let suffix = if prop.required { String::new() } else { " (optional)".to_string() };
+                let suffix = if prop.required {
+                    String::new()
+                } else {
+                    " (optional)".to_string()
+                };
                 body.push_str(&format!(" * @property {key} - {pd}{suffix}\n"));
             }
         }
@@ -66,9 +73,10 @@ fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, S
 
     // If the root is a composition or scalar alias (no own properties), emit a
     // type alias instead of an interface.
-    let is_pure_object = o.properties.is_empty()
-        && !matches!(&o.shape_type, Some(Type::Composition(_)));
-    let has_alias_shape = !o.properties.is_empty() || matches!(&o.shape_type, Some(Type::Composition(_)));
+    let is_pure_object =
+        o.properties.is_empty() && !matches!(&o.shape_type, Some(Type::Composition(_)));
+    let has_alias_shape =
+        !o.properties.is_empty() || matches!(&o.shape_type, Some(Type::Composition(_)));
 
     if !o.properties.is_empty() {
         // Interface for a true object.
@@ -80,10 +88,7 @@ fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, S
         // additionalProperties → index signature
         if let Some(addl) = &o.additional_properties {
             collect_refs(addl, &mut refs);
-            body.push_str(&format!(
-                "  [key: string]: {};\n",
-                render(addl)
-            ));
+            body.push_str(&format!("  [key: string]: {};\n", render(addl)));
         }
         body.push_str("}\n");
     } else if let Some(shape) = &o.shape_type {
@@ -214,9 +219,7 @@ fn arm_type_check(
                 "typeof value === \"object\" && value !== null && {access} !== undefined && {req}"
             );
         }
-        return format!(
-            "typeof value === \"object\" && value !== null && {access} !== undefined"
-        );
+        return format!("typeof value === \"object\" && value !== null && {access} !== undefined");
     }
 
     // No discriminator: narrow by presence of required fields unique-ish to the arm.
@@ -318,7 +321,11 @@ fn emit_enum(e: &EnumModel) -> (String, String, BTreeSet<String>) {
     }
     // String union — the modern, tree-shakeable representation. (A real TS
     // `enum` adds runtime overhead and is discouraged in 2026.)
-    let arms: Vec<String> = e.variants.iter().map(|v| string_literal(&v.value)).collect();
+    let arms: Vec<String> = e
+        .variants
+        .iter()
+        .map(|v| string_literal(&v.value))
+        .collect();
     body.push_str(&format!("export type {name} = {};\n", arms.join(" | ")));
     // Also export a const tuple of the values for runtime iteration/validation.
     body.push_str(&format!(
@@ -480,7 +487,9 @@ mod tests {
         assert!(file.contains("import { PetCreated } from \"./PetCreated\";"));
         assert!(file.contains("import { PetUpdated } from \"./PetUpdated\";"));
         // Guards are emitted even without a registry (structural fallback).
-        assert!(file.contains("export function isPetEventPetCreated(value: PetEvent): value is PetCreated"));
+        assert!(file.contains(
+            "export function isPetEventPetCreated(value: PetEvent): value is PetCreated"
+        ));
         assert!(file.contains("export function narrowPetEvent(value: PetEvent)"));
     }
 
@@ -634,8 +643,14 @@ mod tests {
             base_type: None,
         };
         let file = emit_model_file_with_registry(&Model::Object(o), Some(&registry));
-        assert!(file.contains("=== \"dog\""), "should use mapping value 'dog'");
-        assert!(file.contains("=== \"cat\""), "should use mapping value 'cat'");
+        assert!(
+            file.contains("=== \"dog\""),
+            "should use mapping value 'dog'"
+        );
+        assert!(
+            file.contains("=== \"cat\""),
+            "should use mapping value 'cat'"
+        );
         assert!(file.contains("export function isPetDog"));
         assert!(file.contains("export function isPetCat"));
         assert!(file.contains("export function narrowPet"));

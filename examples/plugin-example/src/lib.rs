@@ -1,5 +1,5 @@
-use specforge_plugin::{GeneratedFile, Plugin, PluginResult};
 use serde_json::Value;
+use specforge_plugin::{GeneratedFile, Plugin, PluginResult};
 
 /// Example plugin that emits a project README summarizing the generated SDK.
 pub struct ReadmePlugin;
@@ -23,10 +23,7 @@ impl Plugin for ReadmePlugin {
         };
         let title = doc["title"].as_str().unwrap_or("API");
         let version = doc["version"].as_str().unwrap_or("0.0.0");
-        let op_count = doc["operations"]
-            .as_array()
-            .map(|a| a.len())
-            .unwrap_or(0);
+        let op_count = doc["operations"].as_array().map(|a| a.len()).unwrap_or(0);
         let schema_count = doc["schemas"]["models"]
             .as_object()
             .map(|m| m.len())

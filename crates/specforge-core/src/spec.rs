@@ -74,8 +74,7 @@ pub fn parse_bytes_full(bytes: &[u8]) -> Result<ParsedSpec, SpecError> {
 /// Parse an OpenAPI document from a string (JSON or YAML, auto-detected).
 pub fn parse_str(text: &str) -> Result<OpenAPI, SpecError> {
     // JSON parses faster and stricter; try it first, fall back to YAML.
-    let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start())
-    {
+    let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start()) {
         v
     } else {
         serde_yaml::from_str::<JsonValue>(text).map_err(SpecError::Yaml)?
@@ -97,8 +96,7 @@ pub fn parse_str(text: &str) -> Result<OpenAPI, SpecError> {
 /// the [`ParsedSpec`] struct.
 pub fn parse_str_full(text: &str) -> Result<ParsedSpec, SpecError> {
     // JSON parses faster and stricter; try it first, fall back to YAML.
-    let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start())
-    {
+    let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start()) {
         v
     } else {
         serde_yaml::from_str::<JsonValue>(text).map_err(SpecError::Yaml)?
@@ -176,8 +174,7 @@ fn extract_ref_siblings(json: &mut JsonValue) {
 
                     if !siblings.is_empty() {
                         // Build the allOf wrapper.
-                        let ref_member =
-                            serde_json::json!({ "$ref": ref_val });
+                        let ref_member = serde_json::json!({ "$ref": ref_val });
                         let mut sibling_obj = serde_json::Map::new();
                         for (k, v) in siblings {
                             sibling_obj.insert(k, v);
@@ -798,8 +795,16 @@ components:
         let dir = tempfile::tempdir().unwrap();
         let v1 = dir.path().join("v1.yaml");
         let v2 = dir.path().join("v2.yaml");
-        std::fs::write(&v1, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
-        std::fs::write(&v2, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            &v1,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
+        std::fs::write(
+            &v2,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let versions = scan_versions(dir.path());
         assert_eq!(versions.len(), 2);
@@ -816,8 +821,16 @@ components:
         let v2_dir = dir.path().join("v2");
         std::fs::create_dir_all(&v1_dir).unwrap();
         std::fs::create_dir_all(&v2_dir).unwrap();
-        std::fs::write(v1_dir.join("openapi.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
-        std::fs::write(v2_dir.join("openapi.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            v1_dir.join("openapi.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
+        std::fs::write(
+            v2_dir.join("openapi.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let versions = scan_versions(dir.path());
         assert_eq!(versions.len(), 2);
@@ -836,7 +849,11 @@ components:
     fn scan_versions_ignores_non_spec_files() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("readme.txt"), "not a spec").unwrap();
-        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            dir.path().join("v1.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let versions = scan_versions(dir.path());
         assert_eq!(versions.len(), 1);
@@ -849,7 +866,8 @@ components:
         std::fs::write(
             dir.path().join("v1.json"),
             r#"{"openapi": "3.0.3", "info": {"title": "T", "version": "1.0.0"}, "paths": {}}"#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let versions = scan_versions(dir.path());
         assert_eq!(versions.len(), 1);
@@ -860,7 +878,11 @@ components:
     fn resolve_spec_path_file_passthrough() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("api.yaml");
-        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            &file,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(&file, None);
         assert!(result.is_ok());
@@ -870,20 +892,35 @@ components:
     #[test]
     fn resolve_spec_path_dir_requires_version() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            dir.path().join("v1.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(dir.path(), None);
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("--version"), "error should mention --version: {err}");
+        assert!(
+            err.contains("--version"),
+            "error should mention --version: {err}"
+        );
     }
 
     #[test]
     fn resolve_spec_path_exact_version_match() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("v1.yaml");
-        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
-        std::fs::write(dir.path().join("v2.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            &file,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("v2.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"2.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(dir.path(), Some("1.0.0"));
         assert!(result.is_ok());
@@ -894,7 +931,11 @@ components:
     fn resolve_spec_path_file_stem_match() {
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("v1.yaml");
-        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            &file,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(dir.path(), Some("v1"));
         assert!(result.is_ok());
@@ -904,13 +945,23 @@ components:
     #[test]
     fn resolve_spec_path_version_not_found() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("v1.yaml"), "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            dir.path().join("v1.yaml"),
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(dir.path(), Some("99.0.0"));
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
-        assert!(err.contains("not found"), "error should mention not found: {err}");
-        assert!(err.contains("1.0.0"), "error should list available versions: {err}");
+        assert!(
+            err.contains("not found"),
+            "error should mention not found: {err}"
+        );
+        assert!(
+            err.contains("1.0.0"),
+            "error should list available versions: {err}"
+        );
     }
 
     #[test]
@@ -919,7 +970,11 @@ components:
         let v1_dir = dir.path().join("v1");
         std::fs::create_dir_all(&v1_dir).unwrap();
         let file = v1_dir.join("openapi.yaml");
-        std::fs::write(&file, "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}").unwrap();
+        std::fs::write(
+            &file,
+            "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1.0.0\"\npaths: {}",
+        )
+        .unwrap();
 
         let result = resolve_spec_path(dir.path(), Some("v1"));
         assert!(result.is_ok());
@@ -990,7 +1045,11 @@ components:
       const: "active"
 "#;
         let result = parse_str(yaml);
-        assert!(result.is_ok(), "should parse spec with const: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "should parse spec with const: {:?}",
+            result.err()
+        );
     }
 
     // ── dependentRequired tests ────────────────────────────────────────
@@ -1006,7 +1065,10 @@ components:
             }
         });
         downgrade_value(&mut json);
-        assert!(json.get("dependentRequired").is_none(), "dependentRequired should be removed");
+        assert!(
+            json.get("dependentRequired").is_none(),
+            "dependentRequired should be removed"
+        );
         let req = json["required"].as_array().unwrap();
         assert!(req.contains(&serde_json::json!("name")));
         assert!(req.contains(&serde_json::json!("email")));
@@ -1064,7 +1126,11 @@ components:
           - phone
 "#;
         let result = parse_str(yaml);
-        assert!(result.is_ok(), "should parse spec with dependentRequired: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "should parse spec with dependentRequired: {:?}",
+            result.err()
+        );
     }
 
     // ── prefixItems tests ──────────────────────────────────────────────
@@ -1078,7 +1144,10 @@ components:
             ]
         });
         downgrade_value(&mut json);
-        assert!(json.get("prefixItems").is_none(), "prefixItems should be removed");
+        assert!(
+            json.get("prefixItems").is_none(),
+            "prefixItems should be removed"
+        );
         assert_eq!(json["items"]["type"], "number");
     }
 
@@ -1125,7 +1194,11 @@ components:
         - type: number
 "#;
         let result = parse_str(yaml);
-        assert!(result.is_ok(), "should parse spec with prefixItems: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "should parse spec with prefixItems: {:?}",
+            result.err()
+        );
     }
 
     // ── type array with multiple types test ────────────────────────────

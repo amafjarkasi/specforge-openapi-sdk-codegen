@@ -9,16 +9,16 @@
 
 use indexmap::IndexMap;
 use openapiv3::{
-    AdditionalProperties, APIKeyLocation, Components, MediaType, ObjectType, OpenAPI,
+    APIKeyLocation, AdditionalProperties, Components, MediaType, ObjectType, OpenAPI,
     Operation as OApiOperation, Parameter as OApiParameter, PathItem, ReferenceOr, Responses,
-    Schema, SchemaData, SchemaKind, Server, StatusCode, StringType, StringFormat, Type as OApiType,
+    Schema, SchemaData, SchemaKind, Server, StatusCode, StringFormat, StringType, Type as OApiType,
     VariantOrUnknownOrEmpty,
 };
 
 use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
-    Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
+    Model, ObjectModel, Operation, ParamLocation, Parameter as IrParameter, Property, RequestBody,
     Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
 };
 
@@ -68,10 +68,7 @@ fn pick_base_url(servers: &[Server]) -> Option<String> {
 
 // ─── Security ───────────────────────────────────────────────────────────────
 
-fn resolve_security(
-    spec: &OpenAPI,
-    components: Option<&Components>,
-) -> Vec<SecurityScheme> {
+fn resolve_security(spec: &OpenAPI, components: Option<&Components>) -> Vec<SecurityScheme> {
     // Global security requirement names → look up in components.securitySchemes.
     let mut out = Vec::new();
     let Some(reqs) = spec.security.as_ref() else {
@@ -83,9 +80,7 @@ fn resolve_security(
 
     for req in reqs {
         for name in req.keys() {
-            if let Some(ReferenceOr::Item(scheme)) =
-                components.security_schemes.get(name)
-            {
+            if let Some(ReferenceOr::Item(scheme)) = components.security_schemes.get(name) {
                 if let Some(ir) = map_security_scheme(scheme) {
                     out.push(ir);
                 }
@@ -97,9 +92,7 @@ fn resolve_security(
 
 fn map_security_scheme(scheme: &openapiv3::SecurityScheme) -> Option<SecurityScheme> {
     match scheme {
-        openapiv3::SecurityScheme::HTTP { scheme, .. }
-            if scheme.eq_ignore_ascii_case("bearer") =>
-        {
+        openapiv3::SecurityScheme::HTTP { scheme, .. } if scheme.eq_ignore_ascii_case("bearer") => {
             Some(SecurityScheme::HttpBearer)
         }
         openapiv3::SecurityScheme::APIKey { name, location, .. } => {
@@ -127,7 +120,13 @@ fn resolve_schemas(components: Option<&Components>) -> Result<SchemaRegistry, Re
 
     for (name, schema_or) in &components.schemas {
         let schema = deref_schema(schema_or)?;
-        let model = build_model(name, &schema.schema_data, &schema.schema_kind, components, &registry)?;
+        let model = build_model(
+            name,
+            &schema.schema_data,
+            &schema.schema_kind,
+            components,
+            &registry,
+        )?;
         registry.models.insert(name.clone(), model);
     }
 
@@ -162,10 +161,12 @@ fn build_model(
     if let SchemaKind::Type(OApiType::String(StringType { enumeration, .. })) = kind {
         let variants: Vec<EnumVariant> = enumeration
             .iter()
-            .filter_map(|v| v.as_ref().map(|raw| EnumVariant {
-                value: raw.clone(),
-                description: None,
-            }))
+            .filter_map(|v| {
+                v.as_ref().map(|raw| EnumVariant {
+                    value: raw.clone(),
+                    description: None,
+                })
+            })
             .collect();
         if !variants.is_empty() {
             return Ok(Model::Enum(EnumModel {
@@ -229,7 +230,11 @@ fn build_model(
         description: data.description.clone(),
         properties,
         additional_properties: additional,
-        shape_type: Some(schema_kind_to_type(kind, data.nullable, data.discriminator.as_ref())),
+        shape_type: Some(schema_kind_to_type(
+            kind,
+            data.nullable,
+            data.discriminator.as_ref(),
+        )),
         base_type,
     };
     Ok(Model::Object(model))
@@ -276,7 +281,14 @@ fn properties_from_allof_member(
             }
             // Fallback: check the already-built registry.
             if let Some(Model::Object(obj)) = registry.get(&ref_name) {
-                return Ok((obj.properties.clone(), obj.properties.iter().filter(|p| p.required).map(|p| p.name.clone()).collect()));
+                return Ok((
+                    obj.properties.clone(),
+                    obj.properties
+                        .iter()
+                        .filter(|p| p.required)
+                        .map(|p| p.name.clone())
+                        .collect(),
+                ));
             }
             Ok((vec![], std::collections::HashSet::new()))
         }
@@ -433,12 +445,8 @@ fn schema_kind_to_type(
 ) -> Type {
     match kind {
         SchemaKind::Type(t) => type_to_ir(t, nullable),
-        SchemaKind::OneOf { one_of } => {
-            composition(CompositionKind::OneOf, one_of, discriminator)
-        }
-        SchemaKind::AnyOf { any_of } => {
-            composition(CompositionKind::AnyOf, any_of, discriminator)
-        }
+        SchemaKind::OneOf { one_of } => composition(CompositionKind::OneOf, one_of, discriminator),
+        SchemaKind::AnyOf { any_of } => composition(CompositionKind::AnyOf, any_of, discriminator),
         SchemaKind::AllOf { all_of } => {
             // Check if this is a $ref with metadata siblings (produced by
             // the 3.1→3.0 preprocessing step). When an allOf has exactly
@@ -461,23 +469,14 @@ fn type_to_ir(t: &OApiType, nullable: bool) -> Type {
         OApiType::String(s) => {
             // Inline string enums keep their literals so emitters can build
             // discriminant guards (e.g. `type: "pet.created"`).
-            let variants: Vec<String> = s
-                .enumeration
-                .iter()
-                .filter_map(|v| v.clone())
-                .collect();
+            let variants: Vec<String> = s.enumeration.iter().filter_map(|v| v.clone()).collect();
             if !variants.is_empty() {
-                return Type::StringEnum {
-                    variants,
-                    nullable,
-                };
+                return Type::StringEnum { variants, nullable };
             }
             let scalar = match &s.format {
                 VariantOrUnknownOrEmpty::Item(StringFormat::Date)
                 | VariantOrUnknownOrEmpty::Item(StringFormat::DateTime) => Scalar::DateTime,
-                VariantOrUnknownOrEmpty::Unknown(fmt)
-                    if fmt.eq_ignore_ascii_case("uuid") =>
-                {
+                VariantOrUnknownOrEmpty::Unknown(fmt) if fmt.eq_ignore_ascii_case("uuid") => {
                     Scalar::Uuid
                 }
                 _ => Scalar::String,
@@ -498,7 +497,10 @@ fn type_to_ir(t: &OApiType, nullable: bool) -> Type {
                 nullable,
             }
         }
-        OApiType::Object(ObjectType { additional_properties, .. }) => match additional_properties {
+        OApiType::Object(ObjectType {
+            additional_properties,
+            ..
+        }) => match additional_properties {
             Some(AdditionalProperties::Any(true)) => Type::Map {
                 value: Box::new(Type::Any),
             },
@@ -576,7 +578,11 @@ fn composition(
 
 /// Extract the trailing path segment of a `#/components/schemas/Foo` ref.
 fn ref_name(reference: &str) -> String {
-    reference.rsplit('/').next().unwrap_or(reference).to_string()
+    reference
+        .rsplit('/')
+        .next()
+        .unwrap_or(reference)
+        .to_string()
 }
 
 // ─── Operations → IR ────────────────────────────────────────────────────────
@@ -676,7 +682,6 @@ fn resolve_operation(
 
     let responses = resolve_responses(&op.responses)?;
 
-
     Ok(Operation {
         operation_id,
         method,
@@ -687,7 +692,7 @@ fn resolve_operation(
         parameters,
         request_body,
         responses,
-    
+
         retry_policy: None,
     })
 }
@@ -747,9 +752,7 @@ fn resolve_parameter_item(param: &OApiParameter) -> Result<Option<IrParameter>, 
     }))
 }
 
-fn resolve_responses(
-    responses: &Responses,
-) -> Result<Vec<Response>, ResolveError> {
+fn resolve_responses(responses: &Responses) -> Result<Vec<Response>, ResolveError> {
     let mut out = Vec::new();
     for (status, resp_or) in &responses.responses {
         let body = match resp_or {

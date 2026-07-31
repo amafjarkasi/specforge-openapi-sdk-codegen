@@ -9,7 +9,9 @@ use specforge_core::{parse_file, resolve};
 use std::path::Path;
 
 fn fixtures_dir() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures").leak()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures")
+        .leak()
 }
 
 fn bench_parse_resolve(c: &mut Criterion) {

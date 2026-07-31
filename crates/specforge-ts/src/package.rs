@@ -47,7 +47,11 @@ pub fn collect(
     files.push((path_str(&readme, out_dir), readme, readme_md(doc, opts)));
 
     let gitignore = out_dir.join(".gitignore");
-    files.push((path_str(&gitignore, out_dir), gitignore, "dist/\nnode_modules/\n*.tsbuildinfo\n".into()));
+    files.push((
+        path_str(&gitignore, out_dir),
+        gitignore,
+        "dist/\nnode_modules/\n*.tsbuildinfo\n".into(),
+    ));
 
     Ok(files)
 }
@@ -170,7 +174,10 @@ fn readme_md(doc: &Document, opts: &GeneratorOptions) -> String {
     let base = doc.base_url.as_deref().unwrap_or("<base-url>");
 
     // Pick the first GET operation for examples, falling back to generic names.
-    let get_op = doc.operations.iter().find(|op| op.method == specforge_core::HttpMethod::Get);
+    let get_op = doc
+        .operations
+        .iter()
+        .find(|op| op.method == specforge_core::HttpMethod::Get);
     let (example_tag, example_call, example_list_call) = if let Some(op) = get_op {
         let tag = op.tag.as_deref().unwrap_or("default");
         let tag_ident = tag.to_ascii_lowercase();
@@ -185,14 +192,27 @@ fn readme_md(doc: &Document, opts: &GeneratorOptions) -> String {
         if !call_args.is_empty() {
             call_args = format!("{{ {} }}", call_args.trim_start());
         }
-        let is_list = fn_name.starts_with("list") || fn_name.starts_with("get") && op.responses.iter().any(|r| r.body.is_some());
+        let is_list = fn_name.starts_with("list")
+            || fn_name.starts_with("get") && op.responses.iter().any(|r| r.body.is_some());
         if is_list {
-            (tag_ident.clone(), format!("client.{tag_ident}.{fn_name}({call_args})"), format!("client.{tag_ident}.{fn_name}()"))
+            (
+                tag_ident.clone(),
+                format!("client.{tag_ident}.{fn_name}({call_args})"),
+                format!("client.{tag_ident}.{fn_name}()"),
+            )
         } else {
-            (tag_ident.clone(), format!("client.{tag_ident}.{fn_name}({call_args})"), "client.pets.listPets()".into())
+            (
+                tag_ident.clone(),
+                format!("client.{tag_ident}.{fn_name}({call_args})"),
+                "client.pets.listPets()".into(),
+            )
         }
     } else {
-        ("pets".into(), "client.pets.getPet({ petId: \"abc\" })".into(), "client.pets.listPets()".into())
+        (
+            "pets".into(),
+            "client.pets.getPet({ petId: \"abc\" })".into(),
+            "client.pets.listPets()".into(),
+        )
     };
 
     let list_fn = if let Some(op) = get_op {

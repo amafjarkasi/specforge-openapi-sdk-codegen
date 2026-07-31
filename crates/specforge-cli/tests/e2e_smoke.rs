@@ -203,7 +203,10 @@ fn start_petstore_mock() -> (SocketAddr, thread::JoinHandle<()>) {
     (addr, handle)
 }
 
-fn handle_petstore(stream: &mut TcpStream, state: Arc<Mutex<PetstoreState>>) -> std::io::Result<()> {
+fn handle_petstore(
+    stream: &mut TcpStream,
+    state: Arc<Mutex<PetstoreState>>,
+) -> std::io::Result<()> {
     let (method, path, _path_q, _headers, _body) = parse_request(stream)?;
     if method.is_empty() {
         return Ok(());
@@ -223,10 +226,18 @@ fn handle_petstore(stream: &mut TcpStream, state: Arc<Mutex<PetstoreState>>) -> 
                 if let Some(pet) = st.pets.get(&id) {
                     (200, pet_to_json(pet), "application/json")
                 } else {
-                    (404, r#"{"code":404,"message":"not found"}"#.into(), "application/json")
+                    (
+                        404,
+                        r#"{"code":404,"message":"not found"}"#.into(),
+                        "application/json",
+                    )
                 }
             } else {
-                (400, r#"{"code":400,"message":"bad id"}"#.into(), "application/json")
+                (
+                    400,
+                    r#"{"code":400,"message":"bad id"}"#.into(),
+                    "application/json",
+                )
             }
         }
         ("POST", "/pets") => {
@@ -244,7 +255,11 @@ fn handle_petstore(stream: &mut TcpStream, state: Arc<Mutex<PetstoreState>>) -> 
             (201, String::new(), "text/plain")
         }
         ("GET", "/health") => (200, r#"{"ok":true}"#.into(), "application/json"),
-        _ => (404, r#"{"code":404,"message":"no route"}"#.into(), "application/json"),
+        _ => (
+            404,
+            r#"{"code":404,"message":"no route"}"#.into(),
+            "application/json",
+        ),
     };
     write_response(stream, status, ct, &body)
 }
@@ -362,7 +377,10 @@ fn handle_sample(stream: &mut TcpStream, state: Arc<Mutex<SampleState>>) -> std:
 
     // Auth gate — every route except /health requires Bearer.
     if path != "/health" {
-        let auth = headers.get("authorization").map(|s| s.as_str()).unwrap_or("");
+        let auth = headers
+            .get("authorization")
+            .map(|s| s.as_str())
+            .unwrap_or("");
         let expected = format!("Bearer {BEARER_TOKEN}");
         if auth != expected {
             return write_response(
@@ -424,7 +442,11 @@ fn handle_sample(stream: &mut TcpStream, state: Arc<Mutex<SampleState>>) -> std:
                 .find(|p| p.id == id);
             match found {
                 Some(pet) => (200, sample_pet_json(pet), "application/json"),
-                None => (404, r#"{"code":404,"message":"not found"}"#.into(), "application/json"),
+                None => (
+                    404,
+                    r#"{"code":404,"message":"not found"}"#.into(),
+                    "application/json",
+                ),
             }
         }
 
@@ -440,7 +462,11 @@ fn handle_sample(stream: &mut TcpStream, state: Arc<Mutex<SampleState>>) -> std:
             (201, sample_pet_json(&pet), "application/json")
         }
 
-        _ => (404, r#"{"code":404,"message":"no route"}"#.into(), "application/json"),
+        _ => (
+            404,
+            r#"{"code":404,"message":"no route"}"#.into(),
+            "application/json",
+        ),
     };
     write_response(stream, status, ct, &resp_body)
 }
@@ -1027,11 +1053,7 @@ console.log("ts-runtime-ok", all.length, page.items.length);
 
 // ─── Test runners ────────────────────────────────────────────────────────────
 
-fn run_langs(
-    label: &str,
-    root: &Path,
-    legs: &[LangLeg],
-) {
+fn run_langs(label: &str, root: &Path, legs: &[LangLeg]) {
     let mut failures = Vec::new();
     let mut ran = 0;
     for (name, f) in legs {
@@ -1079,10 +1101,7 @@ fn e2e_petstore_smoke_all_languages() {
         "petstore smoke",
         &root,
         &[
-            (
-                "go",
-                Box::new(move |d| smoke_go_petstore(d, &base)),
-            ),
+            ("go", Box::new(move |d| smoke_go_petstore(d, &base))),
             (
                 "rust",
                 Box::new({
@@ -1136,7 +1155,10 @@ fn e2e_sample_auth_retry_pagination() {
         stream.write_all(req.as_bytes()).unwrap();
         let mut resp = String::new();
         stream.read_to_string(&mut resp).unwrap();
-        assert!(resp.contains("Alpha"), "expected pets after retry seed: {resp}");
+        assert!(
+            resp.contains("Alpha"),
+            "expected pets after retry seed: {resp}"
+        );
     }
 
     let root = std::env::temp_dir().join(format!("specforge-e2e-rt-{}", std::process::id()));
@@ -1148,10 +1170,7 @@ fn e2e_sample_auth_retry_pagination() {
         "sample runtime",
         &root,
         &[
-            (
-                "go",
-                Box::new(move |d| smoke_go_sample(d, &base)),
-            ),
+            ("go", Box::new(move |d| smoke_go_sample(d, &base))),
             (
                 "rust",
                 Box::new({

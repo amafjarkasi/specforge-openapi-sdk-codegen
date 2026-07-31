@@ -20,9 +20,11 @@ use crate::name::pascal;
 pub fn render(ty: &Type) -> String {
     match ty {
         Type::Scalar(s) => match s {
-            Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Base64 | Scalar::Integer64 => {
-                "string".to_string()
-            }
+            Scalar::String
+            | Scalar::DateTime
+            | Scalar::Uuid
+            | Scalar::Base64
+            | Scalar::Integer64 => "string".to_string(),
             Scalar::Integer | Scalar::Float => "number".to_string(),
             Scalar::Boolean => "boolean".to_string(),
             Scalar::Binary => "Uint8Array".to_string(),
@@ -66,8 +68,7 @@ pub fn render(ty: &Type) -> String {
                 CompositionKind::AllOf => " & ",
                 CompositionKind::OneOf | CompositionKind::AnyOf => " | ",
             };
-            let members: Vec<String> =
-                c.members.iter().map(render).collect();
+            let members: Vec<String> = c.members.iter().map(render).collect();
             let joined = members.join(sep);
             if c.members.len() > 1 && matches!(c.kind, CompositionKind::AllOf) {
                 // Intersections read more clearly parenthesized when nested,

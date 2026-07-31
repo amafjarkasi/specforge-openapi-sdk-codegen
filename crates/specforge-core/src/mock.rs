@@ -116,9 +116,7 @@ impl MockServer {
 }
 
 /// Parse an HTTP request and return (method, path).
-fn parse_request_line(
-    reader: &mut BufReader<&mut TcpStream>,
-) -> Option<(String, String)> {
+fn parse_request_line(reader: &mut BufReader<&mut TcpStream>) -> Option<(String, String)> {
     let mut line = String::new();
     reader.read_line(&mut line).ok()?;
     let mut parts = line.split_whitespace();
@@ -141,12 +139,7 @@ fn drain_headers(reader: &mut BufReader<&mut TcpStream>) {
     }
 }
 
-fn handle_connection(
-    mut stream: TcpStream,
-    routes: &[Route],
-    title: &str,
-    version: &str,
-) {
+fn handle_connection(mut stream: TcpStream, routes: &[Route], title: &str, version: &str) {
     let mut reader = BufReader::new(&mut stream);
 
     let (method, path) = match parse_request_line(&mut reader) {
@@ -157,9 +150,7 @@ fn handle_connection(
     drain_headers(&mut reader);
 
     // Match route.
-    let response = routes
-        .iter()
-        .find(|r| r.method == method && r.path == path);
+    let response = routes.iter().find(|r| r.method == method && r.path == path);
 
     let (status_line, body, content_type) = match response {
         Some(route) => {
@@ -213,8 +204,8 @@ fn pick_success_response(doc: &Document, op: &Operation) -> (u16, String) {
             if (200..300).contains(&status) {
                 if let Some(ref body_type) = resp.body {
                     let json = generate_example_json(doc, body_type);
-                    let body = serde_json::to_string_pretty(&json)
-                        .unwrap_or_else(|_| "{}".to_string());
+                    let body =
+                        serde_json::to_string_pretty(&json).unwrap_or_else(|_| "{}".to_string());
                     return (status, body);
                 }
                 // No body (e.g. 204).
@@ -231,10 +222,10 @@ fn pick_success_response(doc: &Document, op: &Operation) -> (u16, String) {
 fn generate_example_json(doc: &Document, ty: &Type) -> serde_json::Value {
     match ty {
         Type::Scalar(s) => scalar_example(*s),
-        Type::StringEnum { variants, .. } => {
-            variants.first().map(|v| serde_json::Value::String(v.clone()))
-                .unwrap_or(serde_json::Value::String("value".to_string()))
-        }
+        Type::StringEnum { variants, .. } => variants
+            .first()
+            .map(|v| serde_json::Value::String(v.clone()))
+            .unwrap_or(serde_json::Value::String("value".to_string())),
         Type::Array { item, .. } => {
             let element = generate_example_json(doc, item);
             serde_json::Value::Array(vec![element])
@@ -269,12 +260,11 @@ fn generate_example_json(doc: &Document, ty: &Type) -> serde_json::Value {
 fn generate_example_from_model(doc: &Document, model: &Model) -> serde_json::Value {
     match model {
         Model::Object(obj) => object_example(doc, obj),
-        Model::Enum(e) => {
-            e.variants
-                .first()
-                .map(|v| serde_json::Value::String(v.value.clone()))
-                .unwrap_or(serde_json::Value::String("value".to_string()))
-        }
+        Model::Enum(e) => e
+            .variants
+            .first()
+            .map(|v| serde_json::Value::String(v.value.clone()))
+            .unwrap_or(serde_json::Value::String("value".to_string())),
     }
 }
 
@@ -293,9 +283,9 @@ fn scalar_example(s: Scalar) -> serde_json::Value {
     match s {
         Scalar::String => serde_json::Value::String("string".to_string()),
         Scalar::DateTime => serde_json::Value::String("2024-01-01T00:00:00Z".to_string()),
-        Scalar::Uuid => serde_json::Value::String(
-            "00000000-0000-0000-0000-000000000000".to_string(),
-        ),
+        Scalar::Uuid => {
+            serde_json::Value::String("00000000-0000-0000-0000-000000000000".to_string())
+        }
         Scalar::Integer => serde_json::json!(0),
         Scalar::Integer64 => serde_json::json!(0),
         Scalar::Float => serde_json::json!(0.0),

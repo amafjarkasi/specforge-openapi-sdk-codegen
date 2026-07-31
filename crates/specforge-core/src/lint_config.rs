@@ -298,10 +298,7 @@ mod tests {
     fn set_severity_adds_new_rule() {
         let mut config = LintConfig::default();
         config.set_severity("custom-rule", RuleSeverity::Error);
-        assert_eq!(
-            config.severity("custom-rule"),
-            crate::lint::Severity::Error
-        );
+        assert_eq!(config.severity("custom-rule"), crate::lint::Severity::Error);
         assert!(config.is_enabled("custom-rule"));
     }
 

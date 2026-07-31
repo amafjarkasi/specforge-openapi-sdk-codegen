@@ -1,10 +1,16 @@
 #[test]
 fn generate_and_check_docs() {
-    let spec_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
     let spec = specforge_core::parse_file(&spec_path).expect("parse");
     let doc = specforge_core::resolve(&spec).expect("resolve");
     let go_dir = tempfile::tempdir().unwrap();
-    let opts = specforge_go::GeneratorOptions { out_dir: go_dir.path().to_path_buf(), module_path: None, package_name: None, i18n: None };
+    let opts = specforge_go::GeneratorOptions {
+        out_dir: go_dir.path().to_path_buf(),
+        module_path: None,
+        package_name: None,
+        i18n: None,
+    };
     let files = specforge_go::generate(&doc, &opts).expect("emit Go");
     assert!(!files.is_empty());
     let api_file = go_dir.path().join("api_pets.go");
@@ -12,7 +18,9 @@ fn generate_and_check_docs() {
     let content = std::fs::read_to_string(&api_file).unwrap();
     assert!(content.contains("// Returns"), "Missing return description");
     println!("=== Go doc comment verification PASSED ===");
-    for line in content.lines().take(40) { println!("  {line}"); }
+    for line in content.lines().take(40) {
+        println!("  {line}");
+    }
 }
 
 /// Regression test: the generated Go SDK must compile.
@@ -31,16 +39,18 @@ fn generated_sdk_compiles() {
     // Resolve the Go binary. Prefer `go` on PATH, then the standard install
     // location (matching scripts/generate-examples.sh, which adds
     // /usr/local/go/bin). Skip gracefully if neither is runnable.
-    let go = ["go", "/usr/local/go/bin/go"]
-        .iter()
-        .find_map(|candidate| {
-            let ok = std::process::Command::new(candidate)
-                .arg("version")
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false);
-            if ok { Some(*candidate) } else { None }
-        });
+    let go = ["go", "/usr/local/go/bin/go"].iter().find_map(|candidate| {
+        let ok = std::process::Command::new(candidate)
+            .arg("version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if ok {
+            Some(*candidate)
+        } else {
+            None
+        }
+    });
     let go = match go {
         Some(g) => g,
         None => {
@@ -49,7 +59,8 @@ fn generated_sdk_compiles() {
         }
     };
 
-    let spec_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
+    let spec_path =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/sample-api.yaml");
     let spec = specforge_core::parse_file(&spec_path).expect("parse");
     let doc = specforge_core::resolve(&spec).expect("resolve");
     let go_dir = tempfile::tempdir().unwrap();

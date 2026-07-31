@@ -107,7 +107,11 @@ fn check_duplicate_operation_ids(doc: &Document, config: &LintConfig, diags: &mu
 }
 
 /// Warn if a response has no description.
-fn check_missing_response_descriptions(doc: &Document, config: &LintConfig, diags: &mut Vec<Diagnostic>) {
+fn check_missing_response_descriptions(
+    doc: &Document,
+    config: &LintConfig,
+    diags: &mut Vec<Diagnostic>,
+) {
     let severity = config.severity("missing-response-description");
     for op in &doc.operations {
         for resp in &op.responses {
@@ -123,7 +127,11 @@ fn check_missing_response_descriptions(doc: &Document, config: &LintConfig, diag
 }
 
 /// Warn if an operation has no summary.
-fn check_missing_operation_summaries(doc: &Document, config: &LintConfig, diags: &mut Vec<Diagnostic>) {
+fn check_missing_operation_summaries(
+    doc: &Document,
+    config: &LintConfig,
+    diags: &mut Vec<Diagnostic>,
+) {
     let severity = config.severity("missing-operation-summary");
     for op in &doc.operations {
         if op.summary.is_none() {
@@ -161,7 +169,11 @@ fn check_missing_operation_ids(doc: &Document, config: &LintConfig, diags: &mut 
         if op.operation_id.is_empty() {
             diags.push(Diagnostic {
                 severity,
-                message: format!("operation {} {} has no operationId", op.method.as_str(), op.path),
+                message: format!(
+                    "operation {} {} has no operationId",
+                    op.method.as_str(),
+                    op.path
+                ),
                 path: format!("operations.{}.{}", op.method.as_str(), op.path),
             });
         }
@@ -169,7 +181,11 @@ fn check_missing_operation_ids(doc: &Document, config: &LintConfig, diags: &mut 
 }
 
 /// Warn if a schema has no description.
-fn check_missing_schema_descriptions(doc: &Document, config: &LintConfig, diags: &mut Vec<Diagnostic>) {
+fn check_missing_schema_descriptions(
+    doc: &Document,
+    config: &LintConfig,
+    diags: &mut Vec<Diagnostic>,
+) {
     let severity = config.severity("missing-schema-description");
     for (name, model) in doc.schemas.iter() {
         let has_desc = match model {
@@ -201,7 +217,11 @@ fn check_path_trailing_slash(doc: &Document, config: &LintConfig, diags: &mut Ve
 }
 
 /// Warn about operations marked as deprecated.
-fn check_deprecated_operations(_doc: &Document, _config: &LintConfig, _diags: &mut Vec<Diagnostic>) {
+fn check_deprecated_operations(
+    _doc: &Document,
+    _config: &LintConfig,
+    _diags: &mut Vec<Diagnostic>,
+) {
     // The current IR does not carry a `deprecated` flag on operations.
     // This is a placeholder for when the IR is extended. For now, we cannot
     // detect deprecated operations from the resolved IR alone.
@@ -437,9 +457,7 @@ mod tests {
         let diags = lint(&doc);
         let missing: Vec<_> = diags
             .iter()
-            .filter(|d| {
-                d.severity == Severity::Warning && d.message.contains("no description")
-            })
+            .filter(|d| d.severity == Severity::Warning && d.message.contains("no description"))
             .collect();
         assert!(
             !missing.is_empty(),
@@ -467,9 +485,7 @@ mod tests {
         let diags = lint(&doc);
         let missing: Vec<_> = diags
             .iter()
-            .filter(|d| {
-                d.severity == Severity::Warning && d.message.contains("no summary")
-            })
+            .filter(|d| d.severity == Severity::Warning && d.message.contains("no summary"))
             .collect();
         assert_eq!(missing.len(), 1, "expected one missing-summary warning");
     }

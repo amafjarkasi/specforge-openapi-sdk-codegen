@@ -117,7 +117,8 @@ fn collect_webhooks(
     out_dir: &Path,
 ) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
-    let mut body = String::from("/* eslint-disable */\n// Generated webhook types. DO NOT EDIT.\n\n");
+    let mut body =
+        String::from("/* eslint-disable */\n// Generated webhook types. DO NOT EDIT.\n\n");
 
     // Payload interfaces for each webhook.
     for wh in webhooks {
@@ -163,7 +164,8 @@ fn collect_i18n(
     out_dir: &Path,
 ) -> Vec<(String, PathBuf, String)> {
     let src = out_dir.join("src");
-    let mut body = String::from("/* eslint-disable */\n// Generated i18n translations. DO NOT EDIT.\n\n");
+    let mut body =
+        String::from("/* eslint-disable */\n// Generated i18n translations. DO NOT EDIT.\n\n");
 
     // Group translations into a nested object per locale: { errors: { key: "value" } }
     for (locale, translations) in &i18n.translations {
@@ -251,7 +253,11 @@ export function t(
 ///
 /// A convenience barrel at `src/api/index.ts` re-exports every tag for callers
 /// who prefer a single import.
-fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+fn collect_index(
+    doc: &Document,
+    out_dir: &Path,
+    has_i18n: bool,
+) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let src = out_dir.join("src");
     let mut body = String::from("/* eslint-disable */\n// Generated barrel. DO NOT EDIT.\n\n");
 
@@ -316,10 +322,7 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
 
     // Import each tag API class for the factory below (internal use only — not re-exported).
     for tag in &tag_list {
-        body.push_str(&format!(
-            "import {{ {}Api }} from \"./api/{tag}\";\n",
-            tag
-        ));
+        body.push_str(&format!("import {{ {}Api }} from \"./api/{tag}\";\n", tag));
     }
     if !tag_list.is_empty() {
         body.push('\n');
@@ -336,7 +339,10 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
             .iter()
             .map(|t| format!("  {}: {}Api;", name::camel(t), t))
             .collect();
-        format!("export interface SdkClient {{\n{}\n}}\n\n", fields.join("\n"))
+        format!(
+            "export interface SdkClient {{\n{}\n}}\n\n",
+            fields.join("\n")
+        )
     };
     body.push_str(&client_type);
 
@@ -362,7 +368,10 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
 /// Collect `src/api/index.ts` — a convenience barrel that re-exports all tag
 /// API classes and their params interfaces. Callers who want everything can
 /// import from here; callers who need tree-shaking import individual tags.
-fn collect_api_index(doc: &Document, out_dir: &Path) -> std::io::Result<Vec<(String, PathBuf, String)>> {
+fn collect_api_index(
+    doc: &Document,
+    out_dir: &Path,
+) -> std::io::Result<Vec<(String, PathBuf, String)>> {
     let api_dir = out_dir.join("src").join("api");
 
     let mut tags: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
@@ -431,7 +440,16 @@ fn chrono_free_timestamp() -> String {
     let month_days: [i64; 12] = [
         31,
         if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut m = 1u32;
     for &md in &month_days {

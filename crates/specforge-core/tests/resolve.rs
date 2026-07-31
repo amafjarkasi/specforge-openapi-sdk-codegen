@@ -1,6 +1,8 @@
 //! Integration tests: parse + resolve the sample fixture and assert the IR.
 
-use specforge_core::{parse_file, parse_str, resolve, HttpMethod, Model, ParamLocation, Scalar, Type};
+use specforge_core::{
+    parse_file, parse_str, resolve, HttpMethod, Model, ParamLocation, Scalar, Type,
+};
 use std::path::PathBuf;
 
 fn sample() -> PathBuf {
@@ -69,7 +71,10 @@ fn object_model_has_properties_and_types() {
     // uuid format → Uuid scalar
     assert!(matches!(prop("id").ty, Type::Scalar(Scalar::Uuid)));
     // date-time format → DateTime scalar
-    assert!(matches!(prop("createdAt").ty, Type::Scalar(Scalar::DateTime)));
+    assert!(matches!(
+        prop("createdAt").ty,
+        Type::Scalar(Scalar::DateTime)
+    ));
     // $ref → Reference by name
     assert!(matches!(
         &prop("species").ty,
@@ -104,10 +109,10 @@ fn composition_models_record_shape_type() {
     assert_eq!(comp.kind, specforge_core::CompositionKind::OneOf);
     assert_eq!(comp.members.len(), 3, "three oneOf members");
     // All members are references by name (not inlined).
-    assert!(comp.members.iter().all(|m| matches!(
-        m,
-        Type::Reference { .. }
-    )));
+    assert!(comp
+        .members
+        .iter()
+        .all(|m| matches!(m, Type::Reference { .. })));
     // sample-api.yaml declares discriminator.propertyName: type
     assert_eq!(
         comp.discriminator
@@ -126,11 +131,7 @@ fn operations_are_resolved_with_params_and_bodies() {
     let list = by_id("listPets");
     assert_eq!(list.method, HttpMethod::Get);
     assert_eq!(list.path, "/pets");
-    let limit = list
-        .parameters
-        .iter()
-        .find(|p| p.name == "limit")
-        .unwrap();
+    let limit = list.parameters.iter().find(|p| p.name == "limit").unwrap();
     assert_eq!(limit.location, ParamLocation::Query);
     assert!(matches!(limit.ty, Type::Scalar(Scalar::Integer)));
     assert!(!limit.required);
@@ -160,8 +161,11 @@ fn operations_are_resolved_with_params_and_bodies() {
 #[test]
 fn operations_carry_their_tag() {
     let d = doc();
-    let tags: std::collections::HashSet<&str> =
-        d.operations.iter().filter_map(|o| o.tag.as_deref()).collect();
+    let tags: std::collections::HashSet<&str> = d
+        .operations
+        .iter()
+        .filter_map(|o| o.tag.as_deref())
+        .collect();
     assert!(tags.contains("Pets"));
     assert!(tags.contains("Store"));
 }
@@ -406,8 +410,14 @@ fn allof_merges_properties_from_all_members() {
 
     // Properties from all three members are present.
     assert!(matches!(prop("id").ty, Type::Scalar(Scalar::Uuid)));
-    assert!(matches!(prop("createdAt").ty, Type::Scalar(Scalar::DateTime)));
-    assert!(matches!(prop("updatedAt").ty, Type::Scalar(Scalar::DateTime)));
+    assert!(matches!(
+        prop("createdAt").ty,
+        Type::Scalar(Scalar::DateTime)
+    ));
+    assert!(matches!(
+        prop("updatedAt").ty,
+        Type::Scalar(Scalar::DateTime)
+    ));
     assert!(matches!(prop("name").ty, Type::Scalar(Scalar::String)));
 
     // Required from Base (id) and inline (name) are unioned.

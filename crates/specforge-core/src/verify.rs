@@ -205,8 +205,13 @@ fn substitute_path_params(path: &str) -> String {
 fn validate_json_against_type(value: &JsonValue, ty: &Type, doc: &Document) -> bool {
     match ty {
         Type::Scalar(scalar) => match scalar {
-            crate::ir::Scalar::String | crate::ir::Scalar::DateTime | crate::ir::Scalar::Uuid | crate::ir::Scalar::Base64 => value.is_string(),
-            crate::ir::Scalar::Integer | crate::ir::Scalar::Integer64 => value.is_i64() || value.is_u64(),
+            crate::ir::Scalar::String
+            | crate::ir::Scalar::DateTime
+            | crate::ir::Scalar::Uuid
+            | crate::ir::Scalar::Base64 => value.is_string(),
+            crate::ir::Scalar::Integer | crate::ir::Scalar::Integer64 => {
+                value.is_i64() || value.is_u64()
+            }
             crate::ir::Scalar::Float => value.is_f64() || value.is_i64(),
             crate::ir::Scalar::Boolean => value.is_boolean(),
             crate::ir::Scalar::Binary => value.is_string() || value.is_object(),
@@ -214,8 +219,7 @@ fn validate_json_against_type(value: &JsonValue, ty: &Type, doc: &Document) -> b
         Type::StringEnum { .. } => value.is_string(),
         Type::Array { item, .. } => {
             if let Some(arr) = value.as_array() {
-                arr.iter()
-                    .all(|v| validate_json_against_type(v, item, doc))
+                arr.iter().all(|v| validate_json_against_type(v, item, doc))
             } else {
                 false
             }
@@ -237,10 +241,7 @@ fn validate_json_against_type(value: &JsonValue, ty: &Type, doc: &Document) -> b
                     }
                     crate::ir::Model::Enum(enum_model) => {
                         if let Some(s) = value.as_str() {
-                            enum_model
-                                .variants
-                                .iter()
-                                .any(|v| v.value == s)
+                            enum_model.variants.iter().any(|v| v.value == s)
                         } else {
                             false
                         }
@@ -303,9 +304,6 @@ mod tests {
             substitute_path_params("/orgs/{orgId}/repos/{repoId}"),
             "/orgs/1/repos/1"
         );
-        assert_eq!(
-            substitute_path_params("/search/{query}"),
-            "/search/test"
-        );
+        assert_eq!(substitute_path_params("/search/{query}"), "/search/test");
     }
 }

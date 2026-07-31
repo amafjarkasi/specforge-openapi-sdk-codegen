@@ -212,7 +212,10 @@ mod tests {
         let s = infer_schema(&json!({"user": {"name": "Alice", "email": "a@b.com"}}), "x");
         assert_eq!(s["type"], "object");
         assert_eq!(s["properties"]["user"]["type"], "object");
-        assert_eq!(s["properties"]["user"]["properties"]["name"]["type"], "string");
+        assert_eq!(
+            s["properties"]["user"]["properties"]["name"]["type"],
+            "string"
+        );
     }
 
     #[test]

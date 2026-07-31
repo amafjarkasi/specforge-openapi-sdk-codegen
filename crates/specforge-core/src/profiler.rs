@@ -323,9 +323,11 @@ fn generate_recommendations(results: &[ProfileResult]) -> Vec<String> {
 
     // Global recommendations
     if results.len() > 1 {
-        let slowest = results
-            .iter()
-            .max_by(|a, b| a.p95_latency_ms.partial_cmp(&b.p95_latency_ms).unwrap_or(std::cmp::Ordering::Equal));
+        let slowest = results.iter().max_by(|a, b| {
+            a.p95_latency_ms
+                .partial_cmp(&b.p95_latency_ms)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         if let Some(s) = slowest {
             if s.p95_latency_ms > 200.0 {
                 recs.push(format!(
@@ -338,11 +340,16 @@ fn generate_recommendations(results: &[ProfileResult]) -> Vec<String> {
         let most_errors = results
             .iter()
             .filter(|r| r.error_rate > 0.0)
-            .max_by(|a, b| a.error_rate.partial_cmp(&b.error_rate).unwrap_or(std::cmp::Ordering::Equal));
+            .max_by(|a, b| {
+                a.error_rate
+                    .partial_cmp(&b.error_rate)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
         if let Some(e) = most_errors {
             recs.push(format!(
                 "Highest error rate is {} {} ({:.1}%). Investigate root cause.",
-                e.method, e.endpoint,
+                e.method,
+                e.endpoint,
                 e.error_rate * 100.0,
             ));
         }
@@ -363,7 +370,10 @@ pub fn format_text(report: &ProfileReport) -> String {
     for r in &report.results {
         out.push_str(&format!("{} {}\n", r.method, r.endpoint));
         out.push_str(&format!("  Requests:       {}\n", r.total_requests));
-        out.push_str(&format!("  Success/Error:  {} / {}\n", r.success_count, r.error_count));
+        out.push_str(&format!(
+            "  Success/Error:  {} / {}\n",
+            r.success_count, r.error_count
+        ));
         out.push_str(&format!("  Error rate:     {:.1}%\n", r.error_rate * 100.0));
         out.push_str("  Latency (ms):\n");
         out.push_str(&format!("    avg:   {:.1}\n", r.avg_latency_ms));
@@ -373,14 +383,14 @@ pub fn format_text(report: &ProfileReport) -> String {
         out.push_str(&format!("    min:   {:.1}\n", r.min_latency_ms));
         out.push_str(&format!("    max:   {:.1}\n", r.max_latency_ms));
         out.push_str(&format!("  Throughput:     {:.1} rps\n", r.throughput_rps));
-        out.push_str(&format!("  Cache hit rate: {:.1}%\n", r.cache_hit_rate * 100.0));
+        out.push_str(&format!(
+            "  Cache hit rate: {:.1}%\n",
+            r.cache_hit_rate * 100.0
+        ));
         out.push('\n');
     }
 
-    out.push_str(&format!(
-        "Total requests: {}\n",
-        report.total_requests
-    ));
+    out.push_str(&format!("Total requests: {}\n", report.total_requests));
     out.push_str(&format!(
         "Total duration: {:.1}ms\n",
         report.total_duration_ms
@@ -413,16 +423,27 @@ pub fn format_markdown(report: &ProfileReport) -> String {
     for r in &report.results {
         out.push_str(&format!(
             "| {} | {} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1}% |\n",
-            r.endpoint, r.method, r.avg_latency_ms, r.p50_latency_ms,
-            r.p95_latency_ms, r.p99_latency_ms, r.throughput_rps,
+            r.endpoint,
+            r.method,
+            r.avg_latency_ms,
+            r.p50_latency_ms,
+            r.p95_latency_ms,
+            r.p99_latency_ms,
+            r.throughput_rps,
             r.error_rate * 100.0,
         ));
     }
 
     out.push('\n');
     out.push_str(&format!("**Total requests:** {}\n", report.total_requests));
-    out.push_str(&format!("**Total duration:** {:.1}ms\n", report.total_duration_ms));
-    out.push_str(&format!("**Overall throughput:** {:.1} rps\n\n", report.overall_throughput_rps));
+    out.push_str(&format!(
+        "**Total duration:** {:.1}ms\n",
+        report.total_duration_ms
+    ));
+    out.push_str(&format!(
+        "**Overall throughput:** {:.1} rps\n\n",
+        report.overall_throughput_rps
+    ));
 
     if !report.recommendations.is_empty() {
         out.push_str("## Recommendations\n\n");

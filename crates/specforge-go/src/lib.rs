@@ -15,8 +15,8 @@ use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
 use specforge_core::{
-    CompositionKind, Discriminator, Document, EnumModel, HttpMethod, Model, ObjectModel,
-    Operation, ParamLocation, Scalar, Type,
+    CompositionKind, Discriminator, Document, EnumModel, HttpMethod, Model, ObjectModel, Operation,
+    ParamLocation, Scalar, Type,
 };
 
 /// Options controlling Go emission.
@@ -52,7 +52,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let mut files: Vec<(String, PathBuf, String)> = Vec::new();
 
     let go_mod = opts.out_dir.join("go.mod");
-    files.push((rel(&go_mod, &opts.out_dir), go_mod, format!("module {module}\n\ngo 1.22\n")));
+    files.push((
+        rel(&go_mod, &opts.out_dir),
+        go_mod,
+        format!("module {module}\n\ngo 1.22\n"),
+    ));
 
     let client = opts.out_dir.join("client.go");
     files.push((rel(&client, &opts.out_dir), client, emit_client(&pkg, doc)));
@@ -64,39 +68,75 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     files.push((rel(&paginate, &opts.out_dir), paginate, emit_paginate(&pkg)));
 
     let concurrency = opts.out_dir.join("concurrency.go");
-    files.push((rel(&concurrency, &opts.out_dir), concurrency, emit_concurrency(&pkg)));
+    files.push((
+        rel(&concurrency, &opts.out_dir),
+        concurrency,
+        emit_concurrency(&pkg),
+    ));
 
     let dedup = opts.out_dir.join("dedup.go");
     files.push((rel(&dedup, &opts.out_dir), dedup, emit_dedup(&pkg)));
 
     let middleware = opts.out_dir.join("middleware.go");
-    files.push((rel(&middleware, &opts.out_dir), middleware, emit_middleware(&pkg)));
+    files.push((
+        rel(&middleware, &opts.out_dir),
+        middleware,
+        emit_middleware(&pkg),
+    ));
     let interceptors = opts.out_dir.join("interceptors.go");
-    files.push((rel(&interceptors, &opts.out_dir), interceptors, emit_interceptors(&pkg)));
+    files.push((
+        rel(&interceptors, &opts.out_dir),
+        interceptors,
+        emit_interceptors(&pkg),
+    ));
 
     let idempotency = opts.out_dir.join("idempotency.go");
-    files.push((rel(&idempotency, &opts.out_dir), idempotency, emit_idempotency(&pkg)));
+    files.push((
+        rel(&idempotency, &opts.out_dir),
+        idempotency,
+        emit_idempotency(&pkg),
+    ));
 
     let streaming = opts.out_dir.join("streaming.go");
-    files.push((rel(&streaming, &opts.out_dir), streaming, emit_streaming(&pkg)));
+    files.push((
+        rel(&streaming, &opts.out_dir),
+        streaming,
+        emit_streaming(&pkg),
+    ));
 
     let cache = opts.out_dir.join("cache.go");
     files.push((rel(&cache, &opts.out_dir), cache, emit_cache(&pkg)));
 
     let ratelimit = opts.out_dir.join("ratelimit.go");
-    files.push((rel(&ratelimit, &opts.out_dir), ratelimit, emit_ratelimit(&pkg)));
+    files.push((
+        rel(&ratelimit, &opts.out_dir),
+        ratelimit,
+        emit_ratelimit(&pkg),
+    ));
 
     let telemetry = opts.out_dir.join("telemetry.go");
-    files.push((rel(&telemetry, &opts.out_dir), telemetry, emit_telemetry(&pkg)));
+    files.push((
+        rel(&telemetry, &opts.out_dir),
+        telemetry,
+        emit_telemetry(&pkg),
+    ));
 
     let logging = opts.out_dir.join("logging.go");
     files.push((rel(&logging, &opts.out_dir), logging, emit_logging(&pkg)));
 
     let validate = opts.out_dir.join("validate.go");
-    files.push((rel(&validate, &opts.out_dir), validate, emit_validate(&pkg, doc)));
+    files.push((
+        rel(&validate, &opts.out_dir),
+        validate,
+        emit_validate(&pkg, doc),
+    ));
 
     let validation_middleware = opts.out_dir.join("validation_middleware.go");
-    files.push((rel(&validation_middleware, &opts.out_dir), validation_middleware, emit_validation_middleware(&pkg)));
+    files.push((
+        rel(&validation_middleware, &opts.out_dir),
+        validation_middleware,
+        emit_validation_middleware(&pkg),
+    ));
 
     let models = opts.out_dir.join("models.go");
     files.push((rel(&models, &opts.out_dir), models, emit_models(&pkg, doc)));
@@ -104,7 +144,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     // Webhooks — handler types (only if webhooks are present).
     if !doc.webhooks.is_empty() {
         let webhooks = opts.out_dir.join("webhooks.go");
-        files.push((rel(&webhooks, &opts.out_dir), webhooks, emit_webhooks(&pkg, doc)));
+        files.push((
+            rel(&webhooks, &opts.out_dir),
+            webhooks,
+            emit_webhooks(&pkg, doc),
+        ));
     }
 
     // Group ops by tag.
@@ -121,7 +165,11 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     }
 
     let readme = opts.out_dir.join("README.md");
-    files.push((rel(&readme, &opts.out_dir), readme, emit_readme(doc, &module)));
+    files.push((
+        rel(&readme, &opts.out_dir),
+        readme,
+        emit_readme(doc, &module),
+    ));
 
     // specforge-version.json — version metadata for the generated SDK.
     files.push(collect_version_file(doc, &opts.out_dir));
@@ -164,6 +212,10 @@ fn rel(abs: &Path, base: &Path) -> String {
     abs.strip_prefix(base)
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|_| abs.to_string_lossy().into_owned())
+        // Normalize Windows backslashes to forward slashes so the returned
+        // relative paths are portable (they're the public generate() return
+        // value; consumers match against forward slashes like "client.go").
+        .replace('\\', "/")
 }
 
 // ─── Naming ──────────────────────────────────────────────────────────────────
@@ -336,8 +388,7 @@ fn render_type(ty: &Type) -> String {
 /// Whether a model should be emitted as a Go `struct` (true) or a type alias /
 /// interface (false — compositions).
 fn is_struct_model(o: &ObjectModel) -> bool {
-    !o.properties.is_empty()
-        || !matches!(&o.shape_type, Some(Type::Composition(_)))
+    !o.properties.is_empty() || !matches!(&o.shape_type, Some(Type::Composition(_)))
 }
 
 // ─── models.go ───────────────────────────────────────────────────────────────
@@ -385,7 +436,10 @@ fn emit_enum(e: &EnumModel) -> String {
         out.push_str(&go_doc(d, ""));
         if d.to_lowercase().contains("deprecated") {
             if let Some(alt) = go_schema_deprecation_alternative(d) {
-                out.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
+                out.push_str(&format!(
+                    "// Deprecated: Use {} instead.\n",
+                    go_inline(&alt)
+                ));
             } else {
                 out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
             }
@@ -411,7 +465,10 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
         out.push_str(&go_doc(d, ""));
         if d.to_lowercase().contains("deprecated") {
             if let Some(alt) = go_schema_deprecation_alternative(d) {
-                out.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
+                out.push_str(&format!(
+                    "// Deprecated: Use {} instead.\n",
+                    go_inline(&alt)
+                ));
             } else {
                 out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
             }
@@ -2293,9 +2350,10 @@ func (e ValidationErrors) Error() string {
                 // Check required fields and types.
                 // Only declare obj when at least one property check actually uses it
                 // (required field existence check or enum value check).
-                let needs_obj = o.properties.iter().any(|p| {
-                    p.required || matches!(&p.ty, Type::StringEnum { .. })
-                });
+                let needs_obj = o
+                    .properties
+                    .iter()
+                    .any(|p| p.required || matches!(&p.ty, Type::StringEnum { .. }));
                 if needs_obj {
                     out.push_str("\tobj, ok := v.(map[string]any)\n");
                     out.push_str("\tif !ok {\n");
@@ -2583,11 +2641,19 @@ fn emit_method(op: &Operation) -> String {
     // Signature params.
     let mut args: Vec<String> = vec!["ctx context.Context".into()];
     for p in &path_params {
-        args.push(format!("{} {}", go_param_ident(&p.name), render_type(&p.ty)));
+        args.push(format!(
+            "{} {}",
+            go_param_ident(&p.name),
+            render_type(&p.ty)
+        ));
     }
     for p in &query_params {
         // Optional query params still take the value type; empty/zero omitted.
-        args.push(format!("{} {}", go_param_ident(&p.name), render_type(&p.ty)));
+        args.push(format!(
+            "{} {}",
+            go_param_ident(&p.name),
+            render_type(&p.ty)
+        ));
     }
     if has_body {
         let body_ty = op
@@ -2611,11 +2677,7 @@ fn emit_method(op: &Operation) -> String {
     if let Some(s) = &op.summary {
         body.push_str(&go_doc(s, ""));
     } else {
-        body.push_str(&format!(
-            "// {name} — {} {}.\n",
-            op.method.upper(),
-            op.path
-        ));
+        body.push_str(&format!("// {name} — {} {}.\n", op.method.upper(), op.path));
     }
     // Operation description (multi-line).
     if let Some(d) = &op.description {
@@ -2625,7 +2687,8 @@ fn emit_method(op: &Operation) -> String {
         }
     }
     // Parameter descriptions.
-    let all_params: Vec<&specforge_core::Parameter> = path_params.iter()
+    let all_params: Vec<&specforge_core::Parameter> = path_params
+        .iter()
         .chain(query_params.iter())
         .chain(header_params.iter())
         .copied()
@@ -2646,7 +2709,9 @@ fn emit_method(op: &Operation) -> String {
         }
     }
     // Return description from success response.
-    let success_desc = op.responses.iter()
+    let success_desc = op
+        .responses
+        .iter()
         .filter(|r| r.status.starts_with('2'))
         .min_by_key(|r| r.status.clone())
         .and_then(|r| r.description.clone());
@@ -2655,22 +2720,31 @@ fn emit_method(op: &Operation) -> String {
         body.push_str(&go_doc_label(desc, "Returns "));
     }
     // Error response descriptions.
-    let error_responses: Vec<&specforge_core::Response> = op.responses.iter()
+    let error_responses: Vec<&specforge_core::Response> = op
+        .responses
+        .iter()
         .filter(|r| !r.status.starts_with('2') && r.status != "*")
         .collect();
     if !error_responses.is_empty() {
         for r in &error_responses {
             if let Some(desc) = &r.description {
-                body.push_str(&format!("// Returns {} for {}.\n", go_inline(desc), r.status));
+                body.push_str(&format!(
+                    "// Returns {} for {}.\n",
+                    go_inline(desc),
+                    r.status
+                ));
             } else {
                 body.push_str(&format!("// Returns an error for {}.\n", r.status));
             }
         }
     }
-        // Deprecation notice.
+    // Deprecation notice.
     if is_operation_deprecated(op) {
         if let Some(alt) = go_deprecation_alternative(op) {
-            body.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
+            body.push_str(&format!(
+                "// Deprecated: Use {} instead.\n",
+                go_inline(&alt)
+            ));
         } else {
             body.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
         }
@@ -2687,9 +2761,8 @@ fn emit_method(op: &Operation) -> String {
         let placeholder = format!("{{{}}}", p.name);
         let ident = go_param_ident(&p.name);
         let as_string = coerce_to_string(&p.ty, &ident);
-        path_expr = format!(
-            "strings.Replace({path_expr}, \"{placeholder}\", pathEscape({as_string}), 1)"
-        );
+        path_expr =
+            format!("strings.Replace({path_expr}, \"{placeholder}\", pathEscape({as_string}), 1)");
     }
     // Ensure strings import when we substitute path params.
     if !path_params.is_empty() {
@@ -2913,7 +2986,9 @@ fn coerce_to_string(ty: &Type, ident: &str) -> String {
         Type::Reference { .. } => format!("anyString({ident})"),
         Type::Scalar(Scalar::Integer) => format!("fmtInt({ident})"),
         Type::Scalar(Scalar::Integer64) => format!("fmtInt64({ident})"),
-        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => format!("fmtBool({ident})"),
+        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => {
+            format!("fmtBool({ident})")
+        }
         Type::Scalar(Scalar::Float) => format!("fmtFloat({ident})"),
         // arrays/maps/any — stringify via helper (lives in client.go, no fmt import needed here)
         _ => format!("anyString({ident})"),
@@ -2926,11 +3001,12 @@ fn zero_check(ty: &Type, ident: &str) -> String {
         | Type::Scalar(Scalar::DateTime)
         | Type::Scalar(Scalar::Uuid)
         | Type::StringEnum { .. } => format!("{ident} != \"\""),
-        Type::Scalar(Scalar::Integer) | Type::Scalar(Scalar::Integer64) | Type::Scalar(Scalar::Float) => {
+        Type::Scalar(Scalar::Integer)
+        | Type::Scalar(Scalar::Integer64)
+        | Type::Scalar(Scalar::Float) => {
             format!("{ident} != 0")
         }
-        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => ident.to_string() // only send when true
-        ,
+        Type::Scalar(Scalar::Boolean | Scalar::Base64 | Scalar::Binary) => ident.to_string(), // only send when true
         Type::Reference { .. } => "true /* always send ref */".to_string(),
         Type::Array { .. } | Type::Map { .. } => format!("len({ident}) > 0"),
         _ => "true".into(),
@@ -3009,7 +3085,9 @@ fn emit_union_from_map(
             out.push_str("\t\t\t\treturn v, nil\n");
             out.push_str("\t\t\t}\n");
             out.push_str("\t\t}\n");
-            out.push_str(&format!("\t\treturn v, fmt.Errorf(\"failed to unmarshal {arm_ty}\")\n"));
+            out.push_str(&format!(
+                "\t\treturn v, fmt.Errorf(\"failed to unmarshal {arm_ty}\")\n"
+            ));
         }
     }
     out.push_str("\t}\n");
@@ -3105,7 +3183,9 @@ fn emit_webhooks(pkg: &str, doc: &Document) -> String {
     if doc.webhooks.len() == 1 {
         let wh = &doc.webhooks[0];
         let payload_ty = export_ident(&format!("{}WebhookPayload", pascal(&wh.name)));
-        out.push_str(&format!("type WebhookHandler func(payload {payload_ty}) error\n"));
+        out.push_str(&format!(
+            "type WebhookHandler func(payload {payload_ty}) error\n"
+        ));
     } else {
         // Multiple webhooks: use a generic any-based handler.
         out.push_str("type WebhookHandler func(payload any) error\n");
@@ -3152,9 +3232,7 @@ fn go_deprecation_alternative(op: &Operation) -> Option<String> {
     for pattern in &["replaced by ", "replaced with "] {
         if let Some(pos) = lower.find(pattern) {
             let after = &text[pos + pattern.len()..];
-            let end = after
-                .find(['.', ',', '\n', ';'])
-                .unwrap_or(after.len());
+            let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
                 return Some(alt.to_string());
@@ -3179,9 +3257,7 @@ fn go_schema_deprecation_alternative(desc: &str) -> Option<String> {
     for pattern in &["replaced by ", "replaced with "] {
         if let Some(pos) = lower.find(pattern) {
             let after = &desc[pos + pattern.len()..];
-            let end = after
-                .find(['.', ',', '\n', ';'])
-                .unwrap_or(after.len());
+            let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
                 return Some(alt.to_string());
@@ -3459,7 +3535,16 @@ fn chrono_free_timestamp() -> String {
     let month_days: [i64; 12] = [
         31,
         if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut m = 1u32;
     for &md in &month_days {
@@ -3479,4 +3564,3 @@ fn chrono_free_timestamp() -> String {
 fn is_leap(y: i64) -> bool {
     (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0)
 }
-

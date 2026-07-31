@@ -68,6 +68,12 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace
 
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (warnings = errors)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
       - name: Unit tests (core + emitters)
         run: |
           cargo test -p specforge-core --all-targets

@@ -4,7 +4,10 @@ use crate::ir::{Document, Model, Operation, Type};
 use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub enum DiffSeverity { Breaking, Info }
+pub enum DiffSeverity {
+    Breaking,
+    Info,
+}
 impl std::fmt::Display for DiffSeverity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -15,11 +18,22 @@ impl std::fmt::Display for DiffSeverity {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct DiffFinding { pub severity: DiffSeverity, pub message: String, pub path: String }
-impl std::fmt::Display for DiffFinding { fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}: {} [{}]", self.severity, self.message, self.path) } }
+pub struct DiffFinding {
+    pub severity: DiffSeverity,
+    pub message: String,
+    pub path: String,
+}
+impl std::fmt::Display for DiffFinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {} [{}]", self.severity, self.message, self.path)
+    }
+}
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PropertyChange { pub property: String, pub change: PropertyChangeKind }
+pub struct PropertyChange {
+    pub property: String,
+    pub change: PropertyChangeKind,
+}
 impl std::fmt::Display for PropertyChange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.change {
@@ -35,18 +49,50 @@ impl std::fmt::Display for PropertyChange {
             PropertyChangeKind::TypeChanged { old_type, new_type } => {
                 write!(f, "~ {}: {} → {}", self.property, old_type, new_type)
             }
-            PropertyChangeKind::RequiredChanged { old_required, new_required } => {
-                let o = if *old_required { "required" } else { "optional" };
-                let n = if *new_required { "required" } else { "optional" };
+            PropertyChangeKind::RequiredChanged {
+                old_required,
+                new_required,
+            } => {
+                let o = if *old_required {
+                    "required"
+                } else {
+                    "optional"
+                };
+                let n = if *new_required {
+                    "required"
+                } else {
+                    "optional"
+                };
                 write!(f, "~ {}: {} → {} (required changed)", self.property, o, n)
             }
         }
     }
 }
 #[derive(Debug, Clone, Serialize)]
-pub enum PropertyChangeKind { Added { ty: String }, AddedRequired { ty: String }, Removed { ty: String }, TypeChanged { old_type: String, new_type: String }, RequiredChanged { old_required: bool, new_required: bool } }
+pub enum PropertyChangeKind {
+    Added {
+        ty: String,
+    },
+    AddedRequired {
+        ty: String,
+    },
+    Removed {
+        ty: String,
+    },
+    TypeChanged {
+        old_type: String,
+        new_type: String,
+    },
+    RequiredChanged {
+        old_required: bool,
+        new_required: bool,
+    },
+}
 #[derive(Debug, Clone, Serialize)]
-pub struct SchemaDiffDetail { pub name: String, pub changes: Vec<PropertyChange> }
+pub struct SchemaDiffDetail {
+    pub name: String,
+    pub changes: Vec<PropertyChange>,
+}
 impl std::fmt::Display for SchemaDiffDetail {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Schema {}:", self.name)?;
@@ -57,13 +103,28 @@ impl std::fmt::Display for SchemaDiffDetail {
     }
 }
 #[derive(Debug, Clone, Serialize)]
-pub struct DiffResult { pub findings: Vec<DiffFinding>, pub schema_diffs: Vec<SchemaDiffDetail> }
+pub struct DiffResult {
+    pub findings: Vec<DiffFinding>,
+    pub schema_diffs: Vec<SchemaDiffDetail>,
+}
 #[derive(Debug, Clone, Serialize)]
-pub struct DiffJsonOutput { pub breaking: Vec<DiffFinding>, pub info: Vec<DiffFinding>, pub schema_diffs: Vec<SchemaDiffDetail>, pub summary: DiffSummary }
+pub struct DiffJsonOutput {
+    pub breaking: Vec<DiffFinding>,
+    pub info: Vec<DiffFinding>,
+    pub schema_diffs: Vec<SchemaDiffDetail>,
+    pub summary: DiffSummary,
+}
 #[derive(Debug, Clone, Serialize)]
-pub struct DiffSummary { pub breaking_count: usize, pub info_count: usize }
+pub struct DiffSummary {
+    pub breaking_count: usize,
+    pub info_count: usize,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DiffFormat { Text, Markdown, Json }
+pub enum DiffFormat {
+    Text,
+    Markdown,
+    Json,
+}
 
 fn type_to_string(ty: &Type) -> String {
     match ty {
@@ -86,14 +147,19 @@ fn type_to_string(ty: &Type) -> String {
         Type::Unknown => "unknown".into(),
     }
 }
-pub fn diff(old: &Document, new: &Document) -> Vec<DiffFinding> { diff_detailed(old, new).findings }
+pub fn diff(old: &Document, new: &Document) -> Vec<DiffFinding> {
+    diff_detailed(old, new).findings
+}
 pub fn diff_detailed(old: &Document, new: &Document) -> DiffResult {
     let mut findings = Vec::new();
     let mut schema_diffs = Vec::new();
     diff_ir_version(old, new, &mut findings);
     diff_operations(old, new, &mut findings);
     diff_schemas(old, new, &mut findings, &mut schema_diffs);
-    DiffResult { findings, schema_diffs }
+    DiffResult {
+        findings,
+        schema_diffs,
+    }
 }
 
 /// Check for IR version mismatches between old and new documents.
@@ -133,10 +199,16 @@ fn ir_major_version(version: &str) -> u64 {
         .unwrap_or(0)
 }
 fn diff_operations(old: &Document, new: &Document, findings: &mut Vec<DiffFinding>) {
-    let old_ops: std::collections::HashMap<String, &Operation> =
-        old.operations.iter().map(|op| (op.operation_id.clone(), op)).collect();
-    let new_ops: std::collections::HashMap<String, &Operation> =
-        new.operations.iter().map(|op| (op.operation_id.clone(), op)).collect();
+    let old_ops: std::collections::HashMap<String, &Operation> = old
+        .operations
+        .iter()
+        .map(|op| (op.operation_id.clone(), op))
+        .collect();
+    let new_ops: std::collections::HashMap<String, &Operation> = new
+        .operations
+        .iter()
+        .map(|op| (op.operation_id.clone(), op))
+        .collect();
 
     // Removed operations are breaking.
     for id in old_ops.keys() {
@@ -192,7 +264,11 @@ fn diff_operation(old: &Operation, new: &Operation, findings: &mut Vec<DiffFindi
     // A newly required request body is breaking.
     if new.request_body.is_some()
         && old.request_body.is_none()
-        && new.request_body.as_ref().map(|rb| rb.required).unwrap_or(false)
+        && new
+            .request_body
+            .as_ref()
+            .map(|rb| rb.required)
+            .unwrap_or(false)
     {
         findings.push(DiffFinding {
             severity: DiffSeverity::Breaking,
@@ -278,7 +354,9 @@ fn diff_schema(
             });
             changes.push(PropertyChange {
                 property: p.name.clone(),
-                change: PropertyChangeKind::AddedRequired { ty: type_to_string(&p.ty) },
+                change: PropertyChangeKind::AddedRequired {
+                    ty: type_to_string(&p.ty),
+                },
             });
         }
     }
@@ -292,7 +370,9 @@ fn diff_schema(
             });
             changes.push(PropertyChange {
                 property: p.name.clone(),
-                change: PropertyChangeKind::Added { ty: type_to_string(&p.ty) },
+                change: PropertyChangeKind::Added {
+                    ty: type_to_string(&p.ty),
+                },
             });
         }
     }
@@ -306,7 +386,9 @@ fn diff_schema(
             });
             changes.push(PropertyChange {
                 property: p.name.clone(),
-                change: PropertyChangeKind::Removed { ty: type_to_string(&p.ty) },
+                change: PropertyChangeKind::Removed {
+                    ty: type_to_string(&p.ty),
+                },
             });
         }
     }
@@ -328,7 +410,11 @@ fn diff_schema(
                 });
             } else if p.required != np.required {
                 findings.push(DiffFinding {
-                    severity: if np.required { DiffSeverity::Breaking } else { DiffSeverity::Info },
+                    severity: if np.required {
+                        DiffSeverity::Breaking
+                    } else {
+                        DiffSeverity::Info
+                    },
                     message: format!(
                         "required changed for property: {} ({} → {})",
                         p.name,
@@ -348,7 +434,14 @@ fn diff_schema(
         }
     }
 
-    if changes.is_empty() { None } else { Some(SchemaDiffDetail { name: name.to_string(), changes }) }
+    if changes.is_empty() {
+        None
+    } else {
+        Some(SchemaDiffDetail {
+            name: name.to_string(),
+            changes,
+        })
+    }
 }
 fn type_changed(old: &Type, new: &Type) -> bool {
     match (old, new) {
@@ -368,10 +461,15 @@ pub fn format_text(findings: &[DiffFinding]) -> String {
             DiffSeverity::Info => out.push_str(&format!("info: {finding}\n")),
         }
     }
-    let bc = findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).count();
+    let bc = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Breaking)
+        .count();
     let ic = findings.len() - bc;
     if !findings.is_empty() {
-        out.push_str(&format!("\n{bc} breaking change(s), {ic} info finding(s)\n"));
+        out.push_str(&format!(
+            "\n{bc} breaking change(s), {ic} info finding(s)\n"
+        ));
     }
     out
 }
@@ -387,12 +485,14 @@ pub fn format_colored(findings: &[DiffFinding], schema_diffs: &[SchemaDiffDetail
     let mut out = String::new();
     for f in findings {
         match f.severity {
-            DiffSeverity::Breaking => {
-                out.push_str(&format!("{RED}{BOLD}breaking{RESET} {RED}{}\n{RESET}", f.message))
-            }
-            DiffSeverity::Info => {
-                out.push_str(&format!("{GREEN}{BOLD}info{RESET} {GREEN}{}\n{RESET}", f.message))
-            }
+            DiffSeverity::Breaking => out.push_str(&format!(
+                "{RED}{BOLD}breaking{RESET} {RED}{}\n{RESET}",
+                f.message
+            )),
+            DiffSeverity::Info => out.push_str(&format!(
+                "{GREEN}{BOLD}info{RESET} {GREEN}{}\n{RESET}",
+                f.message
+            )),
         }
     }
     if !schema_diffs.is_empty() {
@@ -401,7 +501,9 @@ pub fn format_colored(findings: &[DiffFinding], schema_diffs: &[SchemaDiffDetail
             out.push_str(&format!("{BOLD}Schema {}:{RESET}\n", d.name));
             for c in &d.changes {
                 let (col, pre) = match &c.change {
-                    PropertyChangeKind::Added { .. } | PropertyChangeKind::AddedRequired { .. } => (GREEN, "+"),
+                    PropertyChangeKind::Added { .. } | PropertyChangeKind::AddedRequired { .. } => {
+                        (GREEN, "+")
+                    }
                     PropertyChangeKind::Removed { .. } => (RED, "-"),
                     _ => (YELLOW, "~"),
                 };
@@ -409,10 +511,15 @@ pub fn format_colored(findings: &[DiffFinding], schema_diffs: &[SchemaDiffDetail
             }
         }
     }
-    let bc = findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).count();
+    let bc = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Breaking)
+        .count();
     let ic = findings.len() - bc;
     if !findings.is_empty() {
-        out.push_str(&format!("\n{DIM}{bc} breaking change(s), {ic} info finding(s){RESET}\n"));
+        out.push_str(&format!(
+            "\n{DIM}{bc} breaking change(s), {ic} info finding(s){RESET}\n"
+        ));
     }
     out
 }
@@ -426,8 +533,14 @@ pub fn format_markdown(
     let mut out = String::new();
     out.push_str(&format!("# API Changes: {old_version} → {new_version}\n\n"));
 
-    let brk: Vec<_> = findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).collect();
-    let inf: Vec<_> = findings.iter().filter(|f| f.severity == DiffSeverity::Info).collect();
+    let brk: Vec<_> = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Breaking)
+        .collect();
+    let inf: Vec<_> = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Info)
+        .collect();
 
     // Breaking changes section.
     out.push_str("## Breaking Changes\n\n");
@@ -469,9 +582,20 @@ pub fn format_markdown(
                     PropertyChangeKind::TypeChanged { old_type, new_type } => {
                         ("Changed", format!("`{old_type}` → `{new_type}`"))
                     }
-                    PropertyChangeKind::RequiredChanged { old_required, new_required } => {
-                        let o = if *old_required { "required" } else { "optional" };
-                        let n = if *new_required { "required" } else { "optional" };
+                    PropertyChangeKind::RequiredChanged {
+                        old_required,
+                        new_required,
+                    } => {
+                        let o = if *old_required {
+                            "required"
+                        } else {
+                            "optional"
+                        };
+                        let n = if *new_required {
+                            "required"
+                        } else {
+                            "optional"
+                        };
                         ("Changed", format!("{o} → {n}"))
                     }
                 };
@@ -489,12 +613,17 @@ pub fn format_markdown(
         inf.len()
     ));
     if !schema_diffs.is_empty() {
-        out.push_str(&format!("- **{}** schema(s) modified\n", schema_diffs.len()));
+        out.push_str(&format!(
+            "- **{}** schema(s) modified\n",
+            schema_diffs.len()
+        ));
     }
     out
 }
 
-fn fmt_md(f: &DiffFinding) -> String { fmt_md_msg(&f.message) }
+fn fmt_md(f: &DiffFinding) -> String {
+    fmt_md_msg(&f.message)
+}
 fn fmt_md_msg(msg: &str) -> String {
     // Recognized diff messages are rewritten into human-readable Markdown.
     // Each prefix maps to a templated sentence; anything else is returned
@@ -571,8 +700,14 @@ pub fn format_json(
         info,
         schema_diffs: schema_diffs.to_vec(),
         summary: DiffSummary {
-            breaking_count: findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).count(),
-            info_count: findings.iter().filter(|f| f.severity == DiffSeverity::Info).count(),
+            breaking_count: findings
+                .iter()
+                .filter(|f| f.severity == DiffSeverity::Breaking)
+                .count(),
+            info_count: findings
+                .iter()
+                .filter(|f| f.severity == DiffSeverity::Info)
+                .count(),
         },
     })
 }
@@ -581,21 +716,89 @@ pub fn format_json(
 mod tests {
     use super::*;
     use crate::ir::*;
-    fn mk_doc(ops: Vec<Operation>, schemas: Vec<(String, Model)>) -> Document { let mut m = indexmap::IndexMap::new(); for (k, v) in schemas { m.insert(k, v); } Document { ir_version: crate::ir::IR_VERSION.to_string(), title: "T".into(), version: "1.0.0".into(), base_url: None, security: vec![], schemas: SchemaRegistry { models: m }, operations: ops, webhooks: vec![] } }
-    fn mk_op(id: &str) -> Operation { Operation { operation_id: id.into(), method: HttpMethod::Get, path: "/".into(), tag: None, summary: None, description: None, parameters: vec![], request_body: None, responses: vec![], retry_policy: None } }
-    #[test] fn removed_op_is_breaking() { let f = diff(&mk_doc(vec![mk_op("x")], vec![]), &mk_doc(vec![], vec![])); assert_eq!(f.len(), 1); assert_eq!(f[0].severity, DiffSeverity::Breaking); }
-    #[test] fn added_op_is_info() { let f = diff(&mk_doc(vec![], vec![]), &mk_doc(vec![mk_op("x")], vec![])); assert_eq!(f.len(), 1); assert_eq!(f[0].severity, DiffSeverity::Info); }
-    #[test] fn no_changes() { let d = mk_doc(vec![mk_op("x")], vec![]); assert!(diff(&d, &d).is_empty()); }
-    #[test] fn detailed() { let r = diff_detailed(&mk_doc(vec![], vec![]), &mk_doc(vec![], vec![])); assert!(r.schema_diffs.is_empty()); }
-    #[test] fn json_fmt() { let f = vec![DiffFinding { severity: DiffSeverity::Breaking, message: "x".into(), path: "y".into() }]; let j = format_json(&f, &[]).unwrap(); let v: serde_json::Value = serde_json::from_str(&j).unwrap(); assert_eq!(v["summary"]["breaking_count"], 1); }
-    #[test] fn md_fmt() { let f = vec![DiffFinding { severity: DiffSeverity::Breaking, message: "operation removed: deletePet".into(), path: "x".into() }]; let m = format_markdown(&f, &[], "1.0", "2.0"); assert!(m.contains("Breaking Changes")); }
+    fn mk_doc(ops: Vec<Operation>, schemas: Vec<(String, Model)>) -> Document {
+        let mut m = indexmap::IndexMap::new();
+        for (k, v) in schemas {
+            m.insert(k, v);
+        }
+        Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
+            title: "T".into(),
+            version: "1.0.0".into(),
+            base_url: None,
+            security: vec![],
+            schemas: SchemaRegistry { models: m },
+            operations: ops,
+            webhooks: vec![],
+        }
+    }
+    fn mk_op(id: &str) -> Operation {
+        Operation {
+            operation_id: id.into(),
+            method: HttpMethod::Get,
+            path: "/".into(),
+            tag: None,
+            summary: None,
+            description: None,
+            parameters: vec![],
+            request_body: None,
+            responses: vec![],
+            retry_policy: None,
+        }
+    }
+    #[test]
+    fn removed_op_is_breaking() {
+        let f = diff(&mk_doc(vec![mk_op("x")], vec![]), &mk_doc(vec![], vec![]));
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, DiffSeverity::Breaking);
+    }
+    #[test]
+    fn added_op_is_info() {
+        let f = diff(&mk_doc(vec![], vec![]), &mk_doc(vec![mk_op("x")], vec![]));
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, DiffSeverity::Info);
+    }
+    #[test]
+    fn no_changes() {
+        let d = mk_doc(vec![mk_op("x")], vec![]);
+        assert!(diff(&d, &d).is_empty());
+    }
+    #[test]
+    fn detailed() {
+        let r = diff_detailed(&mk_doc(vec![], vec![]), &mk_doc(vec![], vec![]));
+        assert!(r.schema_diffs.is_empty());
+    }
+    #[test]
+    fn json_fmt() {
+        let f = vec![DiffFinding {
+            severity: DiffSeverity::Breaking,
+            message: "x".into(),
+            path: "y".into(),
+        }];
+        let j = format_json(&f, &[]).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&j).unwrap();
+        assert_eq!(v["summary"]["breaking_count"], 1);
+    }
+    #[test]
+    fn md_fmt() {
+        let f = vec![DiffFinding {
+            severity: DiffSeverity::Breaking,
+            message: "operation removed: deletePet".into(),
+            path: "x".into(),
+        }];
+        let m = format_markdown(&f, &[], "1.0", "2.0");
+        assert!(m.contains("Breaking Changes"));
+    }
 
     #[test]
     fn ir_version_same_no_finding() {
         let old = mk_doc(vec![], vec![]);
         let new = mk_doc(vec![], vec![]);
         let f = diff(&old, &new);
-        assert!(f.iter().all(|f| f.path != "ir_version"), "no IR version finding when versions match");
+        assert!(
+            f.iter().all(|f| f.path != "ir_version"),
+            "no IR version finding when versions match"
+        );
     }
 
     #[test]

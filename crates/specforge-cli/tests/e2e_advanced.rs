@@ -81,7 +81,13 @@ fn resolve_tool(name: &str) -> Option<PathBuf> {
     None
 }
 
-fn write_response(stream: &mut TcpStream, status: u16, ct: &str, body: &str, extra_headers: &[(&str, &str)]) -> std::io::Result<()> {
+fn write_response(
+    stream: &mut TcpStream,
+    status: u16,
+    ct: &str,
+    body: &str,
+    extra_headers: &[(&str, &str)],
+) -> std::io::Result<()> {
     let reason = match status {
         200 => "OK",
         201 => "Created",
@@ -419,15 +425,28 @@ var _ = http.StatusOK
     let st = state.lock().unwrap();
     let ping_hits = st.log.iter().filter(|r| r.path == "/ping").count();
     if ping_hits != 1 {
-        return Err(format!("dedupe: expected 1 /ping hit, got {ping_hits} (log={:?})", st.log));
+        return Err(format!(
+            "dedupe: expected 1 /ping hit, got {ping_hits} (log={:?})",
+            st.log
+        ));
     }
-    let echo = st.log.iter().find(|r| r.path == "/echo" && r.method == "POST");
+    let echo = st
+        .log
+        .iter()
+        .find(|r| r.path == "/echo" && r.method == "POST");
     let Some(echo) = echo else {
         return Err("no POST /echo recorded".into());
     };
-    let key = echo.headers.get("idempotency-key").cloned().unwrap_or_default();
+    let key = echo
+        .headers
+        .get("idempotency-key")
+        .cloned()
+        .unwrap_or_default();
     if key.is_empty() {
-        return Err(format!("POST /echo missing Idempotency-Key: {:?}", echo.headers));
+        return Err(format!(
+            "POST /echo missing Idempotency-Key: {:?}",
+            echo.headers
+        ));
     }
     let mw = st.log.iter().find(|r| r.path == "/mw-check");
     let Some(mw) = mw else {
@@ -591,10 +610,10 @@ async fn main() {{
     }
 
     let st = state.lock().unwrap();
-    let mw = st
-        .log
-        .iter()
-        .find(|r| r.path == "/mw-check" && r.headers.get("x-specforge-mw").map(|s| s.as_str()) == Some("rust-mw"));
+    let mw = st.log.iter().find(|r| {
+        r.path == "/mw-check"
+            && r.headers.get("x-specforge-mw").map(|s| s.as_str()) == Some("rust-mw")
+    });
     if mw.is_none() {
         return Err(format!("rust mw header not seen: {:?}", st.log));
     }
@@ -706,7 +725,8 @@ console.log("ts-advanced-ok", mwRes.marker, posted.key, events.length, elapsed);
 
     let st = state.lock().unwrap();
     let mw = st.log.iter().any(|r| {
-        r.path == "/mw-check" && r.headers.get("x-specforge-mw").map(|s| s.as_str()) == Some("ts-mw")
+        r.path == "/mw-check"
+            && r.headers.get("x-specforge-mw").map(|s| s.as_str()) == Some("ts-mw")
     });
     if !mw {
         return Err(format!("ts mw header not seen: {:?}", st.log));

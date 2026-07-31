@@ -53,10 +53,7 @@ pub fn export_swagger_editor(
     // Ensure paths exists.
     if bundle.get("paths").is_none() {
         if let Some(obj) = bundle.as_object_mut() {
-            obj.insert(
-                "paths".to_string(),
-                JsonValue::Object(Default::default()),
-            );
+            obj.insert("paths".to_string(), JsonValue::Object(Default::default()));
         }
     }
 
@@ -71,8 +68,7 @@ pub fn export_swagger_editor(
     // operation-level $refs are resolved to their inline definitions.
 
     // Serialize to YAML.
-    let yaml = serde_yaml::to_string(&bundle)
-        .map_err(|e| ExportError::Serialize(e.to_string()))?;
+    let yaml = serde_yaml::to_string(&bundle).map_err(|e| ExportError::Serialize(e.to_string()))?;
 
     Ok(yaml)
 }
@@ -146,13 +142,9 @@ pub enum ExportError {
 /// Generate a Swagger Editor-compatible bundle from a raw spec string.
 ///
 /// This is the high-level entry point that parses the spec and exports it.
-pub fn export_spec(
-    spec_text: &str,
-    options: &ExportOptions,
-) -> Result<String, ExportError> {
+pub fn export_spec(spec_text: &str, options: &ExportOptions) -> Result<String, ExportError> {
     // Parse as raw JSON value (preserves full structure).
-    let json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(spec_text.trim_start())
-    {
+    let json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(spec_text.trim_start()) {
         v
     } else {
         serde_yaml::from_str::<JsonValue>(spec_text)
@@ -267,7 +259,10 @@ mod tests {
         let yaml = result.unwrap();
 
         // The exported YAML should contain the inlined schema.
-        assert!(yaml.contains("type: object"), "should contain 'type: object' in YAML");
+        assert!(
+            yaml.contains("type: object"),
+            "should contain 'type: object' in YAML"
+        );
         // And should contain the original info.
         assert!(yaml.contains("title: Test"), "should contain 'title: Test'");
         assert!(yaml.contains("3.0.3"), "should contain '3.0.3'");

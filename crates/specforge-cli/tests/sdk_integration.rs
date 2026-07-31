@@ -103,7 +103,11 @@ fn generated_files(dir: &Path) -> BTreeSet<String> {
             if path.is_dir() {
                 walk(&path, base, out);
             } else {
-                let rel = path.strip_prefix(base).unwrap().to_string_lossy().to_string();
+                let rel = path
+                    .strip_prefix(base)
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
                 out.insert(rel);
             }
         }
@@ -177,15 +181,24 @@ fn write_response(
 }
 
 /// Petstore mock: serves GET /pets, GET /pets/:id, POST /pets.
-struct Pet { id: i64, name: String }
+struct Pet {
+    id: i64,
+    name: String,
+}
 
 fn start_mock() -> (SocketAddr, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind mock");
     let addr = listener.local_addr().expect("local_addr");
 
     let pets = vec![
-        Pet { id: 1, name: "Doggo".into() },
-        Pet { id: 2, name: "Michi".into() },
+        Pet {
+            id: 1,
+            name: "Doggo".into(),
+        },
+        Pet {
+            id: 2,
+            name: "Michi".into(),
+        },
     ];
 
     let handle = thread::spawn(move || {
@@ -284,10 +297,8 @@ fn ts_sdk_integration() {
     let (addr, _server) = start_mock();
     let base_url = format!("http://{addr}");
 
-    let out_dir = std::env::temp_dir().join(format!(
-        "specforge-sdk-integ-ts-{}",
-        std::process::id()
-    ));
+    let out_dir =
+        std::env::temp_dir().join(format!("specforge-sdk-integ-ts-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out_dir);
 
     // 1. Generate TS SDK
@@ -304,13 +315,13 @@ fn ts_sdk_integration() {
     .expect("ts generate");
 
     // 2. npm install + tsx
-    run(Command::new(&npm).args(["install", "--silent"]).current_dir(&out_dir))
-        .expect("npm install");
-    let _ = run(
-        Command::new(&npm)
-            .args(["install", "--silent", "--no-save", "tsx"])
-            .current_dir(&out_dir),
-    );
+    run(Command::new(&npm)
+        .args(["install", "--silent"])
+        .current_dir(&out_dir))
+    .expect("npm install");
+    let _ = run(Command::new(&npm)
+        .args(["install", "--silent", "--no-save", "tsx"])
+        .current_dir(&out_dir));
 
     // 3. Create a test file that imports and calls the SDK
     std::fs::write(
@@ -344,15 +355,18 @@ console.log("ts-integration-ok", pets.length, pet.name);
     .expect("write test file");
 
     // 4. Run with tsx to verify it works
-    let ts_name = ts.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let ts_name = ts
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
     let stdout = if ts_name == "npx" {
-        run(Command::new(&ts).args(["tsx", "test.mts"]).current_dir(&out_dir))
-            .expect("npx tsx test")
-    } else {
         run(Command::new(&ts)
-            .args(["test.mts"])
+            .args(["tsx", "test.mts"])
             .current_dir(&out_dir))
-            .expect("tsx test")
+        .expect("npx tsx test")
+    } else {
+        run(Command::new(&ts).args(["test.mts"]).current_dir(&out_dir)).expect("tsx test")
     };
 
     assert!(
@@ -377,10 +391,8 @@ fn go_sdk_integration() {
     let (addr, _server) = start_mock();
     let base_url = format!("http://{addr}");
 
-    let out_dir = std::env::temp_dir().join(format!(
-        "specforge-sdk-integ-go-{}",
-        std::process::id()
-    ));
+    let out_dir =
+        std::env::temp_dir().join(format!("specforge-sdk-integ-go-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out_dir);
 
     // 1. Generate Go SDK
@@ -462,12 +474,10 @@ func main() {{
     .expect("write main.go");
 
     // 3. Run `go run .` to verify it works
-    let stdout = run(
-        Command::new(&go)
-            .args(["run", "."])
-            .current_dir(&smoke_dir)
-            .env("GO111MODULE", "on"),
-    )
+    let stdout = run(Command::new(&go)
+        .args(["run", "."])
+        .current_dir(&smoke_dir)
+        .env("GO111MODULE", "on"))
     .expect("go run");
 
     assert!(
@@ -492,10 +502,8 @@ fn rust_sdk_integration() {
     let (addr, _server) = start_mock();
     let base_url = format!("http://{addr}");
 
-    let out_dir = std::env::temp_dir().join(format!(
-        "specforge-sdk-integ-rust-{}",
-        std::process::id()
-    ));
+    let out_dir =
+        std::env::temp_dir().join(format!("specforge-sdk-integ-rust-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&out_dir);
 
     // 1. Generate Rust SDK
@@ -513,10 +521,22 @@ fn rust_sdk_integration() {
 
     // Verify the SDK was generated with expected structure.
     let files = generated_files(&out_dir);
-    assert!(files.iter().any(|f| f == "Cargo.toml"), "missing Cargo.toml: {files:?}");
-    assert!(files.iter().any(|f| f.contains("src/models")), "missing models: {files:?}");
-    assert!(files.iter().any(|f| f.contains("src/api")), "missing api: {files:?}");
-    assert!(files.iter().any(|f| f.contains("src/client")), "missing client: {files:?}");
+    assert!(
+        files.iter().any(|f| f == "Cargo.toml"),
+        "missing Cargo.toml: {files:?}"
+    );
+    assert!(
+        files.iter().any(|f| f.contains("src/models")),
+        "missing models: {files:?}"
+    );
+    assert!(
+        files.iter().any(|f| f.contains("src/api")),
+        "missing api: {files:?}"
+    );
+    assert!(
+        files.iter().any(|f| f.contains("src/client")),
+        "missing client: {files:?}"
+    );
 
     // 2. Add a test binary to the generated Cargo.toml
     let cargo_toml = out_dir.join("Cargo.toml");
@@ -571,11 +591,9 @@ async fn main() {{
     // 4. Run `cargo run -q --bin integ_test` to verify it works.
     // The Rust emitter has known compilation issues in generated client.rs;
     // skip the runtime test gracefully when the SDK does not compile.
-    let result = run(
-        Command::new(&cargo)
-            .args(["run", "-q", "--bin", "integ_test"])
-            .current_dir(&out_dir),
-    );
+    let result = run(Command::new(&cargo)
+        .args(["run", "-q", "--bin", "integ_test"])
+        .current_dir(&out_dir));
     match result {
         Ok(stdout) => {
             assert!(
@@ -615,10 +633,12 @@ fn all_languages_produce_consistent_output() {
     let spec = specforge_core::parse_file(&petstore_path).expect("parse petstore");
     let doc = specforge_core::resolve(&spec).expect("resolve petstore");
 
-    let expected_models: BTreeSet<String> =
-        doc.schemas.models.keys().cloned().collect();
-    let expected_ops: Vec<String> =
-        doc.operations.iter().map(|op| op.operation_id.clone()).collect();
+    let expected_models: BTreeSet<String> = doc.schemas.models.keys().cloned().collect();
+    let expected_ops: Vec<String> = doc
+        .operations
+        .iter()
+        .map(|op| op.operation_id.clone())
+        .collect();
 
     assert!(
         !expected_models.is_empty(),

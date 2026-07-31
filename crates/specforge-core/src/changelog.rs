@@ -186,7 +186,16 @@ fn current_date() -> String {
     let month_days: [i64; 12] = [
         31,
         if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
     let mut m = 1u32;
     for &md in &month_days {
@@ -206,7 +215,9 @@ fn is_leap(y: i64) -> bool {
 
 /// Compute the suggested semantic version bump from diff findings.
 fn compute_suggested_bump(findings: &[diff::DiffFinding]) -> VersionBump {
-    let has_breaking = findings.iter().any(|f| f.severity == DiffSeverity::Breaking);
+    let has_breaking = findings
+        .iter()
+        .any(|f| f.severity == DiffSeverity::Breaking);
     let has_additions = findings.iter().any(|f| f.severity == DiffSeverity::Info);
 
     if has_breaking {
@@ -238,16 +249,19 @@ fn classify_finding(finding: &diff::DiffFinding) -> ChangeImpact {
 
 /// Build per-operation changelog entries from the diff between old and new documents.
 #[cfg(test)]
-fn build_operation_entries(
-    old_doc: &Document,
-    new_doc: &Document,
-) -> Vec<OperationEntry> {
+fn build_operation_entries(old_doc: &Document, new_doc: &Document) -> Vec<OperationEntry> {
     use std::collections::HashMap;
 
-    let old_ops: HashMap<String, &crate::ir::Operation> =
-        old_doc.operations.iter().map(|op| (op.operation_id.clone(), op)).collect();
-    let new_ops: HashMap<String, &crate::ir::Operation> =
-        new_doc.operations.iter().map(|op| (op.operation_id.clone(), op)).collect();
+    let old_ops: HashMap<String, &crate::ir::Operation> = old_doc
+        .operations
+        .iter()
+        .map(|op| (op.operation_id.clone(), op))
+        .collect();
+    let new_ops: HashMap<String, &crate::ir::Operation> = new_doc
+        .operations
+        .iter()
+        .map(|op| (op.operation_id.clone(), op))
+        .collect();
 
     let mut entries = Vec::new();
 
@@ -305,7 +319,12 @@ fn build_operation_entries(
 
             // Check for new required request body
             if new_op.request_body.is_some() && old_op.request_body.is_none() {
-                if new_op.request_body.as_ref().map(|rb| rb.required).unwrap_or(false) {
+                if new_op
+                    .request_body
+                    .as_ref()
+                    .map(|rb| rb.required)
+                    .unwrap_or(false)
+                {
                     details.push("New required request body added".to_string());
                     is_breaking = true;
                 } else {
@@ -372,8 +391,16 @@ fn build_schema_entries(schema_diffs: &[SchemaDiffDetail]) -> Vec<SchemaChangeEn
                             old_required,
                             new_required,
                         } => {
-                            let o = if *old_required { "required" } else { "optional" };
-                            let n = if *new_required { "required" } else { "optional" };
+                            let o = if *old_required {
+                                "required"
+                            } else {
+                                "optional"
+                            };
+                            let n = if *new_required {
+                                "required"
+                            } else {
+                                "optional"
+                            };
                             let impact = if *new_required {
                                 ChangeImpact::Breaking
                             } else {
@@ -390,7 +417,9 @@ fn build_schema_entries(schema_diffs: &[SchemaDiffDetail]) -> Vec<SchemaChangeEn
                 })
                 .collect();
 
-            let has_breaking = property_changes.iter().any(|pc| pc.impact == ChangeImpact::Breaking);
+            let has_breaking = property_changes
+                .iter()
+                .any(|pc| pc.impact == ChangeImpact::Breaking);
 
             SchemaChangeEntry {
                 schema_name: sd.name.clone(),
@@ -414,44 +443,45 @@ pub fn generate_changelog_result(doc: &Document, opts: &ChangelogOptions) -> Cha
     let today = current_date();
 
     // Compute diff findings if a previous spec was provided.
-    let (findings, schema_diffs, operation_entries, schema_entries) =
-        if let Some(prev_path) = &opts.previous_spec {
-            match load_and_diff(prev_path, doc) {
-                Ok(diff_result) => {
-                    let op_entries = build_operation_entries_from_findings(
-                        &diff_result.findings,
-                        doc,
-                    );
-                    let sch_entries = build_schema_entries(&diff_result.schema_diffs);
-                    (
-                        diff_result.findings,
-                        diff_result.schema_diffs,
-                        op_entries,
-                        sch_entries,
-                    )
-                }
-                Err(_) => (vec![], vec![], vec![], vec![]),
+    let (findings, schema_diffs, operation_entries, schema_entries) = if let Some(prev_path) =
+        &opts.previous_spec
+    {
+        match load_and_diff(prev_path, doc) {
+            Ok(diff_result) => {
+                let op_entries = build_operation_entries_from_findings(&diff_result.findings, doc);
+                let sch_entries = build_schema_entries(&diff_result.schema_diffs);
+                (
+                    diff_result.findings,
+                    diff_result.schema_diffs,
+                    op_entries,
+                    sch_entries,
+                )
             }
-        } else {
-            // No previous spec: list all current operations as "Added" entries.
-            let op_entries: Vec<OperationEntry> = doc
-                .operations
-                .iter()
-                .map(|op| OperationEntry {
-                    method: op.method.upper().to_string(),
-                    path: op.path.clone(),
-                    operation_id: op.operation_id.clone(),
-                    summary: op.summary.clone(),
-                    change_type: ChangeType::Added,
-                    impact: ChangeImpact::Feature,
-                    details: vec![],
-                })
-                .collect();
-            (vec![], vec![], op_entries, vec![])
-        };
+            Err(_) => (vec![], vec![], vec![], vec![]),
+        }
+    } else {
+        // No previous spec: list all current operations as "Added" entries.
+        let op_entries: Vec<OperationEntry> = doc
+            .operations
+            .iter()
+            .map(|op| OperationEntry {
+                method: op.method.upper().to_string(),
+                path: op.path.clone(),
+                operation_id: op.operation_id.clone(),
+                summary: op.summary.clone(),
+                change_type: ChangeType::Added,
+                impact: ChangeImpact::Feature,
+                details: vec![],
+            })
+            .collect();
+        (vec![], vec![], op_entries, vec![])
+    };
 
     let suggested_bump = compute_suggested_bump(&findings);
-    let breaking_count = findings.iter().filter(|f| f.severity == DiffSeverity::Breaking).count();
+    let breaking_count = findings
+        .iter()
+        .filter(|f| f.severity == DiffSeverity::Breaking)
+        .count();
     let non_breaking_count = findings.len() - breaking_count;
     let schemas_modified_count = schema_entries.len();
 
@@ -629,9 +659,21 @@ fn render_markdown(result: &ChangelogResult, opts: &ChangelogOptions) -> String 
         out.push_str("### Operations\n\n");
 
         // Group by impact: breaking first, then features, then fixes
-        let mut breaking: Vec<_> = result.operation_entries.iter().filter(|e| e.impact == ChangeImpact::Breaking).collect();
-        let mut features: Vec<_> = result.operation_entries.iter().filter(|e| e.impact == ChangeImpact::Feature).collect();
-        let mut fixes: Vec<_> = result.operation_entries.iter().filter(|e| e.impact == ChangeImpact::Fix).collect();
+        let mut breaking: Vec<_> = result
+            .operation_entries
+            .iter()
+            .filter(|e| e.impact == ChangeImpact::Breaking)
+            .collect();
+        let mut features: Vec<_> = result
+            .operation_entries
+            .iter()
+            .filter(|e| e.impact == ChangeImpact::Feature)
+            .collect();
+        let mut fixes: Vec<_> = result
+            .operation_entries
+            .iter()
+            .filter(|e| e.impact == ChangeImpact::Fix)
+            .collect();
 
         breaking.sort_by(|a, b| a.operation_id.cmp(&b.operation_id));
         features.sort_by(|a, b| a.operation_id.cmp(&b.operation_id));
@@ -732,14 +774,11 @@ fn render_json(result: &ChangelogResult) -> String {
 }
 
 /// Parse the previous spec, resolve it, and diff against the current document.
-fn load_and_diff(
-    prev_path: &str,
-    current_doc: &Document,
-) -> Result<diff::DiffResult, String> {
+fn load_and_diff(prev_path: &str, current_doc: &Document) -> Result<diff::DiffResult, String> {
     let prev_spec = crate::spec::parse_file(prev_path)
         .map_err(|e| format!("failed to parse previous spec: {e}"))?;
-    let prev_doc =
-        crate::resolve::resolve(&prev_spec).map_err(|e| format!("failed to resolve previous spec: {e}"))?;
+    let prev_doc = crate::resolve::resolve(&prev_spec)
+        .map_err(|e| format!("failed to resolve previous spec: {e}"))?;
     Ok(diff::diff_detailed(&prev_doc, current_doc))
 }
 
@@ -802,14 +841,28 @@ mod tests {
         let doc = make_doc(
             vec![],
             vec![
-                ("Pet", Model::Object(ObjectModel {
-                    name: "Pet".into(), description: None, properties: vec![],
-                    additional_properties: None, shape_type: None, base_type: None,
-                })),
-                ("Error", Model::Object(ObjectModel {
-                    name: "Error".into(), description: None, properties: vec![],
-                    additional_properties: None, shape_type: None, base_type: None,
-                })),
+                (
+                    "Pet",
+                    Model::Object(ObjectModel {
+                        name: "Pet".into(),
+                        description: None,
+                        properties: vec![],
+                        additional_properties: None,
+                        shape_type: None,
+                        base_type: None,
+                    }),
+                ),
+                (
+                    "Error",
+                    Model::Object(ObjectModel {
+                        name: "Error".into(),
+                        description: None,
+                        properties: vec![],
+                        additional_properties: None,
+                        shape_type: None,
+                        base_type: None,
+                    }),
+                ),
             ],
         );
         let out = generate_changelog(&doc, &ChangelogOptions::default());
@@ -838,10 +891,7 @@ mod tests {
 
     #[test]
     fn changelog_json_format() {
-        let doc = make_doc(
-            vec![make_op("listPets", HttpMethod::Get, "/pets")],
-            vec![],
-        );
+        let doc = make_doc(vec![make_op("listPets", HttpMethod::Get, "/pets")], vec![]);
         let opts = ChangelogOptions {
             format: ChangelogFormat::Json,
             ..Default::default()
@@ -892,10 +942,7 @@ mod tests {
 
     #[test]
     fn changelog_result_includes_suggested_bump() {
-        let doc = make_doc(
-            vec![make_op("listPets", HttpMethod::Get, "/pets")],
-            vec![],
-        );
+        let doc = make_doc(vec![make_op("listPets", HttpMethod::Get, "/pets")], vec![]);
         let result = generate_changelog_result(&doc, &ChangelogOptions::default());
         assert_eq!(result.suggested_bump, VersionBump::None);
         assert_eq!(result.breaking_count, 0);
@@ -904,10 +951,7 @@ mod tests {
 
     #[test]
     fn changelog_with_suggest_version_flag() {
-        let doc = make_doc(
-            vec![make_op("listPets", HttpMethod::Get, "/pets")],
-            vec![],
-        );
+        let doc = make_doc(vec![make_op("listPets", HttpMethod::Get, "/pets")], vec![]);
         let opts = ChangelogOptions {
             suggest_version: true,
             ..Default::default()
@@ -948,10 +992,7 @@ mod tests {
     #[test]
     fn build_operation_entries_added() {
         let old = make_doc(vec![], vec![]);
-        let new = make_doc(
-            vec![make_op("listPets", HttpMethod::Get, "/pets")],
-            vec![],
-        );
+        let new = make_doc(vec![make_op("listPets", HttpMethod::Get, "/pets")], vec![]);
         let entries = build_operation_entries(&old, &new);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].change_type, ChangeType::Added);
@@ -961,10 +1002,7 @@ mod tests {
 
     #[test]
     fn build_operation_entries_removed() {
-        let old = make_doc(
-            vec![make_op("listPets", HttpMethod::Get, "/pets")],
-            vec![],
-        );
+        let old = make_doc(vec![make_op("listPets", HttpMethod::Get, "/pets")], vec![]);
         let new = make_doc(vec![], vec![]);
         let entries = build_operation_entries(&old, &new);
         assert_eq!(entries.len(), 1);
@@ -1022,7 +1060,10 @@ mod tests {
         let result = generate_changelog_result(&doc, &ChangelogOptions::default());
         assert_eq!(result.operation_entries.len(), 2);
         // Without a previous spec, all operations are listed as "Added"
-        assert!(result.operation_entries.iter().all(|e| e.change_type == ChangeType::Added));
+        assert!(result
+            .operation_entries
+            .iter()
+            .all(|e| e.change_type == ChangeType::Added));
     }
 
     #[test]
@@ -1052,7 +1093,10 @@ mod tests {
         assert_eq!(entries[0].property_changes[0].property, "name");
         assert_eq!(entries[0].property_changes[0].impact, ChangeImpact::Feature);
         assert_eq!(entries[0].property_changes[1].property, "id");
-        assert_eq!(entries[0].property_changes[1].impact, ChangeImpact::Breaking);
+        assert_eq!(
+            entries[0].property_changes[1].impact,
+            ChangeImpact::Breaking
+        );
     }
 
     #[test]

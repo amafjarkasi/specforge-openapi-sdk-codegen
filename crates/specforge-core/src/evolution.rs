@@ -45,7 +45,9 @@ pub enum EvolutionFormat {
 /// the spec at each commit and compares adjacent versions to count breaking
 /// changes. The `spec_path` should be relative to the git repository root
 /// (or an absolute path that git can follow).
-pub fn track_evolution(spec_path: &str) -> Result<SchemaEvolution, Box<dyn std::error::Error + Send + Sync>> {
+pub fn track_evolution(
+    spec_path: &str,
+) -> Result<SchemaEvolution, Box<dyn std::error::Error + Send + Sync>> {
     // Discover commits that changed this file, oldest first.
     let commits = git_log_for_file(spec_path)?;
 
@@ -110,7 +112,9 @@ pub fn track_evolution(spec_path: &str) -> Result<SchemaEvolution, Box<dyn std::
 
 /// Run `git log` to get the commit hash and date for every commit that
 /// touched `spec_path`, ordered oldest-first.
-fn git_log_for_file(spec_path: &str) -> Result<Vec<(String, String)>, Box<dyn std::error::Error + Send + Sync>> {
+fn git_log_for_file(
+    spec_path: &str,
+) -> Result<Vec<(String, String)>, Box<dyn std::error::Error + Send + Sync>> {
     let output = Command::new("git")
         .args([
             "log",
@@ -147,11 +151,12 @@ fn git_log_for_file(spec_path: &str) -> Result<Vec<(String, String)>, Box<dyn st
 
 /// Get the contents of `spec_path` at a specific git commit using
 /// `git show <commit>:<path>`.
-fn git_show_file(spec_path: &str, commit: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+fn git_show_file(
+    spec_path: &str,
+    commit: &str,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     let refspec = format!("{commit}:{spec_path}");
-    let output = Command::new("git")
-        .args(["show", &refspec])
-        .output()?;
+    let output = Command::new("git").args(["show", &refspec]).output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

@@ -149,12 +149,7 @@ fn validate_inner(
 
 // ─── Scalar validator ────────────────────────────────────────────────────────
 
-fn validate_scalar(
-    value: &Value,
-    scalar: &Scalar,
-    path: &str,
-    errors: &mut Vec<ValidationError>,
-) {
+fn validate_scalar(value: &Value, scalar: &Scalar, path: &str, errors: &mut Vec<ValidationError>) {
     match scalar {
         Scalar::String | Scalar::DateTime | Scalar::Uuid | Scalar::Base64 | Scalar::Binary => {
             if !value.is_string() {
@@ -180,13 +175,12 @@ fn validate_scalar(
                 });
             }
         }
-        Scalar::Boolean
-            if !value.is_boolean() => {
-                errors.push(ValidationError {
-                    path: path.to_string(),
-                    message: format!("expected boolean, got {}", value_type_name(value)),
-                });
-            }
+        Scalar::Boolean if !value.is_boolean() => {
+            errors.push(ValidationError {
+                path: path.to_string(),
+                message: format!("expected boolean, got {}", value_type_name(value)),
+            });
+        }
         _ => {}
     }
 }
@@ -478,7 +472,11 @@ mod tests {
             }),
             nullable: false,
         };
-        let errors = validate(&json!([[1, 2], [3, "bad"]]), &ty, &SchemaRegistry::default());
+        let errors = validate(
+            &json!([[1, 2], [3, "bad"]]),
+            &ty,
+            &SchemaRegistry::default(),
+        );
         assert_eq!(errors.len(), 1);
         assert!(errors[0].path.contains("[1][1]"));
     }
@@ -499,7 +497,11 @@ mod tests {
         let ty = Type::Map {
             value: Box::new(int_type()),
         };
-        let errors = validate(&json!({"a": 1, "b": "wrong"}), &ty, &SchemaRegistry::default());
+        let errors = validate(
+            &json!({"a": 1, "b": "wrong"}),
+            &ty,
+            &SchemaRegistry::default(),
+        );
         assert_eq!(errors.len(), 1);
         assert!(errors[0].path.contains(".b"));
     }
@@ -551,7 +553,13 @@ mod tests {
             description: None,
         }];
         let mut errors = Vec::new();
-        validate_object(&json!({}), &props, &SchemaRegistry::default(), "", &mut errors);
+        validate_object(
+            &json!({}),
+            &props,
+            &SchemaRegistry::default(),
+            "",
+            &mut errors,
+        );
         assert_eq!(errors.len(), 1);
         assert!(errors[0].message.contains("missing required"));
     }
@@ -565,7 +573,13 @@ mod tests {
             description: None,
         }];
         let mut errors = Vec::new();
-        validate_object(&json!({}), &props, &SchemaRegistry::default(), "", &mut errors);
+        validate_object(
+            &json!({}),
+            &props,
+            &SchemaRegistry::default(),
+            "",
+            &mut errors,
+        );
         assert!(errors.is_empty());
     }
 
@@ -853,11 +867,7 @@ mod tests {
             nullable: false,
         };
 
-        let errors = validate(
-            &json!([{"value": 1}, {"value": "bad"}]),
-            &ty,
-            &registry,
-        );
+        let errors = validate(&json!([{"value": 1}, {"value": "bad"}]), &ty, &registry);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].path, "[1].value");
     }

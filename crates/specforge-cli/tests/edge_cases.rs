@@ -190,7 +190,9 @@ fn all_fixtures_resolve() {
         assert!(
             schema_count >= f.min_schemas,
             "{}: expected >= {} schemas, got {}",
-            f.name, f.min_schemas, schema_count,
+            f.name,
+            f.min_schemas,
+            schema_count,
         );
 
         // Operations check
@@ -198,7 +200,9 @@ fn all_fixtures_resolve() {
         assert!(
             ops_count >= f.min_ops,
             "{}: expected >= {} operations, got {}",
-            f.name, f.min_ops, ops_count,
+            f.name,
+            f.min_ops,
+            ops_count,
         );
 
         // Every operation must have non-empty id and path
@@ -206,12 +210,15 @@ fn all_fixtures_resolve() {
             assert!(
                 !op.operation_id.is_empty(),
                 "{}: empty operation_id on {:?} {}",
-                f.name, op.method, op.path,
+                f.name,
+                op.method,
+                op.path,
             );
             assert!(
                 !op.path.is_empty(),
                 "{}: empty path on operation {}",
-                f.name, op.operation_id,
+                f.name,
+                op.operation_id,
             );
         }
 
@@ -249,7 +256,8 @@ fn all_fixtures_generate_ts() {
         assert!(
             written.len() > 3,
             "{}: ts generated too few files ({})",
-            f.name, written.len(),
+            f.name,
+            written.len(),
         );
         // Must have at least one model file (when schemas exist)
         if !doc.schemas.models.is_empty() {
@@ -261,15 +269,15 @@ fn all_fixtures_generate_ts() {
         }
         // Must have index.ts
         assert!(
-            written.iter().any(|p| p.ends_with("index.ts") || p.ends_with("index.mts") || p == "src/index.ts"),
+            written.iter().any(|p| p.ends_with("index.ts")
+                || p.ends_with("index.mts")
+                || p == "src/index.ts"),
             "{}: ts missing index file: {:?}",
-            f.name, written,
+            f.name,
+            written,
         );
 
-        eprintln!(
-            "[ts] {}: {} files -- OK",
-            f.name, written.len(),
-        );
+        eprintln!("[ts] {}: {} files -- OK", f.name, written.len(),);
     }
 }
 
@@ -316,13 +324,11 @@ fn all_fixtures_generate_go() {
         assert!(
             written.len() >= 4,
             "{}: go generated too few files ({})",
-            f.name, written.len(),
+            f.name,
+            written.len(),
         );
 
-        eprintln!(
-            "[go] {}: {} files -- OK",
-            f.name, written.len(),
-        );
+        eprintln!("[go] {}: {} files -- OK", f.name, written.len(),);
     }
 }
 
@@ -369,13 +375,11 @@ fn all_fixtures_generate_rust() {
         assert!(
             written.len() >= 5,
             "{}: rust generated too few files ({})",
-            f.name, written.len(),
+            f.name,
+            written.len(),
         );
 
-        eprintln!(
-            "[rust] {}: {} files -- OK",
-            f.name, written.len(),
-        );
+        eprintln!("[rust] {}: {} files -- OK", f.name, written.len(),);
     }
 }
 
@@ -400,10 +404,7 @@ fn generate_all_languages(doc: &specforge_core::Document, label: &str) {
         };
         let written = specforge_ts::generate(doc, &opts)
             .unwrap_or_else(|e| panic!("{label}: ts emit failed: {e}"));
-        assert!(
-            !written.is_empty(),
-            "{label}: ts produced no files"
-        );
+        assert!(!written.is_empty(), "{label}: ts produced no files");
         eprintln!("[edge-case/{label}] ts: {} files", written.len());
     }
 
@@ -418,10 +419,7 @@ fn generate_all_languages(doc: &specforge_core::Document, label: &str) {
         };
         let written = specforge_go::generate(doc, &opts)
             .unwrap_or_else(|e| panic!("{label}: go emit failed: {e}"));
-        assert!(
-            !written.is_empty(),
-            "{label}: go produced no files"
-        );
+        assert!(!written.is_empty(), "{label}: go produced no files");
         eprintln!("[edge-case/{label}] go: {} files", written.len());
     }
 
@@ -435,10 +433,7 @@ fn generate_all_languages(doc: &specforge_core::Document, label: &str) {
         };
         let written = specforge_rust::generate(doc, &opts)
             .unwrap_or_else(|e| panic!("{label}: rust emit failed: {e}"));
-        assert!(
-            !written.is_empty(),
-            "{label}: rust produced no files"
-        );
+        assert!(!written.is_empty(), "{label}: rust produced no files");
         eprintln!("[edge-case/{label}] rust: {} files", written.len());
     }
 }
@@ -503,10 +498,7 @@ fn edge_case_ref_only_schema() {
         "          type: string\n",
     );
     let doc = parse_resolve_inline(yaml);
-    assert!(
-        !doc.schemas.models.is_empty(),
-        "expected at least 1 schema"
-    );
+    assert!(!doc.schemas.models.is_empty(), "expected at least 1 schema");
     assert!(
         doc.schemas.get("Item").is_some(),
         "Item schema should exist"
@@ -657,7 +649,10 @@ fn edge_case_circular_references() {
     let specforge_core::Model::Object(o) = node else {
         panic!("TreeNode should be object");
     };
-    let children = o.properties.iter().find(|p| p.name == "children")
+    let children = o
+        .properties
+        .iter()
+        .find(|p| p.name == "children")
         .expect("has children prop");
     match &children.ty {
         specforge_core::Type::Array { item, .. } => match item.as_ref() {
@@ -817,13 +812,19 @@ fn edge_case_nullable_properties() {
         panic!("Thing should be object");
     };
     // Nullable properties should still resolve to their base types
-    let label = o.properties.iter().find(|p| p.name == "label")
+    let label = o
+        .properties
+        .iter()
+        .find(|p| p.name == "label")
         .expect("has label");
     assert!(
         matches!(&label.ty, specforge_core::Type::Scalar(s) if matches!(s, specforge_core::Scalar::String)),
         "label should be string scalar"
     );
-    let score = o.properties.iter().find(|p| p.name == "score")
+    let score = o
+        .properties
+        .iter()
+        .find(|p| p.name == "score")
         .expect("has score");
     assert!(
         matches!(&score.ty, specforge_core::Type::Scalar(s) if matches!(s, specforge_core::Scalar::Float)),
@@ -897,12 +898,12 @@ fn edge_case_oneof_without_discriminator() {
     assert_eq!(comp.kind, specforge_core::CompositionKind::OneOf);
     assert_eq!(comp.members.len(), 3);
     // No discriminator
-    assert!(
-        comp.discriminator.is_none(),
-        "should have no discriminator"
-    );
+    assert!(comp.discriminator.is_none(), "should have no discriminator");
     // All members should be references
-    assert!(comp.members.iter().all(|m| matches!(m, specforge_core::Type::Reference { .. })));
+    assert!(comp
+        .members
+        .iter()
+        .all(|m| matches!(m, specforge_core::Type::Reference { .. })));
 
     generate_all_languages(&doc, "oneof-no-discriminator");
 }
@@ -988,10 +989,22 @@ fn edge_case_allof_multiple_refs() {
     };
     // User should have properties from all allOf members merged
     let prop_names: Vec<&str> = uo.properties.iter().map(|p| p.name.as_str()).collect();
-    assert!(prop_names.contains(&"id"), "User should have 'id' from Base");
-    assert!(prop_names.contains(&"createdAt"), "User should have 'createdAt' from Timestamps");
-    assert!(prop_names.contains(&"email"), "User should have 'email' from ContactInfo");
-    assert!(prop_names.contains(&"name"), "User should have 'name' from inline");
+    assert!(
+        prop_names.contains(&"id"),
+        "User should have 'id' from Base"
+    );
+    assert!(
+        prop_names.contains(&"createdAt"),
+        "User should have 'createdAt' from Timestamps"
+    );
+    assert!(
+        prop_names.contains(&"email"),
+        "User should have 'email' from ContactInfo"
+    );
+    assert!(
+        prop_names.contains(&"name"),
+        "User should have 'name' from inline"
+    );
 
     // shape_type should be an allOf composition with >= 4 members
     let shape = uo.shape_type.as_ref().expect("User has shape_type");
@@ -999,10 +1012,17 @@ fn edge_case_allof_multiple_refs() {
         panic!("expected Composition, got {shape:?}");
     };
     assert_eq!(comp.kind, specforge_core::CompositionKind::AllOf);
-    assert!(comp.members.len() >= 4, "expected >= 4 allOf members, got {}", comp.members.len());
+    assert!(
+        comp.members.len() >= 4,
+        "expected >= 4 allOf members, got {}",
+        comp.members.len()
+    );
 
     // CreateUserRequest also resolves
-    let cur = doc.schemas.get("CreateUserRequest").expect("CreateUserRequest exists");
+    let cur = doc
+        .schemas
+        .get("CreateUserRequest")
+        .expect("CreateUserRequest exists");
     let specforge_core::Model::Object(_) = cur else {
         panic!("CreateUserRequest should be object");
     };
@@ -1130,7 +1150,11 @@ fn edge_case_additional_properties() {
 
     // The response body should be a Map type
     let op = &doc.operations[0];
-    let resp = op.responses.iter().find(|r| r.status == "200").expect("200 response");
+    let resp = op
+        .responses
+        .iter()
+        .find(|r| r.status == "200")
+        .expect("200 response");
     let body = resp.body.as_ref().expect("200 has body");
     match body {
         specforge_core::Type::Map { .. } => { /* expected */ }
@@ -1175,7 +1199,8 @@ fn edge_case_operations_without_tags() {
         assert!(
             op.tag.is_none(),
             "expected no tag on {}, got {:?}",
-            op.operation_id, op.tag,
+            op.operation_id,
+            op.tag,
         );
     }
     generate_all_languages(&doc, "no-tags");
@@ -1231,7 +1256,11 @@ fn edge_case_paths_only_no_schemas() {
     );
     let doc = parse_resolve_inline(yaml);
     assert_eq!(doc.operations.len(), 2);
-    let ids: Vec<&str> = doc.operations.iter().map(|o| o.operation_id.as_str()).collect();
+    let ids: Vec<&str> = doc
+        .operations
+        .iter()
+        .map(|o| o.operation_id.as_str())
+        .collect();
     assert!(ids.contains(&"ping"));
     assert!(ids.contains(&"echo"));
     generate_all_languages(&doc, "paths-only");
@@ -1306,7 +1335,11 @@ fn edge_case_nested_arrays() {
         panic!("Matrix should be object");
     };
     // rows: array of array of integer
-    let rows = o.properties.iter().find(|p| p.name == "rows").expect("has rows");
+    let rows = o
+        .properties
+        .iter()
+        .find(|p| p.name == "rows")
+        .expect("has rows");
     match &rows.ty {
         specforge_core::Type::Array { item, .. } => match item.as_ref() {
             specforge_core::Type::Array { item: inner, .. } => match inner.as_ref() {
@@ -1380,7 +1413,11 @@ fn edge_case_mixed_compositions() {
     assert!(prop_names.contains(&"data"), "Item should have 'data'");
 
     // data property should be a composition (oneOf)
-    let data = o.properties.iter().find(|p| p.name == "data").expect("has data");
+    let data = o
+        .properties
+        .iter()
+        .find(|p| p.name == "data")
+        .expect("has data");
     match &data.ty {
         specforge_core::Type::Composition(comp) => {
             assert_eq!(comp.kind, specforge_core::CompositionKind::OneOf);
@@ -1442,7 +1479,11 @@ fn edge_case_all_http_methods() {
         "          description: ok\n",
     );
     let doc = parse_resolve_inline(yaml);
-    assert_eq!(doc.operations.len(), 7, "expected 7 operations for all HTTP methods");
+    assert_eq!(
+        doc.operations.len(),
+        7,
+        "expected 7 operations for all HTTP methods"
+    );
     let methods: Vec<&str> = doc.operations.iter().map(|o| o.method.as_str()).collect();
     assert!(methods.contains(&"get"));
     assert!(methods.contains(&"post"));
@@ -1493,7 +1534,10 @@ fn edge_case_multiple_security_schemes() {
         "      in: header\n",
     );
     let doc = parse_resolve_inline(yaml);
-    assert!(!doc.security.is_empty(), "should have global security schemes");
+    assert!(
+        !doc.security.is_empty(),
+        "should have global security schemes"
+    );
     assert_eq!(doc.operations.len(), 2);
     generate_all_languages(&doc, "multi-security");
 }
@@ -1551,9 +1595,14 @@ fn edge_case_complex_path_parameters() {
     let doc = parse_resolve_inline(yaml);
     assert_eq!(doc.operations.len(), 1);
     let op = &doc.operations[0];
-    assert_eq!(op.path, "/orgs/{org}/repos/{repo}/issues/{issue_number}/comments/{comment_id}");
+    assert_eq!(
+        op.path,
+        "/orgs/{org}/repos/{repo}/issues/{issue_number}/comments/{comment_id}"
+    );
     assert_eq!(op.parameters.len(), 6);
-    let path_params: Vec<&str> = op.parameters.iter()
+    let path_params: Vec<&str> = op
+        .parameters
+        .iter()
         .filter(|p| p.location == specforge_core::ParamLocation::Path)
         .map(|p| p.name.as_str())
         .collect();
@@ -1644,10 +1693,7 @@ fn edge_case_diamond_allof() {
         "              type: boolean\n",
     );
     let doc = parse_resolve_inline(yaml);
-    assert!(
-        doc.schemas.models.len() >= 4,
-        "expected >= 4 schemas"
-    );
+    assert!(doc.schemas.models.len() >= 4, "expected >= 4 schemas");
     let diamond = doc.schemas.get("Diamond").expect("Diamond exists");
     let specforge_core::Model::Object(o) = diamond else {
         panic!("Diamond should be object");
@@ -1655,7 +1701,10 @@ fn edge_case_diamond_allof() {
     let prop_names: Vec<&str> = o.properties.iter().map(|p| p.name.as_str()).collect();
     // Should have inherited from both Left and Right (which both inherit from Root)
     assert!(
-        prop_names.contains(&"id") || prop_names.contains(&"leftVal") || prop_names.contains(&"rightVal") || prop_names.contains(&"diamondVal"),
+        prop_names.contains(&"id")
+            || prop_names.contains(&"leftVal")
+            || prop_names.contains(&"rightVal")
+            || prop_names.contains(&"diamondVal"),
         "Diamond should have inherited properties, got: {:?}",
         prop_names,
     );

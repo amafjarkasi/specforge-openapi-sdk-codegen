@@ -12,7 +12,12 @@ use serde_json::Value as JsonValue;
 use tracing::{info, warn};
 use tracing_subscriber::EnvFilter;
 
-use specforge_core::{diff, generate_changelog, lint, lint_config, merge_specs, parse_file, profile_api, resolve, resolve_spec_path, scan_versions, apply_versioning, ChangelogFormat, ChangelogOptions, DiffSeverity, LintConfig, MarketplaceIndex, PluginIndex, ProfileOptions, RuleSeverity, Severity, SpecforgeConfig, VersioningConfig, VersionStrategy};
+use specforge_core::{
+    apply_versioning, diff, generate_changelog, lint, lint_config, merge_specs, parse_file,
+    profile_api, resolve, resolve_spec_path, scan_versions, ChangelogFormat, ChangelogOptions,
+    DiffSeverity, LintConfig, MarketplaceIndex, PluginIndex, ProfileOptions, RuleSeverity,
+    Severity, SpecforgeConfig, VersionStrategy, VersioningConfig,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum LogLevel {
@@ -394,7 +399,11 @@ struct MigrateArgs {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum AnalyzeFormat { Text, Json, Markdown }
+enum AnalyzeFormat {
+    Text,
+    Json,
+    Markdown,
+}
 #[derive(Args, Debug)]
 struct AnalyzeArgs {
     spec: PathBuf,
@@ -453,7 +462,11 @@ struct VerifyArgs {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum EvolutionFormat { Text, Json, Markdown }
+enum EvolutionFormat {
+    Text,
+    Json,
+    Markdown,
+}
 
 #[derive(Args, Debug)]
 struct EvolutionArgs {
@@ -1190,7 +1203,11 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
     if let Some(ref plugin_name) = cli.plugin {
         let plugin_path = resolve_plugin_path(plugin_name)
             .with_context(|| format!("failed to resolve plugin '{plugin_name}'"))?;
-        info!("using WASM plugin: {} ({})", plugin_name, plugin_path.display());
+        info!(
+            "using WASM plugin: {} ({})",
+            plugin_name,
+            plugin_path.display()
+        );
         // NOTE: Actual WASM runtime execution requires a WASM engine (e.g.
         // wasmtime).  For now we record the resolved path so downstream tooling
         // can pick it up.  The IR is still emitted through the built-in emitters
@@ -1202,11 +1219,7 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
             .with_context(|| format!("failed to write {}", marker.display()))?;
     }
 
-    info!(
-        "emitting {:?} SDK to: {}",
-        cli.lang,
-        cli.out.display()
-    );
+    info!("emitting {:?} SDK to: {}", cli.lang, cli.out.display());
 
     let t2 = std::time::Instant::now();
 
@@ -1251,7 +1264,10 @@ fn run_generate(cli: GenerateArgs) -> Result<usize> {
     if cli.changelog {
         let changelog_opts = ChangelogOptions {
             version: cli.version.clone(),
-            previous_spec: cli.changelog_previous.as_ref().map(|p| p.display().to_string()),
+            previous_spec: cli
+                .changelog_previous
+                .as_ref()
+                .map(|p| p.display().to_string()),
             suggest_version: false,
             format: Default::default(),
         };
@@ -1315,7 +1331,8 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
 
     let mut has_errors = false;
     for diag in &diagnostics {
-        let is_error = diag.severity == Severity::Error || (cli.strict && diag.severity == Severity::Warning);
+        let is_error =
+            diag.severity == Severity::Error || (cli.strict && diag.severity == Severity::Warning);
         if is_error {
             eprintln!("error: {diag}");
             has_errors = true;
@@ -1327,21 +1344,18 @@ fn run_check(cli: &CheckArgs) -> Result<bool> {
     if diagnostics.is_empty() {
         info!("no issues found");
     } else {
-        let errors = diagnostics.iter().filter(|d| d.severity == Severity::Error).count();
+        let errors = diagnostics
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count();
         let warnings = diagnostics.len() - errors;
         if errors > 0 {
-            eprintln!(
-                "\n{errors} error(s), {warnings} warning(s)",
-            );
+            eprintln!("\n{errors} error(s), {warnings} warning(s)",);
         } else if cli.strict && warnings > 0 {
-            eprintln!(
-                "\n{warnings} warning(s) treated as errors (--strict)",
-            );
+            eprintln!("\n{warnings} warning(s) treated as errors (--strict)",);
             has_errors = true;
         } else {
-            eprintln!(
-                "\n{warnings} warning(s)",
-            );
+            eprintln!("\n{warnings} warning(s)",);
         }
     }
 
@@ -1429,7 +1443,10 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
 
     let start = std::time::Instant::now();
 
-    let spec_path = cli.spec.as_ref().context("a spec file is required (or use --schema)")?;
+    let spec_path = cli
+        .spec
+        .as_ref()
+        .context("a spec file is required (or use --schema)")?;
     info!("reading spec: {}", spec_path.display());
     let t0 = std::time::Instant::now();
     let spec = parse_file(spec_path)
@@ -1477,8 +1494,7 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
             println!("{}", serde_json::to_string(&line)?);
         }
     } else {
-        let json = serde_json::to_string_pretty(&doc)
-            .context("failed to serialize IR to JSON")?;
+        let json = serde_json::to_string_pretty(&doc).context("failed to serialize IR to JSON")?;
         println!("{json}");
     }
     let serialize_time = t2.elapsed();
@@ -1495,15 +1511,21 @@ fn run_emit(cli: &EmitArgs) -> Result<()> {
 }
 
 fn build_retry_yaml_block(max_retries: Option<u32>, retry_on: Option<&[String]>) -> String {
-    if max_retries.is_none() && retry_on.is_none() { return String::new(); }
+    if max_retries.is_none() && retry_on.is_none() {
+        return String::new();
+    }
     let mut lines = vec!["      x-retry:".to_string()];
-    if let Some(max) = max_retries { lines.push(format!("        maxRetries: {max}")); }
+    if let Some(max) = max_retries {
+        lines.push(format!("        maxRetries: {max}"));
+    }
     if let Some(methods) = retry_on {
         let retryable = methods.iter().any(|m| m.eq_ignore_ascii_case("GET"));
         lines.push(format!("        retryable: {retryable}"));
     }
-    lines.join("
-")
+    lines.join(
+        "
+",
+    )
 }
 
 fn run_init(cli: &InitArgs) -> Result<()> {
@@ -1643,7 +1665,11 @@ fn run_test(cli: &TestArgs) -> Result<usize> {
         Lang::Rust => specforge_core::TestLang::Rust,
     };
 
-    info!("generating {:?} test file(s) to: {}", lang, cli.out.display());
+    info!(
+        "generating {:?} test file(s) to: {}",
+        lang,
+        cli.out.display()
+    );
 
     let opts = specforge_core::TestGenOptions { lang };
     let test_code = specforge_core::generate_tests(&doc, &opts);
@@ -1693,10 +1719,25 @@ fn run_versions(cli: VersionsArgs) -> Result<()> {
     let max_ver_len = versions.iter().map(|v| v.version.len()).max().unwrap_or(7);
     let ver_header = "VERSION";
     let file_header = "FILE";
-    eprintln!("{:<width$}  {}", ver_header, file_header, width = max_ver_len.max(ver_header.len()));
-    eprintln!("{:-<width$}  {:-<40}", "", "", width = max_ver_len.max(ver_header.len()));
+    eprintln!(
+        "{:<width$}  {}",
+        ver_header,
+        file_header,
+        width = max_ver_len.max(ver_header.len())
+    );
+    eprintln!(
+        "{:-<width$}  {:-<40}",
+        "",
+        "",
+        width = max_ver_len.max(ver_header.len())
+    );
     for info in &versions {
-        eprintln!("{:<width$}  {}", info.version, info.path.display(), width = max_ver_len.max(ver_header.len()));
+        eprintln!(
+            "{:<width$}  {}",
+            info.version,
+            info.path.display(),
+            width = max_ver_len.max(ver_header.len())
+        );
     }
 
     eprintln!("\n{} version(s) found", versions.len());
@@ -1707,8 +1748,7 @@ fn run_convert(cli: &ConvertArgs) -> Result<()> {
     info!("reading spec: {}", cli.spec.display());
     let bytes = std::fs::read(&cli.spec)
         .with_context(|| format!("failed to read spec at {}", cli.spec.display()))?;
-    let text = std::str::from_utf8(&bytes)
-        .context("spec is not valid UTF-8")?;
+    let text = std::str::from_utf8(&bytes).context("spec is not valid UTF-8")?;
 
     // Parse as raw JSON/YAML value (not into openapiv3 types) to preserve the full structure.
     let mut json: JsonValue = if let Ok(v) = serde_json::from_str::<JsonValue>(text.trim_start()) {
@@ -1735,7 +1775,10 @@ fn run_convert(cli: &ConvertArgs) -> Result<()> {
             }
             // Set the version field.
             if let Some(obj) = json.as_object_mut() {
-                obj.insert("openapi".to_string(), JsonValue::String("3.1.0".to_string()));
+                obj.insert(
+                    "openapi".to_string(),
+                    JsonValue::String("3.1.0".to_string()),
+                );
             }
         }
         OpenApiVersion::V30 => {
@@ -1748,7 +1791,10 @@ fn run_convert(cli: &ConvertArgs) -> Result<()> {
             }
             // Set the version field.
             if let Some(obj) = json.as_object_mut() {
-                obj.insert("openapi".to_string(), JsonValue::String("3.0.3".to_string()));
+                obj.insert(
+                    "openapi".to_string(),
+                    JsonValue::String("3.0.3".to_string()),
+                );
             }
         }
     }
@@ -1797,8 +1843,7 @@ fn run_merge(cli: &MergeArgs) -> Result<()> {
     let output = match cli.format.as_str() {
         "json" => serde_json::to_string_pretty(&merged)
             .context("failed to serialize merged spec as JSON")?,
-        _ => serde_yaml::to_string(&merged)
-            .context("failed to serialize merged spec as YAML")?,
+        _ => serde_yaml::to_string(&merged).context("failed to serialize merged spec as YAML")?,
     };
 
     match &cli.out {
@@ -1816,8 +1861,12 @@ fn run_merge(cli: &MergeArgs) -> Result<()> {
 }
 
 fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResult> {
-    let config = specforge_core::WorkspaceConfig::load(&cli.config)
-        .with_context(|| format!("failed to load workspace config from {}", cli.config.display()))?;
+    let config = specforge_core::WorkspaceConfig::load(&cli.config).with_context(|| {
+        format!(
+            "failed to load workspace config from {}",
+            cli.config.display()
+        )
+    })?;
 
     info!(
         "loaded workspace: {} spec(s) from {}",
@@ -1845,18 +1894,20 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
         if cli.dry_run {
             for output in &spec_config.outputs {
                 let display_name = output.name.as_deref().unwrap_or("(default)");
-                eprintln!(
-                    "  {} -> {} ({})",
-                    output.lang, output.out, display_name
-                );
+                eprintln!("  {} -> {} ({})", output.lang, output.out, display_name);
                 outputs_generated += 1;
             }
             continue;
         }
 
         // Parse and resolve the spec once per spec entry.
-        let spec = parse_file(&spec_path)
-            .with_context(|| format!("[{}] failed to parse spec at {}", spec_config.name, spec_path.display()))?;
+        let spec = parse_file(&spec_path).with_context(|| {
+            format!(
+                "[{}] failed to parse spec at {}",
+                spec_config.name,
+                spec_path.display()
+            )
+        })?;
         let doc = resolve(&spec)
             .with_context(|| format!("[{}] failed to resolve spec into IR", spec_config.name))?;
 
@@ -1873,8 +1924,9 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
                         package_name: output.name.clone(),
                         i18n: None,
                     };
-                    specforge_ts::generate(&doc, &opts)
-                        .with_context(|| format!("[{}] failed to emit TypeScript SDK", spec_config.name))?
+                    specforge_ts::generate(&doc, &opts).with_context(|| {
+                        format!("[{}] failed to emit TypeScript SDK", spec_config.name)
+                    })?
                 }
                 "go" => {
                     let opts = specforge_go::GeneratorOptions {
@@ -1892,8 +1944,9 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
                         crate_name: output.name.clone(),
                         i18n: None,
                     };
-                    specforge_rust::generate(&doc, &opts)
-                        .with_context(|| format!("[{}] failed to emit Rust SDK", spec_config.name))?
+                    specforge_rust::generate(&doc, &opts).with_context(|| {
+                        format!("[{}] failed to emit Rust SDK", spec_config.name)
+                    })?
                 }
                 other => {
                     bail!("[{}] unsupported language: {}", spec_config.name, other);
@@ -1907,9 +1960,7 @@ fn run_workspace(cli: &WorkspaceArgs) -> Result<specforge_core::WorkspaceRunResu
 
     if specs_processed == 0 {
         if cli.only.is_some() {
-            bail!(
-                "no spec matched --only filter; check the name in your workspace config"
-            );
+            bail!("no spec matched --only filter; check the name in your workspace config");
         }
         bail!("workspace config contains no specs");
     }
@@ -1926,7 +1977,10 @@ fn run_workspace_init(cli: &WorkspaceInitArgs) -> Result<specforge_core::Workspa
         .context("failed to initialize workspace")?;
 
     if result.specs_found == 0 {
-        eprintln!("warning: no OpenAPI spec files found in {}", cli.dir.display());
+        eprintln!(
+            "warning: no OpenAPI spec files found in {}",
+            cli.dir.display()
+        );
     }
 
     Ok(result)
@@ -1954,7 +2008,8 @@ fn run_migrate(cli: &MigrateArgs) -> Result<()> {
         new_spec.info.version.clone()
     };
 
-    let guide = specforge_core::generate_migration_guide(&old_doc, &new_doc, &old_version, &new_version);
+    let guide =
+        specforge_core::generate_migration_guide(&old_doc, &new_doc, &old_version, &new_version);
 
     match &cli.out {
         Some(path) => {
@@ -1970,18 +2025,31 @@ fn run_migrate(cli: &MigrateArgs) -> Result<()> {
     Ok(())
 }
 
-
 fn run_analyze(cli: &AnalyzeArgs) -> Result<()> {
     info!("reading spec: {}", cli.spec.display());
-    let spec = parse_file(&cli.spec).with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
+    let spec = parse_file(&cli.spec)
+        .with_context(|| format!("failed to parse spec at {}", cli.spec.display()))?;
     info!("resolving document into IR");
     let doc = resolve(&spec).context("failed to resolve spec into IR")?;
-    info!("resolved: {} schemas, {} operations", doc.schemas.models.len(), doc.operations.len());
+    info!(
+        "resolved: {} schemas, {} operations",
+        doc.schemas.models.len(),
+        doc.operations.len()
+    );
     let report = specforge_core::analyze_spec(&doc);
     match cli.format {
-        AnalyzeFormat::Json => { println!("{}", serde_json::to_string_pretty(&report).context("failed to serialize")?); }
-        AnalyzeFormat::Markdown => { print_analysis_markdown(&report); }
-        AnalyzeFormat::Text => { print_analysis_text(&report); }
+        AnalyzeFormat::Json => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).context("failed to serialize")?
+            );
+        }
+        AnalyzeFormat::Markdown => {
+            print_analysis_markdown(&report);
+        }
+        AnalyzeFormat::Text => {
+            print_analysis_text(&report);
+        }
     }
     Ok(())
 }
@@ -2000,8 +2068,8 @@ fn run_infer(cli: &InferArgs) -> Result<()> {
             .with_context(|| format!("failed to read {}", path.display()))?
     };
 
-    let json: serde_json::Value = serde_json::from_str(json_text.trim())
-        .context("failed to parse input as JSON")?;
+    let json: serde_json::Value =
+        serde_json::from_str(json_text.trim()).context("failed to parse input as JSON")?;
 
     info!("inferred schema for {}-key object", {
         match &json {
@@ -2019,8 +2087,8 @@ fn run_infer(cli: &InferArgs) -> Result<()> {
 
     let spec = specforge_core::infer_openapi(&json, &opts);
 
-    let output = serde_json::to_string_pretty(&spec)
-        .context("failed to serialize inferred spec")?;
+    let output =
+        serde_json::to_string_pretty(&spec).context("failed to serialize inferred spec")?;
 
     match &cli.out {
         Some(path) => {
@@ -2069,20 +2137,25 @@ fn run_verify(cli: &VerifyArgs) -> Result<Vec<specforge_core::VerifyResult>> {
         let has_issues = !result.issues.is_empty();
         if has_issues {
             failed += 1;
-            eprintln!("FAIL  {} {} ({})", result.method, result.endpoint, result.status);
+            eprintln!(
+                "FAIL  {} {} ({})",
+                result.method, result.endpoint, result.status
+            );
             for issue in &result.issues {
                 eprintln!("      - {issue}");
             }
         } else {
             passed += 1;
-            eprintln!("  OK  {} {} ({})", result.method, result.endpoint, result.status);
+            eprintln!(
+                "  OK  {} {} ({})",
+                result.method, result.endpoint, result.status
+            );
         }
     }
 
     eprintln!("\n{passed}/{total} endpoint(s) passed, {failed} failed");
 
-    let json = serde_json::to_string_pretty(&results)
-        .context("failed to serialize results")?;
+    let json = serde_json::to_string_pretty(&results).context("failed to serialize results")?;
     println!("{json}");
 
     Ok(results)
@@ -2093,7 +2166,10 @@ fn print_analysis_text(report: &specforge_core::AnalysisReport) {
     eprintln!();
     eprintln!("Schemas:     {}", report.total_schemas);
     eprintln!("Operations:  {}", report.total_operations);
-    eprintln!("IR size:     {:.1} KB", report.total_size_bytes as f64 / 1024.0);
+    eprintln!(
+        "IR size:     {:.1} KB",
+        report.total_size_bytes as f64 / 1024.0
+    );
     eprintln!();
     if !report.unused_schemas.is_empty() {
         eprintln!("Unused schemas ({}):", report.unused_schemas.len());
@@ -2103,7 +2179,10 @@ fn print_analysis_text(report: &specforge_core::AnalysisReport) {
         eprintln!();
     }
     if !report.duplicate_schemas.is_empty() {
-        eprintln!("Duplicate schemas ({} pair(s)):", report.duplicate_schemas.len());
+        eprintln!(
+            "Duplicate schemas ({} pair(s)):",
+            report.duplicate_schemas.len()
+        );
         for (a, b) in &report.duplicate_schemas {
             eprintln!("  - {a} <-> {b}");
         }
@@ -2139,7 +2218,10 @@ fn print_analysis_markdown(report: &specforge_core::AnalysisReport) {
     println!("|--------|-------|");
     println!("| Schemas | {} |", report.total_schemas);
     println!("| Operations | {} |", report.total_operations);
-    println!("| IR size | {:.1} KB |", report.total_size_bytes as f64 / 1024.0);
+    println!(
+        "| IR size | {:.1} KB |",
+        report.total_size_bytes as f64 / 1024.0
+    );
     println!();
     if !report.unused_schemas.is_empty() {
         println!("## Unused Schemas ({})", report.unused_schemas.len());
@@ -2150,7 +2232,10 @@ fn print_analysis_markdown(report: &specforge_core::AnalysisReport) {
         println!();
     }
     if !report.duplicate_schemas.is_empty() {
-        println!("## Duplicate Schemas ({} pair(s))", report.duplicate_schemas.len());
+        println!(
+            "## Duplicate Schemas ({} pair(s))",
+            report.duplicate_schemas.len()
+        );
         println!();
         for (a, b) in &report.duplicate_schemas {
             println!("- `{a}` <-> `{b}`");
@@ -2188,7 +2273,9 @@ fn upgrade_30_to_31(json: &mut JsonValue) {
     match json {
         JsonValue::Object(obj) => {
             // Convert `type: X` + `nullable: true` → `type: ["X", "null"]`
-            if let (Some(type_val), Some(nullable)) = (obj.get("type").cloned(), obj.get("nullable").cloned()) {
+            if let (Some(type_val), Some(nullable)) =
+                (obj.get("type").cloned(), obj.get("nullable").cloned())
+            {
                 if nullable.as_bool() == Some(true) {
                     if let Some(type_str) = type_val.as_str() {
                         let arr = JsonValue::Array(vec![
@@ -2207,7 +2294,11 @@ fn upgrade_30_to_31(json: &mut JsonValue) {
                 if let Some(val) = obj.get(*field).cloned() {
                     if val.as_bool() == Some(true) {
                         // Find the corresponding minimum/maximum value.
-                        let companion = if *field == "exclusiveMinimum" { "minimum" } else { "maximum" };
+                        let companion = if *field == "exclusiveMinimum" {
+                            "minimum"
+                        } else {
+                            "maximum"
+                        };
                         if let Some(limit) = obj.get(companion).cloned() {
                             if limit.is_number() {
                                 obj.insert(field.to_string(), limit);
@@ -2384,8 +2475,7 @@ fn run_mock(cli: &MockArgs) -> Result<()> {
         doc.operations.len(),
     );
 
-    let mut server = specforge_core::MockServer::from_doc(&doc)
-        .host(&cli.host);
+    let mut server = specforge_core::MockServer::from_doc(&doc).host(&cli.host);
 
     if let Some(port) = cli.port {
         server = server.port(port);
@@ -2396,12 +2486,7 @@ fn run_mock(cli: &MockArgs) -> Result<()> {
     eprintln!("Mock server listening on http://{}:{}", cli.host, port);
     eprintln!("Routes:");
     for op in &doc.operations {
-        eprintln!(
-            "  {} {} -> {}",
-            op.method.upper(),
-            op.path,
-            op.operation_id,
-        );
+        eprintln!("  {} {} -> {}", op.method.upper(), op.path, op.operation_id,);
     }
     eprintln!("\nPress Ctrl+C to stop.");
 
@@ -2532,7 +2617,11 @@ fn run_market_search(index: &MarketplaceIndex, cli: &MarketSearchArgs) -> Result
             );
         }
         _ => {
-            eprintln!("Found {} spec(s) matching \"{}\":\n", results.len(), cli.query);
+            eprintln!(
+                "Found {} spec(s) matching \"{}\":\n",
+                results.len(),
+                cli.query
+            );
             for entry in &results {
                 let verified = if entry.verified { " [verified]" } else { "" };
                 eprintln!(
@@ -2657,10 +2746,12 @@ fn run_market_add(index: &MarketplaceIndex, cli: &MarketAddArgs) -> Result<()> {
     // Build a new index: start from existing built-in entries and append.
     let mut new_index = index.clone();
     new_index.entries.push(entry);
-    new_index.entries.sort_by_key(|a| std::cmp::Reverse(a.downloads));
+    new_index
+        .entries
+        .sort_by_key(|a| std::cmp::Reverse(a.downloads));
 
-    let json =
-        serde_json::to_string_pretty(&new_index).context("failed to serialize marketplace index")?;
+    let json = serde_json::to_string_pretty(&new_index)
+        .context("failed to serialize marketplace index")?;
 
     let out_path = &cli.out;
     std::fs::write(out_path, &json)
@@ -2740,7 +2831,10 @@ fn run_version(cli: &VersionArgs) -> Result<()> {
         VersionStrategyArg::None => VersionStrategy::None,
     };
 
-    let prefix = if matches!(strategy, VersionStrategy::UrlPath | VersionStrategy::QueryParam) {
+    let prefix = if matches!(
+        strategy,
+        VersionStrategy::UrlPath | VersionStrategy::QueryParam
+    ) {
         Some(cli.prefix.clone())
     } else {
         None
@@ -2795,9 +2889,7 @@ fn resolve_plugin_path(name: &str) -> Result<PathBuf> {
                     return Ok(path);
                 }
                 // Path configured but file missing — try relative to config dir.
-                let base = config_path
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."));
+                let base = config_path.parent().unwrap_or_else(|| Path::new("."));
                 let resolved = base.join(&plugin.path);
                 if resolved.exists() {
                     return Ok(resolved);
@@ -2849,8 +2941,12 @@ fn resolve_plugin_path(name: &str) -> Result<PathBuf> {
 fn load_plugin_index(extra_index: &Option<PathBuf>) -> Result<PluginIndex> {
     let mut index = PluginIndex::built_in();
     if let Some(ref extra_path) = extra_index {
-        let extra = PluginIndex::load(extra_path)
-            .with_context(|| format!("failed to load extra plugin index from {}", extra_path.display()))?;
+        let extra = PluginIndex::load(extra_path).with_context(|| {
+            format!(
+                "failed to load extra plugin index from {}",
+                extra_path.display()
+            )
+        })?;
         index.merge(&extra);
     }
     Ok(index)
@@ -2950,7 +3046,11 @@ fn run_plugin_search(index: &PluginIndex, cli: &PluginSearchArgs) -> Result<()> 
             );
         }
         _ => {
-            eprintln!("Found {} plugin(s) matching \"{}\":\n", results.len(), cli.query);
+            eprintln!(
+                "Found {} plugin(s) matching \"{}\":\n",
+                results.len(),
+                cli.query
+            );
             for p in &results {
                 let verified = if p.verified { " [verified]" } else { "" };
                 eprintln!(

@@ -188,9 +188,7 @@ fn extract_alternative(text: &str) -> Option<String> {
         if let Some(pos) = lower.find(pattern) {
             let after = &text[pos + pattern.len()..];
             // Take until end of sentence or end of text.
-            let end = after
-                .find(['.', ',', '\n', ';'])
-                .unwrap_or(after.len());
+            let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
             let alt = after[..end].trim();
             if !alt.is_empty() {
                 return Some(alt.to_string());
@@ -201,9 +199,7 @@ fn extract_alternative(text: &str) -> Option<String> {
     // "migrate to <alternative>"
     if let Some(pos) = lower.find("migrate to ") {
         let after = &text[pos + 11..];
-        let end = after
-            .find(['.', ',', '\n', ';'])
-            .unwrap_or(after.len());
+        let end = after.find(['.', ',', '\n', ';']).unwrap_or(after.len());
         let alt = after[..end].trim();
         if !alt.is_empty() {
             return Some(alt.to_string());
@@ -257,10 +253,7 @@ pub fn generate_migration_guide(
                         dep.name, endpoint
                     ));
                 } else {
-                    out.push_str(&format!(
-                        "- `{}` ({}) -- Deprecated\n",
-                        dep.name, endpoint
-                    ));
+                    out.push_str(&format!("- `{}` ({}) -- Deprecated\n", dep.name, endpoint));
                 }
             } else {
                 out.push_str(&format!("- `{}` -- Deprecated\n", dep.name));
@@ -278,10 +271,7 @@ pub fn generate_migration_guide(
         out.push_str("## Deprecated Schemas\n\n");
         for dep in &deprecated_schemas {
             if let Some(alt) = &dep.alternative {
-                out.push_str(&format!(
-                    "- `{}` -- Use `{alt}` instead\n",
-                    dep.name
-                ));
+                out.push_str(&format!("- `{}` -- Use `{alt}` instead\n", dep.name));
             } else {
                 out.push_str(&format!("- `{}` -- Deprecated\n", dep.name));
             }
@@ -307,11 +297,7 @@ pub fn generate_migration_guide(
     if !removed_ops.is_empty() {
         out.push_str("## Removed Operations\n\n");
         for id in &removed_ops {
-            if let Some(op) = old_doc
-                .operations
-                .iter()
-                .find(|o| o.operation_id == *id)
-            {
+            if let Some(op) = old_doc.operations.iter().find(|o| o.operation_id == *id) {
                 out.push_str(&format!(
                     "- `{}` ({} {}) was removed\n",
                     id,
@@ -392,28 +378,24 @@ pub fn generate_migration_guide(
             // Removed properties.
             for old_prop in &old_obj.properties {
                 if !new_obj.properties.iter().any(|p| p.name == old_prop.name) {
-                    schema_changes.push(format!(
-                        "- `{}.{}` was removed",
-                        name, old_prop.name
-                    ));
+                    schema_changes.push(format!("- `{}.{}` was removed", name, old_prop.name));
                 }
             }
             // Type changes.
             for old_prop in &old_obj.properties {
-                if let Some(new_prop) = new_obj.properties.iter().find(|p| p.name == old_prop.name) {
+                if let Some(new_prop) = new_obj.properties.iter().find(|p| p.name == old_prop.name)
+                {
                     let old_ty = format!("{:?}", old_prop.ty);
                     let new_ty = format!("{:?}", new_prop.ty);
                     if old_ty != new_ty {
-                        schema_changes.push(format!(
-                            "- `{}.{}` type changed",
-                            name, old_prop.name
-                        ));
+                        schema_changes.push(format!("- `{}.{}` type changed", name, old_prop.name));
                     }
                 }
             }
             // New required properties.
             for new_prop in &new_obj.properties {
-                if new_prop.required && !old_obj.properties.iter().any(|p| p.name == new_prop.name) {
+                if new_prop.required && !old_obj.properties.iter().any(|p| p.name == new_prop.name)
+                {
                     schema_changes.push(format!(
                         "- `{}.{}` was added as required",
                         name, new_prop.name
@@ -431,24 +413,12 @@ pub fn generate_migration_guide(
     }
 
     // New operations.
-    let added_ops: Vec<&str> = new_op_ids
-        .difference(&old_op_ids)
-        .copied()
-        .collect();
+    let added_ops: Vec<&str> = new_op_ids.difference(&old_op_ids).copied().collect();
     if !added_ops.is_empty() {
         out.push_str("## New Operations\n\n");
         for id in &added_ops {
-            if let Some(op) = new_doc
-                .operations
-                .iter()
-                .find(|o| o.operation_id == *id)
-            {
-                out.push_str(&format!(
-                    "- `{}` ({} {})\n",
-                    id,
-                    op.method.upper(),
-                    op.path
-                ));
+            if let Some(op) = new_doc.operations.iter().find(|o| o.operation_id == *id) {
+                out.push_str(&format!("- `{}` ({} {})\n", id, op.method.upper(), op.path));
             }
         }
         out.push('\n');
@@ -480,10 +450,7 @@ mod tests {
     use super::*;
     use crate::ir::*;
 
-    fn make_doc(
-        ops: Vec<Operation>,
-        schemas: Vec<(String, Model)>,
-    ) -> Document {
+    fn make_doc(ops: Vec<Operation>, schemas: Vec<(String, Model)>) -> Document {
         let mut schema_map = indexmap::IndexMap::new();
         for (k, v) in schemas {
             schema_map.insert(k, v);
@@ -518,7 +485,10 @@ mod tests {
     #[test]
     fn detects_deprecated_operation_in_summary() {
         let doc = make_doc(
-            vec![make_op("oldEndpoint", Some("Deprecated: Use newEndpoint instead."))],
+            vec![make_op(
+                "oldEndpoint",
+                Some("Deprecated: Use newEndpoint instead."),
+            )],
             vec![],
         );
         let deps = find_deprecations(&doc);
@@ -548,10 +518,7 @@ mod tests {
 
     #[test]
     fn no_deprecations_in_clean_spec() {
-        let doc = make_doc(
-            vec![make_op("getPets", Some("List all pets"))],
-            vec![],
-        );
+        let doc = make_doc(vec![make_op("getPets", Some("List all pets"))], vec![]);
         let deps = find_deprecations(&doc);
         assert!(deps.is_empty());
     }
@@ -582,14 +549,8 @@ mod tests {
 
     #[test]
     fn generate_migration_guide_basic() {
-        let old_doc = make_doc(
-            vec![make_op("getPet", Some("Get a pet"))],
-            vec![],
-        );
-        let new_doc = make_doc(
-            vec![make_op("listPets", Some("List pets"))],
-            vec![],
-        );
+        let old_doc = make_doc(vec![make_op("getPet", Some("Get a pet"))], vec![]);
+        let new_doc = make_doc(vec![make_op("listPets", Some("List pets"))], vec![]);
         let guide = generate_migration_guide(&old_doc, &new_doc, "v1.0.0", "v2.0.0");
         assert!(guide.contains("v1.0.0 -> v2.0.0"));
         assert!(guide.contains("Removed Operations"));

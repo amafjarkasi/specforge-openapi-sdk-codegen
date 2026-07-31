@@ -101,7 +101,10 @@ pub fn safe_model_name(name: &str) -> String {
 pub fn camel(input: &str) -> String {
     let pascal = pascal(input);
     let mut chars = pascal.chars();
-    let first = chars.next().map(|c| c.to_ascii_lowercase()).unwrap_or_default();
+    let first = chars
+        .next()
+        .map(|c| c.to_ascii_lowercase())
+        .unwrap_or_default();
     format!("{first}{}", chars.as_str())
 }
 
@@ -147,13 +150,56 @@ fn is_valid_identifier(s: &str) -> bool {
 fn is_reserved(s: &str) -> bool {
     matches!(
         s,
-        "break" | "case" | "catch" | "class" | "const" | "continue" | "debugger"
-            | "default" | "delete" | "do" | "else" | "enum" | "export" | "extends"
-            | "false" | "finally" | "for" | "function" | "if" | "import" | "in"
-            | "instanceof" | "new" | "null" | "return" | "super" | "switch" | "this"
-            | "throw" | "true" | "try" | "typeof" | "var" | "void" | "while" | "with"
-            | "let" | "static" | "yield" | "await" | "async" | "of" | "as" | "from"
-            | "type" | "interface" | "implements" | "package" | "private" | "protected"
+        "break"
+            | "case"
+            | "catch"
+            | "class"
+            | "const"
+            | "continue"
+            | "debugger"
+            | "default"
+            | "delete"
+            | "do"
+            | "else"
+            | "enum"
+            | "export"
+            | "extends"
+            | "false"
+            | "finally"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "in"
+            | "instanceof"
+            | "new"
+            | "null"
+            | "return"
+            | "super"
+            | "switch"
+            | "this"
+            | "throw"
+            | "true"
+            | "try"
+            | "typeof"
+            | "var"
+            | "void"
+            | "while"
+            | "with"
+            | "let"
+            | "static"
+            | "yield"
+            | "await"
+            | "async"
+            | "of"
+            | "as"
+            | "from"
+            | "type"
+            | "interface"
+            | "implements"
+            | "package"
+            | "private"
+            | "protected"
             | "public"
     )
 }

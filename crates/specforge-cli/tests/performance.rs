@@ -19,13 +19,11 @@ fn fixtures_dir() -> PathBuf {
 
 fn parse_resolve_and_report(label: &str, spec_path: &Path) -> (specforge_core::Document, Duration) {
     let start = Instant::now();
-    let spec = parse_file(spec_path)
-        .unwrap_or_else(|e| panic!("{label}: parse failed: {e}"));
+    let spec = parse_file(spec_path).unwrap_or_else(|e| panic!("{label}: parse failed: {e}"));
     let parse_time = start.elapsed();
 
     let t1 = Instant::now();
-    let doc = resolve(&spec)
-        .unwrap_or_else(|e| panic!("{label}: resolve failed: {e}"));
+    let doc = resolve(&spec).unwrap_or_else(|e| panic!("{label}: resolve failed: {e}"));
     let resolve_time = t1.elapsed();
 
     let total = start.elapsed();
@@ -169,7 +167,10 @@ fn performance_github_generates_in_under_5s() {
     );
     let schemas = doc.schemas.models.len();
     let ops = doc.operations.len();
-    assert!(schemas > 100, "github should have >100 schemas, got {schemas}");
+    assert!(
+        schemas > 100,
+        "github should have >100 schemas, got {schemas}"
+    );
     assert!(ops > 100, "github should have >100 ops, got {ops}");
 }
 
@@ -182,7 +183,10 @@ fn performance_github_emit_ts_in_under_10s() {
     }
     let (doc, _) = parse_resolve_and_report("github", &path);
     let (files, elapsed) = generate_and_report("github", &doc, "ts");
-    assert!(files > 20, "github ts should produce >20 files, got {files}");
+    assert!(
+        files > 20,
+        "github ts should produce >20 files, got {files}"
+    );
     assert!(
         elapsed < Duration::from_secs(10),
         "github ts emit took {elapsed:?}, expected < 10s"
@@ -214,7 +218,10 @@ fn performance_github_emit_rust_in_under_10s() {
     }
     let (doc, _) = parse_resolve_and_report("github", &path);
     let (files, elapsed) = generate_and_report("github", &doc, "rust");
-    assert!(files > 5, "github rust should produce >5 files, got {files}");
+    assert!(
+        files > 5,
+        "github rust should produce >5 files, got {files}"
+    );
     assert!(
         elapsed < Duration::from_secs(10),
         "github rust emit took {elapsed:?}, expected < 10s"
@@ -237,7 +244,10 @@ fn performance_stripe_generates_in_under_5s() {
     );
     let schemas = doc.schemas.models.len();
     let ops = doc.operations.len();
-    assert!(schemas > 100, "stripe should have >100 schemas, got {schemas}");
+    assert!(
+        schemas > 100,
+        "stripe should have >100 schemas, got {schemas}"
+    );
     assert!(ops > 100, "stripe should have >100 ops, got {ops}");
 }
 
@@ -250,7 +260,10 @@ fn performance_stripe_emit_ts_in_under_10s() {
     }
     let (doc, _) = parse_resolve_and_report("stripe", &path);
     let (files, elapsed) = generate_and_report("stripe", &doc, "ts");
-    assert!(files > 20, "stripe ts should produce >20 files, got {files}");
+    assert!(
+        files > 20,
+        "stripe ts should produce >20 files, got {files}"
+    );
     assert!(
         elapsed < Duration::from_secs(10),
         "stripe ts emit took {elapsed:?}, expected < 10s"
@@ -282,7 +295,10 @@ fn performance_stripe_emit_rust_in_under_10s() {
     }
     let (doc, _) = parse_resolve_and_report("stripe", &path);
     let (files, elapsed) = generate_and_report("stripe", &doc, "rust");
-    assert!(files > 5, "stripe rust should produce >5 files, got {files}");
+    assert!(
+        files > 5,
+        "stripe rust should produce >5 files, got {files}"
+    );
     assert!(
         elapsed < Duration::from_secs(10),
         "stripe rust emit took {elapsed:?}, expected < 10s"

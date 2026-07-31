@@ -56,7 +56,11 @@ fn generate_ts_tests(doc: &Document) -> String {
         // Find the first 2xx response with a body
         if let Some(body) = first_success_body(op) {
             let example = generate_ts_example(&body, &doc.schemas.models, 3);
-            writeln!(out, "        res.writeHead(200, {{ 'Content-Type': 'application/json' }});").unwrap();
+            writeln!(
+                out,
+                "        res.writeHead(200, {{ 'Content-Type': 'application/json' }});"
+            )
+            .unwrap();
             writeln!(out, "        res.end(JSON.stringify({}));", example).unwrap();
         } else {
             writeln!(out, "        res.writeHead(200);").unwrap();
@@ -75,11 +79,7 @@ fn generate_ts_tests(doc: &Document) -> String {
 
     // Launch mock server and run tests
     writeln!(out, "mockServer.listen(0, async () => {{").unwrap();
-    writeln!(
-        out,
-        "    const port = (mockServer.address() as any).port;"
-    )
-    .unwrap();
+    writeln!(out, "    const port = (mockServer.address() as any).port;").unwrap();
     writeln!(
         out,
         "    const client = createClient({{ baseUrl: `http://localhost:${{port}}` }});"
@@ -94,14 +94,16 @@ fn generate_ts_tests(doc: &Document) -> String {
         let test_name = &op.operation_id;
         let ts_accessor = ts_method_accessor(&op.operation_id);
 
-        writeln!(out, "    // Test: {} {} {}", op.method.upper(), op.path, test_name).unwrap();
-        writeln!(out, "    try {{").unwrap();
         writeln!(
             out,
-            "        const result = await client{};",
-            ts_accessor
+            "    // Test: {} {} {}",
+            op.method.upper(),
+            op.path,
+            test_name
         )
         .unwrap();
+        writeln!(out, "    try {{").unwrap();
+        writeln!(out, "        const result = await client{};", ts_accessor).unwrap();
 
         // Assert based on response type
         if let Some(body) = first_success_body(op) {
@@ -117,7 +119,11 @@ fn generate_ts_tests(doc: &Document) -> String {
     }
 
     writeln!(out).unwrap();
-    writeln!(out, "    console.log(`\\nResults: ${{passed}} passed, ${{failed}} failed`);").unwrap();
+    writeln!(
+        out,
+        "    console.log(`\\nResults: ${{passed}} passed, ${{failed}} failed`);"
+    )
+    .unwrap();
     writeln!(out, "    mockServer.close();").unwrap();
     writeln!(out, "    process.exit(failed > 0 ? 1 : 0);").unwrap();
     writeln!(out, "}});").unwrap();
@@ -184,15 +190,17 @@ fn ts_assertion(ty: &Type) -> String {
             Scalar::Boolean | Scalar::Base64 => {
                 "console.assert(typeof result === 'boolean', 'expected boolean')".to_string()
             }
-            Scalar::Binary => {
-                "console.assert(result !== undefined, 'expected bytes')".to_string()
-            }
+            Scalar::Binary => "console.assert(result !== undefined, 'expected bytes')".to_string(),
         },
         _ => "console.assert(result !== undefined, 'expected result')".to_string(),
     }
 }
 
-fn generate_ts_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>, indent: usize) -> String {
+fn generate_ts_example(
+    ty: &Type,
+    schemas: &indexmap::IndexMap<String, Model>,
+    indent: usize,
+) -> String {
     match ty {
         Type::Scalar(s) => match s {
             Scalar::String => r#""example""#.to_string(),
@@ -276,7 +284,11 @@ fn ts_object_example(
     let mut out = String::from("{\n");
     for (i, prop) in obj.properties.iter().enumerate() {
         let val = generate_ts_example(&prop.ty, schemas, indent + 1);
-        let comma = if i + 1 < obj.properties.len() { "," } else { "" };
+        let comma = if i + 1 < obj.properties.len() {
+            ","
+        } else {
+            ""
+        };
         writeln!(out, "{}{}: {}{}", inner_pad, prop.name, val, comma).unwrap();
     }
     write!(out, "{}}}", pad).unwrap();
@@ -300,11 +312,7 @@ fn generate_go_tests(doc: &Document) -> String {
     writeln!(out).unwrap();
 
     for op in &doc.operations {
-        let test_name = format!(
-            "Test{}{}",
-            capitalize_first(&op.operation_id),
-            ""
-        );
+        let test_name = format!("Test{}{}", capitalize_first(&op.operation_id), "");
         let method = op.method.upper();
         let path = &op.path;
 
@@ -321,7 +329,11 @@ fn generate_go_tests(doc: &Document) -> String {
 
         if let Some(body) = first_success_body(op) {
             let example = generate_go_example(&body, &doc.schemas.models);
-            writeln!(out, "            w.Header().Set(\"Content-Type\", \"application/json\")").unwrap();
+            writeln!(
+                out,
+                "            w.Header().Set(\"Content-Type\", \"application/json\")"
+            )
+            .unwrap();
             writeln!(out, "            fmt.Fprint(w, `{}`)", example).unwrap();
         } else {
             writeln!(out, "            w.WriteHeader(http.StatusOK)").unwrap();
@@ -460,13 +472,21 @@ fn generate_rust_tests(doc: &Document) -> String {
             String::new()
         };
 
-        writeln!(out, "    let listener = TcpListener::bind(\"127.0.0.1:0\").unwrap();").unwrap();
+        writeln!(
+            out,
+            "    let listener = TcpListener::bind(\"127.0.0.1:0\").unwrap();"
+        )
+        .unwrap();
         writeln!(out, "    let addr = listener.local_addr().unwrap();").unwrap();
         writeln!(out).unwrap();
 
         // Spawn mock server in a thread
         writeln!(out, "    let handle = std::thread::spawn(move || {{").unwrap();
-        writeln!(out, "        let (mut stream, _) = listener.accept().unwrap();").unwrap();
+        writeln!(
+            out,
+            "        let (mut stream, _) = listener.accept().unwrap();"
+        )
+        .unwrap();
 
         // Read the request (consume it)
         writeln!(out, "        let mut buf = [0u8; 4096];").unwrap();
@@ -474,25 +494,32 @@ fn generate_rust_tests(doc: &Document) -> String {
 
         // Write mock response
         if body_json.is_empty() {
-            writeln!(out, "        let response = \"HTTP/1.1 200 OK\\r\\n\\r\\n\";").unwrap();
+            writeln!(
+                out,
+                "        let response = \"HTTP/1.1 200 OK\\r\\n\\r\\n\";"
+            )
+            .unwrap();
         } else {
             let escaped_body = body_json.replace('\\', "\\\\").replace('"', "\\\"");
             writeln!(out, "        let body = \"{}\";", escaped_body).unwrap();
             writeln!(out, "        let response = format!(\"HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\n{{}}\", body);").unwrap();
         }
-        writeln!(out, "        stream.write_all(response.as_bytes()).unwrap();").unwrap();
+        writeln!(
+            out,
+            "        stream.write_all(response.as_bytes()).unwrap();"
+        )
+        .unwrap();
         writeln!(out, "    }});").unwrap();
         writeln!(out).unwrap();
 
         writeln!(out, "    let base_url = format!(\"http://{{}}\", addr);").unwrap();
-        writeln!(out, "    // TODO: create SDK client with base_url and call operation").unwrap();
-        writeln!(out, "    // let client = Client::new(&base_url);").unwrap();
         writeln!(
             out,
-            "    // let result = client.{}();",
-            op.operation_id
+            "    // TODO: create SDK client with base_url and call operation"
         )
         .unwrap();
+        writeln!(out, "    // let client = Client::new(&base_url);").unwrap();
+        writeln!(out, "    // let result = client.{}();", op.operation_id).unwrap();
         writeln!(out, "    // assert!(result.is_ok());").unwrap();
         writeln!(out).unwrap();
         writeln!(out, "    handle.join().unwrap();").unwrap();
@@ -689,9 +716,7 @@ mod tests {
     #[test]
     fn generates_go_output() {
         let doc = sample_doc();
-        let opts = TestGenOptions {
-            lang: TestLang::Go,
-        };
+        let opts = TestGenOptions { lang: TestLang::Go };
         let output = generate_tests(&doc, &opts);
         assert!(output.contains("package sdk"));
         assert!(output.contains("httptest.NewServer"));

@@ -2,8 +2,8 @@
 //!
 //! Later specs override earlier ones on conflict (paths, schemas, etc.).
 
-use serde_json::Value;
 use crate::error::SpecError;
+use serde_json::Value;
 
 /// Merge multiple OpenAPI spec files into one.
 ///
@@ -45,7 +45,11 @@ fn merge_into(target: &mut Value, source: &Value) -> Result<(), SpecError> {
     // Merge components.schemas
     if let Some(s_schemas) = source.get("components").and_then(|c| c.get("schemas")) {
         // Ensure target has components.schemas
-        if target.get("components").and_then(|c| c.get("schemas")).is_none() {
+        if target
+            .get("components")
+            .and_then(|c| c.get("schemas"))
+            .is_none()
+        {
             if let Some(t_comp) = target.get_mut("components") {
                 if let Some(obj) = t_comp.as_object_mut() {
                     obj.insert("schemas".to_string(), serde_json::json!({}));
@@ -53,7 +57,10 @@ fn merge_into(target: &mut Value, source: &Value) -> Result<(), SpecError> {
             }
         }
         if let (Some(t_schemas), Some(s_obj)) = (
-            target.get_mut("components").and_then(|c| c.get_mut("schemas")).and_then(|s| s.as_object_mut()),
+            target
+                .get_mut("components")
+                .and_then(|c| c.get_mut("schemas"))
+                .and_then(|s| s.as_object_mut()),
             s_schemas.as_object(),
         ) {
             for (key, val) in s_obj {
@@ -63,9 +70,16 @@ fn merge_into(target: &mut Value, source: &Value) -> Result<(), SpecError> {
     }
 
     // Merge security schemes
-    if let Some(s_sec) = source.get("components").and_then(|c| c.get("securitySchemes")) {
+    if let Some(s_sec) = source
+        .get("components")
+        .and_then(|c| c.get("securitySchemes"))
+    {
         // Ensure target has components.securitySchemes
-        if target.get("components").and_then(|c| c.get("securitySchemes")).is_none() {
+        if target
+            .get("components")
+            .and_then(|c| c.get("securitySchemes"))
+            .is_none()
+        {
             if let Some(t_comp) = target.get_mut("components") {
                 if let Some(obj) = t_comp.as_object_mut() {
                     obj.insert("securitySchemes".to_string(), serde_json::json!({}));
@@ -73,7 +87,10 @@ fn merge_into(target: &mut Value, source: &Value) -> Result<(), SpecError> {
             }
         }
         if let (Some(t_sec_obj), Some(s_sec_obj)) = (
-            target.get_mut("components").and_then(|c| c.get_mut("securitySchemes")).and_then(|s| s.as_object_mut()),
+            target
+                .get_mut("components")
+                .and_then(|c| c.get_mut("securitySchemes"))
+                .and_then(|s| s.as_object_mut()),
             s_sec.as_object(),
         ) {
             for (key, val) in s_sec_obj {
@@ -214,7 +231,10 @@ mod tests {
         let merged = merge_specs(&[spec1, spec2]).unwrap();
         let schemas = &merged["components"]["schemas"];
         // Pet from spec2 overrides spec1
-        assert!(schemas["Pet"]["properties"].as_object().unwrap().contains_key("id"));
+        assert!(schemas["Pet"]["properties"]
+            .as_object()
+            .unwrap()
+            .contains_key("id"));
         // Order only in spec2
         assert!(schemas.as_object().unwrap().contains_key("Order"));
     }
@@ -267,7 +287,10 @@ mod tests {
         });
 
         let merged = merge_specs(&[spec1, spec2]).unwrap();
-        assert!(merged["components"]["schemas"].as_object().unwrap().contains_key("Widget"));
+        assert!(merged["components"]["schemas"]
+            .as_object()
+            .unwrap()
+            .contains_key("Widget"));
     }
 
     #[test]

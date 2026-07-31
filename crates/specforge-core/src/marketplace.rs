@@ -36,8 +36,7 @@ impl MarketplaceIndex {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         let text = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        serde_json::from_str(&text)
-            .with_context(|| format!("failed to parse {}", path.display()))
+        serde_json::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))
     }
 
     /// Return the built-in curated marketplace index bundled with this binary.
@@ -53,11 +52,8 @@ impl MarketplaceIndex {
 
     /// Merge a local/remote index into this one (entries with the same name are replaced).
     pub fn merge(&mut self, other: &MarketplaceIndex) {
-        let mut map: HashMap<&str, &SpecEntry> = self
-            .entries
-            .iter()
-            .map(|e| (e.name.as_str(), e))
-            .collect();
+        let mut map: HashMap<&str, &SpecEntry> =
+            self.entries.iter().map(|e| (e.name.as_str(), e)).collect();
         for entry in &other.entries {
             map.insert(&entry.name, entry);
         }
@@ -96,8 +92,7 @@ impl MarketplaceIndex {
     pub fn generate_metadata(spec_path: &Path) -> anyhow::Result<SpecEntry> {
         use crate::spec;
 
-        let parsed = spec::parse_file(spec_path)
-            .context("failed to parse spec")?;
+        let parsed = spec::parse_file(spec_path).context("failed to parse spec")?;
 
         let fallback_name = spec_path
             .file_stem()
@@ -176,8 +171,7 @@ impl PluginIndex {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         let text = fs::read_to_string(path)
             .with_context(|| format!("failed to read {}", path.display()))?;
-        serde_json::from_str(&text)
-            .with_context(|| format!("failed to parse {}", path.display()))
+        serde_json::from_str(&text).with_context(|| format!("failed to parse {}", path.display()))
     }
 
     /// Return the built-in curated plugin index bundled with this binary.
@@ -193,11 +187,8 @@ impl PluginIndex {
 
     /// Merge another index into this one (entries with the same name are replaced).
     pub fn merge(&mut self, other: &PluginIndex) {
-        let mut map: HashMap<&str, &PluginEntry> = self
-            .plugins
-            .iter()
-            .map(|e| (e.name.as_str(), e))
-            .collect();
+        let mut map: HashMap<&str, &PluginEntry> =
+            self.plugins.iter().map(|e| (e.name.as_str(), e)).collect();
         for entry in &other.plugins {
             map.insert(&entry.name, entry);
         }
@@ -235,11 +226,7 @@ impl PluginIndex {
     /// Install a plugin by downloading the WASM file to the given directory.
     ///
     /// Returns the local path where the WASM file was written.
-    pub fn install_plugin(
-        &self,
-        name: &str,
-        plugins_dir: &Path,
-    ) -> anyhow::Result<PathBuf> {
+    pub fn install_plugin(&self, name: &str, plugins_dir: &Path) -> anyhow::Result<PathBuf> {
         let plugin = self
             .find(name)
             .ok_or_else(|| anyhow::anyhow!("plugin not found: {name}"))?;
@@ -258,9 +245,7 @@ impl PluginIndex {
         match reqwest::blocking::get(&plugin.url) {
             Ok(resp) => {
                 if resp.status().is_success() {
-                    let bytes = resp
-                        .bytes()
-                        .context("failed to read response body")?;
+                    let bytes = resp.bytes().context("failed to read response body")?;
                     fs::write(&dest, &bytes)
                         .with_context(|| format!("failed to write {}", dest.display()))?;
                 } else {
@@ -279,9 +264,7 @@ impl PluginIndex {
             Err(e) => {
                 // Network unavailable — create a placeholder so the install
                 // flow can be tested offline.
-                tracing::warn!(
-                    "could not download {name}: {e}; creating placeholder"
-                );
+                tracing::warn!("could not download {name}: {e}; creating placeholder");
                 let placeholder = format!(
                     "// placeholder for {name} v{}\n// download URL: {}\n",
                     plugin.version, plugin.url,
@@ -358,9 +341,7 @@ mod tests {
         };
         let mut b = sample_entry("x");
         b.version = "2.0.0".to_string();
-        let other = MarketplaceIndex {
-            entries: vec![b],
-        };
+        let other = MarketplaceIndex { entries: vec![b] };
         a.merge(&other);
         assert_eq!(a.entries.len(), 1);
         assert_eq!(a.entries[0].version, "2.0.0");
@@ -445,9 +426,7 @@ mod tests {
         };
         let mut b = sample_plugin("x", "rust");
         b.version = "2.0.0".to_string();
-        let other = PluginIndex {
-            plugins: vec![b],
-        };
+        let other = PluginIndex { plugins: vec![b] };
         a.merge(&other);
         assert_eq!(a.plugins.len(), 1);
         assert_eq!(a.plugins[0].version, "2.0.0");

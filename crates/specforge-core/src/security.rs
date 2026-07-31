@@ -1,36 +1,73 @@
-use std::collections::BTreeMap;
-use openapiv3::{OpenAPI, SecurityRequirement, SecurityScheme as OApiSecurityScheme};
 use crate::ir::{Document, SecurityScheme};
+use openapiv3::{OpenAPI, SecurityRequirement, SecurityScheme as OApiSecurityScheme};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct SecurityReport { pub schemes: Vec<SecuritySchemeInfo>, pub operations: Vec<OperationSecurity>, pub issues: Vec<SecurityIssue> }
+pub struct SecurityReport {
+    pub schemes: Vec<SecuritySchemeInfo>,
+    pub operations: Vec<OperationSecurity>,
+    pub issues: Vec<SecurityIssue>,
+}
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct SecuritySchemeInfo { pub name: String, pub kind: String, pub header: Option<String>, pub bearer_format: Option<String> }
+pub struct SecuritySchemeInfo {
+    pub name: String,
+    pub kind: String,
+    pub header: Option<String>,
+    pub bearer_format: Option<String>,
+}
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct OperationSecurity { pub operation_id: String, pub method: String, pub path: String, pub requires_auth: bool, pub scheme: Option<String>, pub has_override: bool }
+pub struct OperationSecurity {
+    pub operation_id: String,
+    pub method: String,
+    pub path: String,
+    pub requires_auth: bool,
+    pub scheme: Option<String>,
+    pub has_override: bool,
+}
 #[derive(Debug, Clone, serde::Serialize)]
-pub struct SecurityIssue { pub severity: String, pub message: String, pub path: String }
+pub struct SecurityIssue {
+    pub severity: String,
+    pub message: String,
+    pub path: String,
+}
 
 pub fn analyze_security(doc: &Document) -> SecurityReport {
     let schemes: Vec<SecuritySchemeInfo> = doc.security.iter().map(scheme_info_from_ir).collect();
     let has_global_auth = !doc.security.is_empty();
-    let operations = doc.operations.iter().map(|op| OperationSecurity {
-        operation_id: op.operation_id.clone(), method: op.method.as_str().to_string(), path: op.path.clone(),
-        requires_auth: has_global_auth, scheme: doc.security.first().map(scheme_label), has_override: false,
-    }).collect::<Vec<_>>();
+    let operations = doc
+        .operations
+        .iter()
+        .map(|op| OperationSecurity {
+            operation_id: op.operation_id.clone(),
+            method: op.method.as_str().to_string(),
+            path: op.path.clone(),
+            requires_auth: has_global_auth,
+            scheme: doc.security.first().map(scheme_label),
+            has_override: false,
+        })
+        .collect::<Vec<_>>();
     let mut issues = Vec::new();
     analyze_common_issues(&schemes, &operations, &mut issues);
-    SecurityReport { schemes, operations, issues }
+    SecurityReport {
+        schemes,
+        operations,
+        issues,
+    }
 }
 
 pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityReport {
     let mut scheme_map: BTreeMap<String, OApiSecurityScheme> = BTreeMap::new();
     if let Some(components) = &spec.components {
         for (name, scheme_or) in &components.security_schemes {
-            if let openapiv3::ReferenceOr::Item(scheme) = scheme_or { scheme_map.insert(name.clone(), scheme.clone()); }
+            if let openapiv3::ReferenceOr::Item(scheme) = scheme_or {
+                scheme_map.insert(name.clone(), scheme.clone());
+            }
         }
     }
-    let schemes: Vec<SecuritySchemeInfo> = scheme_map.iter().map(|(n, s)| scheme_info_from_raw(n, s)).collect();
+    let schemes: Vec<SecuritySchemeInfo> = scheme_map
+        .iter()
+        .map(|(n, s)| scheme_info_from_raw(n, s))
+        .collect();
     let global_names = extract_scheme_names(&spec.security);
     let has_global_auth = !global_names.is_empty();
     let op_map = build_op_security_map(spec);
@@ -39,7 +76,10 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
         let key = op_key(ir_op.method.as_str(), &ir_op.path);
         let (req_auth, sch, ov) = match op_map.get(&key) {
             Some(Some(r)) if r.is_empty() => (false, None, true),
-            Some(Some(r)) => { let n: Vec<String> = r.iter().flat_map(|x| x.keys().cloned()).collect(); (true, n.first().cloned(), true) }
+            Some(Some(r)) => {
+                let n: Vec<String> = r.iter().flat_map(|x| x.keys().cloned()).collect();
+                (true, n.first().cloned(), true)
+            }
             _ => (has_global_auth, global_names.first().cloned(), false),
         };
         operations.push(OperationSecurity {
@@ -54,7 +94,11 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
     let mut issues = Vec::new();
     analyze_common_issues(&schemes, &operations, &mut issues);
     analyze_detailed_issues(spec, &operations, &global_names, &mut issues);
-    SecurityReport { schemes, operations, issues }
+    SecurityReport {
+        schemes,
+        operations,
+        issues,
+    }
 }
 
 fn scheme_info_from_ir(s: &SecurityScheme) -> SecuritySchemeInfo {
@@ -75,7 +119,11 @@ fn scheme_info_from_ir(s: &SecurityScheme) -> SecuritySchemeInfo {
 }
 fn scheme_info_from_raw(name: &str, s: &OApiSecurityScheme) -> SecuritySchemeInfo {
     match s {
-        OApiSecurityScheme::HTTP { scheme, bearer_format, .. } => SecuritySchemeInfo {
+        OApiSecurityScheme::HTTP {
+            scheme,
+            bearer_format,
+            ..
+        } => SecuritySchemeInfo {
             name: name.into(),
             kind: scheme.to_lowercase(),
             header: if scheme.eq_ignore_ascii_case("bearer") {
@@ -113,7 +161,9 @@ fn scheme_label(s: &SecurityScheme) -> String {
 }
 
 fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> {
-    let Some(reqs) = security else { return Vec::new() };
+    let Some(reqs) = security else {
+        return Vec::new();
+    };
     reqs.iter().flat_map(|r| r.keys().cloned()).collect()
 }
 
@@ -139,7 +189,10 @@ fn build_op_security_map(spec: &OpenAPI) -> BTreeMap<String, Option<Vec<Security
             ("options", &item.options),
         ] {
             if let Some(op) = op_opt {
-                map.insert(format!("{} {}", m.to_uppercase(), path), op.security.clone());
+                map.insert(
+                    format!("{} {}", m.to_uppercase(), path),
+                    op.security.clone(),
+                );
             }
         }
     }
@@ -223,7 +276,9 @@ fn analyze_detailed_issues(
                 }
             }
             // OAuth2 schemes with no configured flows.
-            if let openapiv3::ReferenceOr::Item(OApiSecurityScheme::OAuth2 { flows, .. }) = scheme_or {
+            if let openapiv3::ReferenceOr::Item(OApiSecurityScheme::OAuth2 { flows, .. }) =
+                scheme_or
+            {
                 if flows.implicit.is_none()
                     && flows.password.is_none()
                     && flows.client_credentials.is_none()
@@ -257,14 +312,45 @@ mod tests {
     use super::*;
     #[test]
     fn analyze_empty_doc() {
-        let doc = Document { ir_version: crate::ir::IR_VERSION.to_string(), title: "T".into(), version: "1".into(), base_url: None, security: vec![], schemas: Default::default(), operations: vec![], webhooks: vec![] };
-        let r = analyze_security(&doc); assert!(r.schemes.is_empty()); assert_eq!(r.issues.len(), 1);
+        let doc = Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
+            title: "T".into(),
+            version: "1".into(),
+            base_url: None,
+            security: vec![],
+            schemas: Default::default(),
+            operations: vec![],
+            webhooks: vec![],
+        };
+        let r = analyze_security(&doc);
+        assert!(r.schemes.is_empty());
+        assert_eq!(r.issues.len(), 1);
     }
     #[test]
     fn analyze_bearer() {
         use crate::ir::Operation;
-        let doc = Document { ir_version: crate::ir::IR_VERSION.to_string(), title: "T".into(), version: "1".into(), base_url: None, security: vec![SecurityScheme::HttpBearer], schemas: Default::default(),
-            operations: vec![ Operation { operation_id: "list".into(), method: crate::ir::HttpMethod::Get, path: "/items".into(), tag: None, summary: None, description: None, parameters: vec![], request_body: None, responses: vec![], retry_policy: None } ], webhooks: vec![] };
-        let r = analyze_security(&doc); assert_eq!(r.schemes[0].kind, "bearer");
+        let doc = Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
+            title: "T".into(),
+            version: "1".into(),
+            base_url: None,
+            security: vec![SecurityScheme::HttpBearer],
+            schemas: Default::default(),
+            operations: vec![Operation {
+                operation_id: "list".into(),
+                method: crate::ir::HttpMethod::Get,
+                path: "/items".into(),
+                tag: None,
+                summary: None,
+                description: None,
+                parameters: vec![],
+                request_body: None,
+                responses: vec![],
+                retry_policy: None,
+            }],
+            webhooks: vec![],
+        };
+        let r = analyze_security(&doc);
+        assert_eq!(r.schemes[0].kind, "bearer");
     }
 }

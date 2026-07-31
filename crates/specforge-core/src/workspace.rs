@@ -123,9 +123,7 @@ impl WorkspaceConfig {
 
     /// Resolve a spec or output path relative to the workspace config directory.
     pub fn resolve_path(config_path: &Path, relative: &str) -> PathBuf {
-        let base = config_path
-            .parent()
-            .unwrap_or_else(|| Path::new("."));
+        let base = config_path.parent().unwrap_or_else(|| Path::new("."));
         base.join(relative)
     }
 }
@@ -296,8 +294,7 @@ specs:
     #[test]
     fn resolve_paths() {
         let config_path = Path::new("/project/.specforge-workspace.yaml");
-        let resolved =
-            WorkspaceConfig::resolve_path(config_path, "specs/petstore.yaml");
+        let resolved = WorkspaceConfig::resolve_path(config_path, "specs/petstore.yaml");
         assert_eq!(resolved, PathBuf::from("/project/specs/petstore.yaml"));
     }
 }
