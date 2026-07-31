@@ -4067,3 +4067,48 @@ fn rust_doc_indented_prefixes_every_line() {
     assert!(result.contains("    /// line2"));
     assert!(result.contains("    /// line3"));
 }
+
+#[test]
+fn safe_model_name_all_builtins_suffixed() {
+    // Every builtin SDK type should get "Model" suffix.
+    let builtins = [
+        "Error",
+        "Client",
+        "ClientBuilder",
+        "ServiceContainer",
+        "Semaphore",
+        "RetryOptions",
+        "ResponseCache",
+        "RequestDeduper",
+        "ResponseTransformer",
+        "RequestInterceptor",
+        "ResponseInterceptor",
+        "RateLimiter",
+        "TokenBucket",
+        "SlidingWindow",
+        "MetricsCollector",
+        "Metrics",
+        "TelemetryHooks",
+        "Middleware",
+        "MiddlewareRequest",
+        "MiddlewareResponse",
+        "StreamMiddleware",
+        "ServerSentEvent",
+        "SseStream",
+        "Auth",
+        "CursorPage",
+        "OffsetPage",
+        "ConsoleLogger",
+        "NoopLogger",
+    ];
+    for name in builtins {
+        let result = safe_model_name(name);
+        assert!(
+            result.ends_with("Model"),
+            "{name} should get Model suffix, got {result}"
+        );
+    }
+    // Non-colliding names pass through unchanged.
+    assert_eq!(safe_model_name("Pet"), "Pet");
+    assert_eq!(safe_model_name("MyCustomType"), "MyCustomType");
+}

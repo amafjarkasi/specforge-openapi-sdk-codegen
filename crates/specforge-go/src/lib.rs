@@ -3744,3 +3744,38 @@ fn go_doc_label_first_line_with_label() {
     let result = go_doc_label("desc text", "name: ");
     assert!(result.contains("// name: desc text"));
 }
+
+#[test]
+fn export_ident_all_builtins_suffixed() {
+    // Every builtin SDK type should get "Model" suffix.
+    let builtins = [
+        "ValidationError",
+        "ServiceContainer",
+        "Client",
+        "Auth",
+        "Middleware",
+        "RateLimiter",
+        "TokenBucket",
+        "SlidingWindow",
+        "MetricsCollector",
+        "Metrics",
+        "TelemetryHooks",
+        "Logger",
+        "Semaphore",
+        "RetryOptions",
+        "ResponseCache",
+        "RequestDeduper",
+        "ResponseTransformer",
+        "RequestInterceptor",
+        "ResponseInterceptor",
+        "CursorPage",
+        "OffsetPage",
+    ];
+    for name in builtins {
+        let result = export_ident(name);
+        assert!(
+            result.ends_with("Model"),
+            "{name} should get Model suffix, got {result}"
+        );
+    }
+}
