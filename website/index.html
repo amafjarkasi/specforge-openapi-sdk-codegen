@@ -351,14 +351,14 @@
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    animation: sparkle-rise linear infinite;
+    animation: sparkle-rise linear forwards;
     opacity: 0;
   }
   @keyframes sparkle-rise {
-    0% { opacity: 0; transform: translateY(0) scale(0.5); }
-    15% { opacity: 1; }
-    85% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-500px) scale(0); }
+    0%   { opacity: 0; transform: translateY(0) scale(0.4); }
+    10%  { opacity: var(--peak-opacity, 0.5); }
+    90%  { opacity: var(--peak-opacity, 0.5); }
+    100% { opacity: 0; transform: translateY(-110vh) scale(0.2); }
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -443,7 +443,7 @@
   }
   .pipeline {
     position: relative;
-    display: flex; align-items: stretch; justify-content: center;
+    display: flex; align-items: flex-start; justify-content: center;
     gap: 0; flex-wrap: wrap;
     padding: 2.5rem 0;
   }
@@ -463,17 +463,20 @@
     border-radius: 14px;
     padding: 1.6rem 1.8rem;
     text-align: left;
-    min-width: 230px;
-    flex: 1 1 230px;
-    max-width: 280px;
-    transition: all 0.4s ease;
+    width: 230px;
+    height: 260px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease, background-color 0.4s ease;
     z-index: 1;
     cursor: pointer;
+    box-sizing: border-box;
   }
   .pipeline .stage:hover {
     border-color: rgba(249,115,22,0.45);
-    box-shadow: 0 0 32px rgba(249,115,22,0.12);
-    transform: translateY(-3px);
+    background-color: rgba(249,115,22,0.04);
+    box-shadow: 0 0 32px rgba(249,115,22,0.18);
   }
   .pipeline .stage.lit {
     border-color: rgba(249,115,22,0.5);
@@ -516,7 +519,8 @@
   }
   .stage-tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem;
-    margin-top: 0.7rem;
+    margin-top: auto;
+    padding-top: 0.7rem;
   }
   .stage-tag {
     font-family: 'JetBrains Mono', monospace;
@@ -532,6 +536,7 @@
     font-size: 1.5rem;
     display: flex; align-items: center; justify-content: center;
     min-width: 36px;
+    align-self: center;
     transition: color 0.4s;
     z-index: 1;
     background: var(--bg);
@@ -540,60 +545,48 @@
   .pipeline .connector.lit::before {
     content: '';
     position: absolute;
-    width: 36px; height: 36px;
-    background: radial-gradient(circle, rgba(249,115,22,0.35), transparent 70%);
+    width: 28px; height: 28px;
+    background: radial-gradient(circle, rgba(249,115,22,0.25), transparent 70%);
     border-radius: 50%;
-    animation: connector-pulse 1s ease-out infinite;
+    animation: connector-pulse 2.4s ease-out infinite;
   }
   @keyframes connector-pulse {
-    0%   { transform: scale(0.6); opacity: 0.8; }
-    100% { transform: scale(1.4); opacity: 0;   }
+    0%   { transform: scale(0.6); opacity: 0.6; }
+    100% { transform: scale(1.3); opacity: 0;   }
   }
-  /* Track sits behind stage cards so the line doesn't draw across content */
-  .pipeline-track {
-    z-index: 0;
-    pointer-events: none;
-  }
-  /* Packet rides the track above the line but below cards */
-  .data-packet {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 5px; height: 5px;
-    background: var(--accent);
-    border-radius: 50%;
-    box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(249,115,22,0.6);
-    opacity: 0;
-    z-index: 0;
-    pointer-events: none;
-  }
-  .data-packet.travel {
-    animation: packet-travel 4.5s linear infinite;
-  }
-  @keyframes packet-travel {
-    0%   { left: 0%;   opacity: 0; }
-    4%   { opacity: 1; }
-    96%  { opacity: 1; }
-    100% { left: 100%; opacity: 0; }
-  }
+  /* Track sits behind stage cards so the line doesn't draw across content.
+     Disabled because horizontal lines at top:50% cut through taller cards. */
+  .pipeline-track { display: none; }
+  /* Packet removed — top:50% lands inside the now-variable-height cards. */
+  .data-packet { display: none; }
 
   .stage-detail {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.45s ease, opacity 0.45s ease, margin-top 0.45s ease;
+    opacity: 0;
+    margin-top: 0;
+  }
+  .stage-detail > .stage-detail-inner {
+    overflow: hidden;
+  }
+  .stage-detail-inner {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem 1.8rem;
-    margin-top: 1.5rem;
+    border-radius: 10px;
+    padding: 0 1.4rem;
     opacity: 0;
-    max-height: 0;
-    overflow: hidden;
-    transition: opacity 0.35s ease, max-height 0.4s ease, padding 0.3s ease;
-    padding-top: 0;
-    padding-bottom: 0;
+    transition: opacity 0.4s ease, padding 0.45s ease, border-color 0.4s ease;
   }
   .stage-detail.active {
+    grid-template-rows: 1fr;
     opacity: 1;
-    max-height: 320px;
-    padding: 1.5rem 1.8rem;
+    margin-top: 1rem;
+  }
+  .stage-detail.active > .stage-detail-inner {
+    opacity: 1;
+    padding: 1.2rem 1.4rem;
+    border-color: rgba(249,115,22,0.25);
   }
   .stage-detail h4 {
     color: var(--text);
@@ -1606,9 +1599,10 @@
 
     <!-- Stage detail panel -->
     <div class="stage-detail" id="stage-detail">
-      <h4 id="stage-detail-title">Click any stage above to learn more</h4>
-      <p id="stage-detail-text">Each stage is independent and testable. The IR is documented in <code>assets/ir-schema.json</code> — build custom emitters against it with <code>specforge emit</code>.</p>
-      <ul id="stage-detail-list"></ul>
+      <div class="stage-detail-inner">
+        <h4 id="stage-detail-title">Hover any stage above to learn more</h4>
+        <p id="stage-detail-text">Each stage is independent and testable. The IR is documented in <code>assets/ir-schema.json</code> — build custom emitters against it with <code>specforge emit</code>.</p>
+      </div>
     </div>
   </div>
 
@@ -2383,23 +2377,19 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 const STAGE_DETAILS = {
   0: {
     title: '1. Bring your spec',
-    text: 'Point specforge at a local file, a directory of versioned specs, or a remote URL. Both 3.0 and 3.1 are accepted — 3.1\'s `type` arrays, `$ref` siblings, and numeric `exclusiveMinimum` are auto-normalized so downstream stages never see them.',
-    items: ['Single file or workspace', 'YAML or JSON', '3.0 ↔ 3.1 transparent', 'URL or filesystem']
+    text: 'Point specforge at a local file, a directory of versioned specs, or a remote URL. Both 3.0 and 3.1 are accepted — 3.1\'s type arrays, $ref siblings, and numeric exclusiveMinimum are auto-normalized so downstream stages never see them.'
   },
   2: {
     title: '2. Parse & resolve in specforge-core',
-    text: 'The core crate parses to openapiv3, walks every `$ref`, merges `allOf` properties (last-wins on name conflict, union on `required`), and builds a deterministic, cycle-safe IR. Self-referential and mutual `$ref` cycles are handled by name.',
-    items: ['Full $ref resolution', 'allOf composition', 'Discriminator mapping', 'Cycle-safe by construction']
+    text: 'The core crate parses to openapiv3, walks every $ref, merges allOf properties (last-wins on name conflict, union on required), and builds a deterministic, cycle-safe IR. Self-referential and mutual $ref cycles are handled by name.'
   },
   4: {
     title: '3. The language-neutral IR',
-    text: 'A versioned, documented JSON model (`assets/ir-schema.json`). Every emitter walks the same IR — so retries, pagination, and auth behave identically across TypeScript, Go, and Rust. Want Kotlin? Implement one emitter against this IR.',
-    items: ['Document · Operation · Type', 'Stable across emitter versions', 'Documented JSON Schema', 'External emitter API']
+    text: 'A versioned, documented JSON model (assets/ir-schema.json). Every emitter walks the same IR — so retries, pagination, and auth behave identically across TypeScript, Go, and Rust. Want Kotlin? Implement one emitter against this IR.'
   },
   6: {
     title: '4. Emit four targets in parallel',
-    text: 'specforge-core feeds four emitters concurrently via rayon. Each one writes a complete, standalone project to disk: a tree-shakeable TS package, a stdlib-only Go module, an async Rust crate, or a WASM plugin. Output is bit-stable for caching.',
-    items: ['TypeScript (ESM + CJS)', 'Go (stdlib only)', 'Rust (reqwest + serde)', 'WASM plugins']
+    text: 'specforge-core feeds four emitters concurrently via rayon. Each one writes a complete, standalone project to disk: a tree-shakeable TS package, a stdlib-only Go module, an async Rust crate, or a WASM plugin. Output is bit-stable for caching.'
   }
 };
 
@@ -2410,7 +2400,6 @@ if (pipeline) {
   const detail  = document.getElementById('stage-detail');
   const dTitle  = document.getElementById('stage-detail-title');
   const dText   = document.getElementById('stage-detail-text');
-  const dList   = document.getElementById('stage-detail-list');
 
   function lightUpTo(idx) {
     stages.forEach((s, i) => s.classList.toggle('lit', i <= idx));
@@ -2422,7 +2411,6 @@ if (pipeline) {
     if (!info) return;
     dTitle.textContent = info.title;
     dText.innerHTML   = info.text;
-    dList.innerHTML   = info.items.map(i => `<li>${i}</li>`).join('');
     detail.classList.add('active');
   }
 
@@ -2437,22 +2425,21 @@ if (pipeline) {
   });
 
   // Sequential reveal on scroll-into-view
+  let revealed = false;
   const pipelineObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        stages.forEach((s, i) => setTimeout(() => s.classList.add('lit'), i * 280));
-        conns.forEach((c, i)  => setTimeout(() => c.classList.add('lit'), i * 280 + 140));
+      if (entry.isIntersecting && !revealed) {
+        revealed = true;
+        stages.forEach((s, i) => setTimeout(() => s.classList.add('lit'), i * 320));
+        conns.forEach((c, i)  => setTimeout(() => c.classList.add('lit'), i * 320 + 160));
+        // Keep them lit — no flicker reset
         pipelineObserver.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.3 });
+  }, { threshold: 0.25 });
   pipelineObserver.observe(pipeline);
 
-  // Initial flicker — turn off after reveal completes
-  setTimeout(() => {
-    stages.forEach(s => s.classList.remove('lit'));
-    conns.forEach(c => c.classList.remove('lit'));
-  }, stages.length * 280 + 800);
+// Subtle CSS hover is defined in the stylesheet — no JS needed.
 }
 
 /* Code-block typewriter on first scroll into view */
@@ -2487,21 +2474,22 @@ if (codeBody) {
   function createSparkle() {
     const spark = document.createElement('div');
     spark.className = 'sparkle';
-    const size = Math.random() * 2 + 2;          // smaller particles
+    const size  = Math.random() * 2 + 2;
     const color = colors[Math.floor(Math.random() * colors.length)];
+    const peak  = (Math.random() * 0.2 + 0.35).toFixed(2);   // 0.35 – 0.55
     spark.style.width  = size + 'px';
     spark.style.height = size + 'px';
     spark.style.left   = Math.random() * 100 + '%';
     spark.style.bottom = '0';
     spark.style.background = color;
-    spark.style.animationDuration = (Math.random() * 6 + 10) + 's';  // slower rise
+    spark.style.setProperty('--peak-opacity', peak);
+    spark.style.animationDuration = (Math.random() * 6 + 12) + 's';
     spark.style.animationDelay   = (Math.random() * 4) + 's';
-    spark.style.boxShadow = '0 0 ' + (size * 1.5) + 'px ' + color;     // softer glow
-    spark.style.opacity = '0.5';
+    spark.style.boxShadow = '0 0 ' + (size * 1.5) + 'px ' + color;
+    spark.addEventListener('animationend', () => spark.remove(), { once: true });
     hero.appendChild(spark);
-    setTimeout(() => spark.remove(), 18000);
   }
-  setInterval(createSparkle, 1400);             // less frequent
+  setInterval(createSparkle, 1400);
 })();
 
 /* ══════════════════════════════════════════════════════════════
