@@ -4002,3 +4002,23 @@ mod tests {
         assert_eq!(sanitize_semver(""), "0.1.0");
     }
 }
+
+    // ── edge cases ────────────────────────────────────────────────────
+
+    #[test]
+    fn pascal_unicode_passthrough() {
+        assert_eq!(pascal("cafe"), "Cafe"); // non-ASCII chars are dropped by pascal
+    }
+
+    #[test]
+    fn snake_preserves_numbers() {
+        assert_eq!(snake("v2beta1"), "v2beta1");
+    }
+
+    #[test]
+    fn safe_model_name_all_builtins() {
+        // Verify a few more builtins.
+        assert_eq!(safe_model_name("Auth"), "AuthModel");
+        assert_eq!(safe_model_name("MetricsCollector"), "MetricsCollectorModel");
+        assert_eq!(safe_model_name("TokenBucket"), "TokenBucketModel");
+    }
