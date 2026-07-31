@@ -343,4 +343,48 @@ mod tests {
             webhooks: vec![],
         }
     }
+
+    #[test]
+    fn from_doc_builds_routes() {
+        use crate::ir::*;
+        let doc = Document {
+            ir_version: IR_VERSION.to_string(),
+            title: "Test".into(),
+            version: "1.0.0".into(),
+            base_url: None,
+            security: vec![],
+            schemas: SchemaRegistry {
+                models: indexmap::IndexMap::new(),
+            },
+            operations: vec![Operation {
+                operation_id: "get_pet".into(),
+                method: HttpMethod::Get,
+                path: "/pets/{petId}".into(),
+                tag: None,
+                summary: None,
+                description: None,
+                parameters: vec![],
+                request_body: None,
+                responses: vec![Response {
+                    status: "200".into(),
+                    description: None,
+                    body: Some(Type::Scalar(Scalar::String)),
+                }],
+                retry_policy: None,
+            }],
+            webhooks: vec![],
+        };
+        let server = MockServer::from_doc(&doc);
+        // The server should have 1 route for the GET /pets/{petId} operation.
+        assert_eq!(server.routes.len(), 1);
+        assert_eq!(server.routes[0].method, "GET");
+        assert_eq!(server.routes[0].path, "/pets/{petId}");
+        assert_eq!(server.routes[0].status, 200);
+    }
+
+    #[test]
+    fn from_doc_empty_has_no_routes() {
+        let server = MockServer::from_doc(&empty_doc());
+        assert!(server.routes.is_empty());
+    }
 }
