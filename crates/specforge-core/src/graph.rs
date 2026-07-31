@@ -180,3 +180,77 @@ fn render_dot(g: &Graph, title: &str) -> String {
     o.push_str("}\n");
     o
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::*;
+
+    fn sample_doc() -> Document {
+        let mut schemas = crate::ir::SchemaRegistry {
+            models: indexmap::IndexMap::new(),
+        };
+        // Pet references Address (edge).
+        schemas.models.insert(
+            "Pet".into(),
+            Model::Object(ObjectModel {
+                name: "Pet".into(),
+                description: Some("A pet".into()),
+                properties: vec![Property {
+                    name: "address".into(),
+                    ty: Type::Reference {
+                        name: "Address".into(),
+                        nullable: false,
+                        description: None,
+                    },
+                    required: false,
+                    description: None,
+                }],
+                additional_properties: None,
+                shape_type: None,
+                base_type: None,
+            }),
+        );
+        schemas.models.insert(
+            "Address".into(),
+            Model::Object(ObjectModel {
+                name: "Address".into(),
+                description: None,
+                properties: vec![],
+                additional_properties: None,
+                shape_type: None,
+                base_type: None,
+            }),
+        );
+        Document {
+            ir_version: "1".into(),
+            title: "TestGraph".into(),
+            version: "1.0.0".into(),
+            base_url: None,
+            security: vec![],
+            schemas,
+            operations: vec![],
+            webhooks: vec![],
+        }
+    }
+
+    #[test]
+    fn mermaid_contains_nodes_and_edges() {
+        let output = generate_graph(&sample_doc(), GraphFormat::Mermaid);
+        assert!(output.starts_with("graph TD"));
+        assert!(output.contains("Pet"));
+        assert!(output.contains("Address"));
+        // Pet has an edge to Address (via the property reference).
+        assert!(output.contains("-->"));
+    }
+
+    #[test]
+    fn dot_contains_nodes_and_edges() {
+        let output = generate_graph(&sample_doc(), GraphFormat::Dot);
+        assert!(output.starts_with("digraph"));
+        assert!(output.contains("Pet"));
+        assert!(output.contains("Address"));
+        assert!(output.contains("->"));
+        assert!(output.ends_with("}\n"));
+    }
+}
