@@ -121,7 +121,7 @@ fn parse_request_line(
 ) -> Option<(String, String)> {
     let mut line = String::new();
     reader.read_line(&mut line).ok()?;
-    let mut parts = line.trim().split_whitespace();
+    let mut parts = line.split_whitespace();
     let method = parts.next()?.to_uppercase();
     let path = parts.next()?.to_string();
     Some((method, path))

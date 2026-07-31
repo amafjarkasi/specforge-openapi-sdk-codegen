@@ -1,7 +1,8 @@
 use specforge_plugin::{GeneratedFile, Plugin, PluginResult};
 use serde_json::Value;
 
-struct ReadmePlugin;
+/// Example plugin that emits a project README summarizing the generated SDK.
+pub struct ReadmePlugin;
 
 impl Default for ReadmePlugin {
     fn default() -> Self {

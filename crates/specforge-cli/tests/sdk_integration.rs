@@ -189,10 +189,8 @@ fn start_mock() -> (SocketAddr, thread::JoinHandle<()>) {
     ];
 
     let handle = thread::spawn(move || {
-        for conn in listener.incoming() {
-            if let Ok(mut stream) = conn {
-                handle_request(&mut stream, &pets);
-            }
+        for mut stream in listener.incoming().flatten() {
+            handle_request(&mut stream, &pets);
         }
     });
     thread::sleep(Duration::from_millis(20));

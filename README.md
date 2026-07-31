@@ -12,7 +12,7 @@
   <a href="#quick-start"><img src="https://img.shields.io/badge/quick%20start-2%20min-f97316?style=for-the-badge&labelColor=1a0f0a" alt="Quick start"/></a>
   <a href="#features"><img src="https://img.shields.io/badge/languages-TS%20%7C%20Go%20%7C%20Rust%20%7C%20WASM-ef4444?style=for-the-badge&labelColor=1a0f0a" alt="Languages"/></a>
   <a href="#testing--ci"><img src="https://img.shields.io/badge/tests-unit%20%2B%20regression%20%2B%20e2e-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="Tests"/></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.6.0-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-1.6.1-dc2626?style=for-the-badge&labelColor=1a0f0a" alt="Version"/></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-fbbf24?style=for-the-badge&labelColor=1a0f0a" alt="License"/></a>
 </p>
 
@@ -85,7 +85,7 @@ Each generated SDK is a standalone project — no shared runtime dependency, no 
 
 **5. Full IDE integration**
 
-The [VS Code extension](vscode-extension/) provides 23 commands, auto-validation on save, context menus, keyboard shortcuts, and a status bar — everything you need to work with OpenAPI specs without leaving your editor.
+The [VS Code extension](vscode-extension/) provides 24 commands, auto-validation on save, context menus, keyboard shortcuts, and a status bar — everything you need to work with OpenAPI specs without leaving your editor.
 
 **6. Extensible via WASM plugins**
 
@@ -183,9 +183,9 @@ Every generated SDK is a **complete, production-ready client** — not just type
 **WASM plugins**
 - `specforge-plugin` crate with `Plugin` trait and `export_plugin!` macro
 - Receives full IR as JSON, returns generated files
-- Compile to `wasm32-wasi` for any language emitter
+- Compile to `wasm32-wasip1` for any language emitter
 
-### CLI subcommands (22 commands)
+### CLI subcommands
 
 | Command | What it does |
 |---|---|
@@ -202,9 +202,8 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge versions` | List API versions in a spec directory |
 | `specforge workspace` | Generate SDKs for all specs in a workspace config |
 | `specforge workspace-init` | Generate a workspace config from a directory |
-| `specforge dashboard` | Generate HTML metrics dashboard from SDK telemetry |
-| `specforge security` | Analyze auth requirements and detect issues |
-| `specforge graph` | Generate schema dependency diagrams (Mermaid/DOT) |
+| `specforge profile` | Profile the performance of API endpoints from an OpenAPI spec |
+| `specforge plugin` | Manage WASM emitter plugins |
 | `specforge analyze` | Detect unused schemas, duplicates, optimization opportunities |
 | `specforge mock` | Start a local mock server from spec examples |
 | `specforge export` | Export Swagger Editor-compatible spec (inline `$ref`) |
@@ -219,11 +218,13 @@ Every generated SDK is a **complete, production-ready client** — not just type
 | `specforge market add` | Add a spec to the marketplace |
 | `specforge changelog` | Auto-generate CHANGELOG from spec changes |
 
+> Run `specforge help` to see the full, current list — the CLI is the source of truth.
+
 ### Quality gates
 
-- **227 unit tests** across core, emitters, and CLI
+- **259 unit tests** across core, emitters, and CLI
 - **21 test fixtures** (0.02MB to 14MB): petstore, GitHub, Stripe, Kubernetes, Atlassian, OpenAI, Vercel, Linode, Bitbucket, Adyen, Notion, Spotify, Adobe AEM, CircleCI, Okta, and more
-- **Compile gates**: generated Go must `go build`, generated Rust must `cargo check`
+- **Compile gates**: every emitter has a test that regenerates the SDK into a temp crate and compiles it — Go (`go build`), Rust (`cargo check`), TypeScript (`tsc --noEmit`). On top of that, `regression.rs` generates + compiles SDKs from real-world specs (GitHub ~9MB, Stripe ~7.6MB) in all three languages.
 - **E2E smoke**: mock server × list/show/create + auth/retry/pagination (all 3 langs)
 - **E2E advanced**: concurrency serialisation, dedupe single-flight, middleware rewrite, idempotency-key on POST, SSE parse (all 3 langs)
 - **Performance benchmarks**: criterion benchmarks + 13 perf tests (petstore < 100ms, GitHub/Stripe < 10s)
@@ -632,7 +633,7 @@ sdk-ts/
 ├── README.md
 └── src/
     ├── index.ts          # createClient() + re-exports
-    ├── client.ts         # fetch core
+    ├── client.ts         # fetch core (ApiClient + retry/dedupe/telemetry)
     ├── auth.ts
     ├── retry.ts
     ├── paginate.ts
@@ -641,6 +642,14 @@ sdk-ts/
     ├── middleware.ts
     ├── idempotency.ts    # Idempotency-Key generation
     ├── streaming.ts      # streamBytes / streamLines / streamSse
+    ├── cache.ts          # ETag/conditional GET response cache
+    ├── ratelimit.ts      # token-bucket + sliding-window rate limiters
+    ├── telemetry.ts      # TelemetryHooks interface + MetricsCollector
+    ├── logging.ts        # pluggable Logger (ConsoleLogger)
+    ├── interceptors.ts   # request/response body interceptors
+    ├── validate.ts       # generated per-model validators
+    ├── validation-middleware.ts  # schema validation as middleware
+    ├── service_container.ts      # DI grouping (fetch/cache/logger/telemetry)
     ├── errors.ts         # discriminated-union ApiError
     ├── models/<Name>.ts  # one file per schema (+ oneOf guards)
     └── api/<Tag>.ts      # one class per tag
@@ -680,17 +689,24 @@ sdk-rs/
 ├── README.md
 └── src/
     ├── lib.rs
-    ├── client.rs         # Client + ClientBuilder + request_stream
-    ├── error.rs
-    ├── retry.rs
-    ├── paginate.rs
-    ├── concurrency.rs
-    ├── dedup.rs
-    ├── middleware.rs
-    ├── idempotency.rs
-    ├── streaming.rs      # SseStream
-    ├── models.rs
-    └── api/<tag>.rs
+    ├── api/              # one module per tag, one fn per operation
+    ├── cache.rs          # ETag/conditional GET response cache
+    ├── client.rs         # Client + ClientBuilder + ServiceContainer + request_stream
+    ├── concurrency.rs    # async in-flight semaphore
+    ├── dedup.rs          # coalesce identical in-flight safe requests
+    ├── error.rs          # typed Error enum
+    ├── idempotency.rs    # auto Idempotency-Key for safe retries
+    ├── interceptors.rs   # request/response body interceptors
+    ├── logging.rs        # pluggable Logger trait + Console/Noop impls
+    ├── middleware.rs     # request/response middleware chain
+    ├── models.rs         # one struct/enum per schema + validators
+    ├── paginate.rs       # cursor/offset pagination helpers
+    ├── ratelimit.rs      # token-bucket + sliding-window rate limiters
+    ├── retry.rs          # exponential backoff + jitter
+    ├── streaming.rs      # SseStream for server-sent events
+    ├── telemetry.rs      # TelemetryHooks trait + MetricsCollector
+    ├── validate.rs       # generated per-model validators
+    └── validation_middleware.rs  # schema validation as middleware
 ```
 
 </details>
@@ -706,7 +722,7 @@ plugin/
 └── README.md
 ```
 
-Build: `cargo build --target wasm32-wasi --release`
+Build: `cargo build --target wasm32-wasip1 --release`
 
 </details>
 
@@ -1039,7 +1055,7 @@ Commands: `generate`, `check`, `diff`, `emit`
 
 The [specforge VS Code extension](vscode-extension/) provides a full IDE experience for working with OpenAPI specs:
 
-**23 commands** accessible via `Ctrl+Shift+P`:
+**24 commands** accessible via `Ctrl+Shift+P`:
 - **Generate SDK** — Pick language, generate to output directory
 - **Check Spec** — Validate with `--strict` mode
 - **Diff Spec** — Compare two spec versions

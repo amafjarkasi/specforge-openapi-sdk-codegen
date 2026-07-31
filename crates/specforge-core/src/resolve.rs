@@ -19,7 +19,7 @@ use crate::error::ResolveError;
 use crate::ir::{
     Composition, CompositionKind, Discriminator, Document, EnumModel, EnumVariant, HttpMethod,
     Model, ObjectModel, Operation, Parameter as IrParameter, ParamLocation, Property, RequestBody,
-    Response, RetryPolicy, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
+    Response, Scalar, SchemaRegistry, SecurityScheme, Type, Webhook, IR_VERSION,
 };
 
 /// Load and fully resolve a parsed OpenAPI document into the IR.
@@ -246,34 +246,32 @@ fn properties_from_allof_member(
         ReferenceOr::Reference { reference } => {
             let ref_name = ref_name(reference);
             // First, try to find the schema in components and extract inline.
-            if let Some(schema_or) = components.schemas.get(&ref_name) {
-                if let ReferenceOr::Item(schema) = schema_or {
-                    if let SchemaKind::Type(OApiType::Object(ObjectType {
-                        properties,
-                        required,
-                        ..
-                    })) = &schema.schema_kind
-                    {
-                        let required_set: std::collections::HashSet<String> =
-                            required.iter().cloned().collect();
-                        let props = properties
-                            .iter()
-                            .map(|(prop_name, prop_schema_or)| {
-                                let ty = ref_or_boxed_schema_to_type(prop_schema_or);
-                                let description = match prop_schema_or {
-                                    ReferenceOr::Item(s) => s.schema_data.description.clone(),
-                                    ReferenceOr::Reference { .. } => None,
-                                };
-                                Property {
-                                    name: prop_name.clone(),
-                                    ty,
-                                    required: required_set.contains(prop_name),
-                                    description,
-                                }
-                            })
-                            .collect();
-                        return Ok((props, required_set));
-                    }
+            if let Some(ReferenceOr::Item(schema)) = components.schemas.get(&ref_name) {
+                if let SchemaKind::Type(OApiType::Object(ObjectType {
+                    properties,
+                    required,
+                    ..
+                })) = &schema.schema_kind
+                {
+                    let required_set: std::collections::HashSet<String> =
+                        required.iter().cloned().collect();
+                    let props = properties
+                        .iter()
+                        .map(|(prop_name, prop_schema_or)| {
+                            let ty = ref_or_boxed_schema_to_type(prop_schema_or);
+                            let description = match prop_schema_or {
+                                ReferenceOr::Item(s) => s.schema_data.description.clone(),
+                                ReferenceOr::Reference { .. } => None,
+                            };
+                            Property {
+                                name: prop_name.clone(),
+                                ty,
+                                required: required_set.contains(prop_name),
+                                description,
+                            }
+                        })
+                        .collect();
+                    return Ok((props, required_set));
                 }
             }
             // Fallback: check the already-built registry.
@@ -493,7 +491,7 @@ fn type_to_ir(t: &OApiType, nullable: bool) -> Type {
             let item = arr
                 .items
                 .as_ref()
-                .map(|i| ref_or_boxed_schema_to_type(i))
+                .map(ref_or_boxed_schema_to_type)
                 .unwrap_or(Type::Unknown);
             Type::Array {
                 item: Box::new(item),
@@ -526,8 +524,8 @@ fn ref_or_boxed_schema_to_type(schema_or: &ReferenceOr<Box<Schema>>) -> Type {
 
 /// Handle a `Box<ReferenceOr<Schema>>` — used for `additionalProperties` and
 /// array `items`. (openapiv3 is inconsistent about which side the Box is on.)
-fn boxed_ref_or_schema_to_type(boxed: &Box<ReferenceOr<Schema>>) -> Type {
-    match boxed.as_ref() {
+fn boxed_ref_or_schema_to_type(boxed: &ReferenceOr<Schema>) -> Type {
+    match boxed {
         ReferenceOr::Item(s) => schema_to_type(s).unwrap_or(Type::Unknown),
         ReferenceOr::Reference { reference } => Type::Reference {
             name: ref_name(reference),
@@ -766,14 +764,12 @@ fn resolve_responses(
             body,
         });
     }
-    if let Some(default) = &responses.default {
-        if let ReferenceOr::Item(r) = default {
-            out.push(Response {
-                status: "default".to_string(),
-                description: Some(r.description.clone()),
-                body: json_body(&r.content),
-            });
-        }
+    if let Some(ReferenceOr::Item(r)) = &responses.default {
+        out.push(Response {
+            status: "default".to_string(),
+            description: Some(r.description.clone()),
+            body: json_body(&r.content),
+        });
     }
     Ok(out)
 }
@@ -789,7 +785,7 @@ fn json_body(content: &IndexMap<String, MediaType>) -> Option<Type> {
     content
         .get("application/json")
         .and_then(|m| m.schema.as_ref())
-        .map(|s| ref_or_schema_to_type(s))
+        .map(ref_or_schema_to_type)
 }
 
 fn ref_or_schema_to_type(schema_or: &ReferenceOr<Schema>) -> Type {

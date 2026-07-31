@@ -22,9 +22,11 @@ export * from "./auth";
 export * from "./retry";
 export * from "./paginate";
 export * from "./validate";
+export * from "./validation-middleware";
 export * from "./ratelimit";
 export * from "./telemetry";
 export * from "./logging";
+export * from "./service_container";
 
 export * from "./models/Error";
 export * from "./models/Pet";

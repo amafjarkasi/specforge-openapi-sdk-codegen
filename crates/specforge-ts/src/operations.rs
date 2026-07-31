@@ -240,11 +240,11 @@ fn emit_method(_doc: &Document, op: &Operation, refs: &mut TypeRefs) -> (Option<
 
     // Determine validator names for request body and response body.
     let req_validator = op.request_body.as_ref().and_then(|b| validator_name(&b.ty));
-    let resp_validator = success.as_ref().and_then(|t| validator_name(t));
+    let resp_validator = success.as_ref().and_then(validator_name);
 
     // Schema names for the generated code (e.g. "PetSchema", "StatusSchema").
     let req_schema_name = op.request_body.as_ref().and_then(|b| schema_name(&b.ty));
-    let resp_schema_name = success.as_ref().and_then(|t| schema_name(t));
+    let resp_schema_name = success.as_ref().and_then(schema_name);
 
     let mut used_validators = Vec::new();
     if let Some(v) = &req_validator {

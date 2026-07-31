@@ -72,6 +72,26 @@ type ResponseTransformer interface {
 	Transform(response any) any
 }
 
+// ServiceContainer groups all DI-able components for easy swapping and testing.
+// Create one with NewServiceContainer, configure the fields you want to override,
+// then pass it to Client.WithServiceContainer to apply them all at once.
+type ServiceContainer struct {
+	HTTPClient    *http.Client
+	Cache         *ResponseCache
+	RateLimiter   RateLimiter
+	Logger        Logger
+	Telemetry     TelemetryHooks
+}
+
+// NewServiceContainer creates a ServiceContainer with sensible defaults
+// (default HTTP client, console logger). Override individual fields as needed.
+func NewServiceContainer() *ServiceContainer {
+	return &ServiceContainer{
+		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+		Logger:     NewConsoleLogger(),
+	}
+}
+
 // Client is the generated HTTP client for Swagger Petstore.
 type Client struct {
 	BaseURL    string
@@ -244,10 +264,35 @@ func (c *Client) WithHTTPClient(hc *http.Client) *Client {
 	return c
 }
 
+// WithServiceContainer applies all non-nil fields from a ServiceContainer to the client.
+// Nil fields are left as their current value, so you only need to set what you want to override.
+func (c *Client) WithServiceContainer(sc *ServiceContainer) *Client {
+	if sc == nil {
+		return c
+	}
+	if sc.HTTPClient != nil {
+		c.HTTPClient = sc.HTTPClient
+	}
+	if sc.Cache != nil {
+		c.Cache = sc.Cache
+	}
+	if sc.RateLimiter != nil {
+		c.RateLimiter = sc.RateLimiter
+	}
+	if sc.Logger != nil {
+		c.Logger = sc.Logger
+	}
+	if sc.Telemetry != nil {
+		c.Telemetry = sc.Telemetry
+	}
+	return c
+}
+
 // WithResponseTransformers sets response transformers applied in order after JSON decoding.
 func (c *Client) WithResponseTransformers(transformers ...ResponseTransformer) *Client {
 	c.ResponseTransformers = append(c.ResponseTransformers, transformers...)
 	return c
+}
 
 // WithRequestInterceptors sets request interceptors applied in order before each request body is serialized.
 func (c *Client) WithRequestInterceptors(interceptors ...RequestInterceptor) *Client {
@@ -259,7 +304,6 @@ func (c *Client) WithRequestInterceptors(interceptors ...RequestInterceptor) *Cl
 func (c *Client) WithResponseInterceptors(interceptors ...ResponseInterceptor) *Client {
 	c.ResponseInterceptors = append(c.ResponseInterceptors, interceptors...)
 	return c
-}
 }
 
 // DoJSON issues an HTTP request (concurrency + dedupe + retry + middleware),

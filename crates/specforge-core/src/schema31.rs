@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn roundtrip() {
         let json = serde_json::json!({"type": ["string", "null"], "const": "yes", "x-custom": "value"});
-        let s = serde_json::to_value(&Schema31::from_json(&json).unwrap()).unwrap();
+        let s = serde_json::to_value(Schema31::from_json(&json).unwrap()).unwrap();
         assert_eq!(s["type"], serde_json::json!(["string", "null"]));
     }
 }

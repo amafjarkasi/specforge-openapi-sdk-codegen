@@ -12,7 +12,10 @@ import { Middleware, MiddlewareRequest, composeMiddleware } from "./middleware";
 import { validateRequest, validateResponse, type SchemaType, type ValidationError } from "./validate";
 import { ResponseCache } from "./cache";
 import { type Logger, ConsoleLogger } from "./logging";
+import { type TelemetryHooks } from "./telemetry";
 import { type RequestInterceptor, type ResponseInterceptor } from "./interceptors";
+import { type ServiceContainer } from "./service_container";
+import { createValidationMiddleware, type RouteSchemaMap } from "./validation-middleware";
 
 /**
  * Transform response data before it reaches the application. Transformers are
@@ -55,10 +58,18 @@ export interface ApiClientOptions {
   responseTransformers?: ResponseTransformer[];
   /** Structured logger for SDK lifecycle events (requests, retries, cache). */
   logger?: Logger;
+  /** Telemetry hooks for request lifecycle observability. Implement any subset. */
+  telemetry?: TelemetryHooks;
   /** Request interceptors applied before each request body is serialized. */
   requestInterceptors?: RequestInterceptor[];
   /** Response interceptors applied after each response body is deserialized. */
   responseInterceptors?: ResponseInterceptor[];
+  /**
+   * Typed service container grouping injectable dependencies (fetch, cache,
+   * rate limiter, logger, telemetry). Individual option fields take precedence
+   * over container values.
+   */
+  container?: ServiceContainer;
 }
 
 /**
@@ -90,17 +101,21 @@ export class ApiClient {
   private readonly responseTransformers: ResponseTransformer[];
   /** Structured logger for SDK lifecycle events. */
   private readonly logger: Logger;
+  /** Optional telemetry hooks for request lifecycle observability. */
+  private readonly telemetry?: TelemetryHooks;
   /** Request interceptors applied before each request body is serialized. */
   private readonly requestInterceptors: RequestInterceptor[];
   /** Response interceptors applied after each response body is deserialized. */
   private readonly responseInterceptors: ResponseInterceptor[];
 
   constructor(opts: ApiClientOptions = {}) {
+    const c = opts.container;
     this.baseUrl = (opts.baseUrl ?? "http://petstore.swagger.io/v1").replace(/\/$/, "");
     this.auth = opts.auth ?? anonymousAuth();
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.retry = { ...DEFAULT_RETRY_OPTIONS, ...opts.retry };
-    this.fetchImpl = opts.fetch ?? fetch;
+    // Individual options take precedence over container values.
+    this.fetchImpl = opts.fetch ?? c?.httpClient ?? fetch;
     this.defaultHeaders = { "content-type": "application/json", ...opts.defaultHeaders };
     if (!("accept" in this.defaultHeaders)) this.defaultHeaders["accept"] = "application/json";
     this.semaphore = opts.maxConcurrent ? createSemaphore(opts.maxConcurrent) : UNLIMITED;
@@ -108,9 +123,10 @@ export class ApiClient {
     this.useDedupe = opts.dedupe ?? true;
     this.useIdempotency = opts.idempotency ?? true;
     this.validate = opts.validate ?? false;
-    this.cache = opts.cache ?? (opts.cacheTtlMs !== undefined ? new ResponseCache(opts.cacheTtlMs) : undefined);
+    this.cache = opts.cache ?? c?.cache ?? (opts.cacheTtlMs !== undefined ? new ResponseCache(opts.cacheTtlMs) : undefined);
     this.responseTransformers = opts.responseTransformers ?? [];
-    this.logger = opts.logger ?? new ConsoleLogger();
+    this.logger = opts.logger ?? c?.logger ?? new ConsoleLogger();
+    this.telemetry = opts.telemetry ?? c?.telemetry;
     this.requestInterceptors = opts.requestInterceptors ?? [];
     this.responseInterceptors = opts.responseInterceptors ?? [];
     if (opts.middleware) for (const m of opts.middleware) this.middlewares.push(m);
@@ -139,8 +155,10 @@ export class ApiClient {
     const cachedEntry = isGet && this.cache ? this.cache.get(url) : undefined;
     if (cachedEntry) {
       this.logger.debug(`[cache] HIT ${method} ${path}`);
+      this.telemetry?.onCacheHit?.(method, path);
     } else if (isGet && this.cache) {
       this.logger.debug(`[cache] MISS ${method} ${path}`);
+      this.telemetry?.onCacheMiss?.(method, path);
     }
     const mergedHeaders: Record<string, string> | undefined =
       cachedEntry
@@ -151,7 +169,7 @@ export class ApiClient {
     const dispatch = async (): Promise<Response> => {
       const release = await this.semaphore.acquire();
       try {
-        return await this.dispatchWithRetry(method, url, { ...requestOptions, headers: mergedHeaders });
+        return await this.dispatchWithRetry(method, url, path, { ...requestOptions, headers: mergedHeaders });
       } finally {
         release();
       }
@@ -197,6 +215,7 @@ export class ApiClient {
   private async dispatchWithRetry(
     method: string,
     url: string,
+    path: string,
     requestOptions: RequestOptions | undefined,
   ): Promise<Response> {
     const perCallRetry = requestOptions?.retry;
@@ -224,6 +243,7 @@ export class ApiClient {
       callerSignal?.addEventListener("abort", onCallerAbort!, { once: true });
 
       this.logger.info(`[request] ${method} ${url}${attempt > 0 ? ` (attempt ${attempt + 1})` : ""}`);
+      if (attempt === 0) this.telemetry?.onRequestStart?.(method, path);
 
       // Build the request descriptor for middleware.
       const mwReq: MiddlewareRequest = {
@@ -251,6 +271,7 @@ export class ApiClient {
 
         if (response.ok) {
           this.logger.info(`[response] ${method} ${url} -> ${response.status}`);
+          this.telemetry?.onRequestEnd?.(method, path, Date.now() - startedAt, response.status);
           return response;
         }
 
@@ -260,27 +281,37 @@ export class ApiClient {
           this.retry.retryOnStatuses.includes(response.status);
         if (shouldRetry) {
           this.logger.warn(`[retry] ${method} ${url} status=${response.status}, attempt ${attempt + 2}/${maxRetries + 1}`);
+          this.telemetry?.onRetry?.(method, path, attempt + 1, response.status);
           await sleep(backoffDelay(attempt, this.retry));
           continue;
         }
 
         const body = await parseBody(response);
-        throw httpError(response.status, body, url, response.statusText || `HTTP ${response.status}`);
+        const httpErr = httpError(response.status, body, url, response.statusText || `HTTP ${response.status}`);
+        this.telemetry?.onRequestError?.(method, path, Date.now() - startedAt, httpErr);
+        throw httpErr;
       } catch (e) {
         if (timer) clearTimeout(timer);
         callerSignal?.removeEventListener("abort", onCallerAbort!);
+        // ApiError (e.g. the httpErr built above) was already reported via
+        // telemetry before being thrown — re-throw without double-counting.
         if (isApiError(e)) throw e;
         // Distinguish caller-cancelled from our-timeout from network.
         if (callerSignal?.aborted) throw networkError(e, "request aborted by caller");
         if (e instanceof DOMException && e.name === "AbortError") {
-          throw timeoutError(Date.now() - startedAt);
+          const err = timeoutError(Date.now() - startedAt);
+          this.telemetry?.onRequestError?.(method, path, Date.now() - startedAt, err);
+          throw err;
         }
         if (attempt < maxRetries && retryable) {
           this.logger.warn(`[retry] ${method} ${url} error=${(e as Error)?.message}, attempt ${attempt + 2}/${maxRetries + 1}`);
+          this.telemetry?.onRetry?.(method, path, attempt + 1, e);
           await sleep(backoffDelay(attempt, this.retry));
           continue;
         }
-        throw networkError(e, (e as Error)?.message ?? "network error");
+        const err = networkError(e, (e as Error)?.message ?? "network error");
+        this.telemetry?.onRequestError?.(method, path, Date.now() - startedAt, err);
+        throw err;
       }
     }
     throw configurationError("exhausted retries without a response");
@@ -375,6 +406,29 @@ async function parseBody(response: Response): Promise<unknown> {
   } catch {
     return text;
   }
+}
+
+/**
+ * Create an options object with automatic validation middleware pre-registered.
+ * Pass the schemas map to enable request/response validation for all requests
+ * matching the given route patterns.
+ *
+ * Usage:
+ * ```ts
+ * import { createClient, withValidation, PetSchema } from "./sdk";
+ *
+ * const schemas = {
+ *   "POST /pets": { requestBody: PetSchema, responseBody: PetSchema },
+ *   "GET /pets/{petId}": { responseBody: PetSchema },
+ * };
+ *
+ * const client = createClient(withValidation(schemas));
+ * ```
+ */
+export function withValidation(schemas: RouteSchemaMap): ApiClientOptions {
+  return {
+    middleware: [createValidationMiddleware(schemas)],
+  };
 }
 
 export type { ApiError };

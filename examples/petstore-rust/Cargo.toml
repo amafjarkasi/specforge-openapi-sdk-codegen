@@ -11,3 +11,5 @@ path = "src/main.rs"
 [dependencies]
 petstore_example_sdk = { path = "./sdk" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[workspace]

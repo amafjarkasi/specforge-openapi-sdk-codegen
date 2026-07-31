@@ -504,7 +504,7 @@ fn edge_case_ref_only_schema() {
     );
     let doc = parse_resolve_inline(yaml);
     assert!(
-        doc.schemas.models.len() >= 1,
+        !doc.schemas.models.is_empty(),
         "expected at least 1 schema"
     );
     assert!(

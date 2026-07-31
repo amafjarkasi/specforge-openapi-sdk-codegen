@@ -26,6 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.1] — 2026-07-30
+
+### Fixed
+
+#### Codegen (all emitters)
+- **Doc-comment escaping** — schema/operation descriptions from real-world specs (GitHub, Stripe) contain embedded newlines, backticks, and `/*`/`*/` sequences that broke generated code: continuation lines lost their comment prefix (→ parse errors), `*/` closed block comments (→ "unterminated block comment"), and backticks tripped token errors. The Rust (`rust_doc`/`rust_doc_indented`) and Go (`go_doc`/`go_doc_label`) emitters now escape these and prefix every line. **Result: the 4 `*_generates_and_compiles_{rust,go}` regression tests for GitHub + Stripe specs now pass** (they were failing).
+- **Reserved-name collisions** — a spec model whose name matches a built-in SDK type (e.g. GitHub's `ValidationError`) would redeclare it and break compilation. The Go and Rust emitters now suffix colliding model names with `Model`.
+
+#### Rust emitter
+- **Generated SDK now compiles** — fixed six template bugs that silently broke every generated Rust SDK since the interceptors/validation_middleware/ServiceContainer modules were added in 1.6.0: a response-interceptor loop nested inside the response-transformer loop; a missing `logger` field on `ClientBuilder`; telemetry call-site signature mismatches (`&Method`/`Duration` vs `&str`/`u128`); a two-arg `Result` used where the crate alias is one-arg; a `do_once` parameter-order mismatch; and `serde_json::to_vec` moving instead of borrowing. The example SDK was stale and never regenerated to catch this.
+- **Generated README expanded** — `emit_readme` now documents interceptors, runtime validation (`validation_middleware`), and the `ServiceContainer` telemetry/DI helpers.
+
+#### TypeScript emitter
+- **Telemetry is now wired** — the `TelemetryHooks` interface and `MetricsCollector` were generated but never stored or invoked by `ApiClient`. The client now reads `opts.telemetry`/`container.telemetry` and calls `onRequestStart`/`onRequestEnd`/`onRequestError`/`onRetry`/`onCacheHit`/`onCacheMiss` at the right points in the request lifecycle.
+- **Per-model validators typecheck** — generated object validators called `validateValue` with three arguments (missing the `errors` accumulator) and returned its `void` result as `ValidationError[]`. Now mirrors the enum-validator pattern.
+
+#### Testing
+- **Compile-the-generated-SDK regression tests** — added to the Rust (`cargo check`), TypeScript (`tsc --noEmit`), and Go (`go build ./...`) emitters. These regenerate the SDK into a temp crate and build it, so future emitter template breakage fails CI instead of shipping silently. All three emitters verified against both `fixtures/` specs (petstore + sample-api); each test skips cleanly only when its toolchain is genuinely absent.
+
+---
+
 ## [1.6.0] — 2026-07-27
 
 ### Added
@@ -262,6 +283,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version Links
 
+- [v1.6.1](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.6.1)
 - [v1.6.0](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.6.0)
 - [v1.5.0](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.5.0)
 - [v1.4.0](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/tag/v1.4.0)

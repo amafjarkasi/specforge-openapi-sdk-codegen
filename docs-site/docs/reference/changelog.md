@@ -12,6 +12,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] — 2026-07-30
+
+### Fixed
+
+#### Rust emitter
+- **Generated SDK now compiles** — fixed six template bugs (nested interceptor/transformer loops, missing `logger` field on `ClientBuilder`, telemetry call-site signature mismatches, wrong `Result` arity, `do_once` parameter-order mismatch, `serde_json::to_vec` move-instead-of-borrow) that broke every generated Rust SDK since the 1.6.0 interceptors/validation_middleware/ServiceContainer additions. The example SDK was stale and had never been regenerated to surface this.
+
+#### TypeScript emitter
+- **Telemetry wired in** — `ApiClient` now stores and invokes the previously-dead `TelemetryHooks` (`onRequestStart`/`onRequestEnd`/`onRequestError`/`onRetry`/`onCacheHit`/`onCacheMiss`).
+- **Per-model validators typecheck** — object validators now pass the `errors` accumulator and return it, matching the enum-validator pattern.
+
+#### Testing
+- **Compile-the-generated-SDK tests** added for the Rust (`cargo check`), TypeScript (`tsc --noEmit`), and Go (`go build ./...`) emitters — regenerates into a temp crate and builds it so template breakage fails CI. All three emitters verified against both `fixtures/` specs; each test skips cleanly only when its toolchain is genuinely absent.
+
+---
+
 ## [1.2.0] — 2026-07-27
 
 ### Added

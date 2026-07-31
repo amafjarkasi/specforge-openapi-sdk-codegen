@@ -12,7 +12,7 @@ pub struct OperationSecurity { pub operation_id: String, pub method: String, pub
 pub struct SecurityIssue { pub severity: String, pub message: String, pub path: String }
 
 pub fn analyze_security(doc: &Document) -> SecurityReport {
-    let schemes: Vec<SecuritySchemeInfo> = doc.security.iter().map(|s| scheme_info_from_ir(s)).collect();
+    let schemes: Vec<SecuritySchemeInfo> = doc.security.iter().map(scheme_info_from_ir).collect();
     let has_global_auth = !doc.security.is_empty();
     let operations = doc.operations.iter().map(|op| OperationSecurity {
         operation_id: op.operation_id.clone(), method: op.method.as_str().to_string(), path: op.path.clone(),
@@ -42,7 +42,14 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
             Some(Some(r)) => { let n: Vec<String> = r.iter().flat_map(|x| x.keys().cloned()).collect(); (true, n.first().cloned(), true) }
             _ => (has_global_auth, global_names.first().cloned(), false),
         };
-        operations.push(OperationSecurity { operation_id: ir_op.operation_id.clone(), method: ir_op.method.as_str().to_string(), path: ir_op.path.clone(), requires_auth: req_auth, scheme: sch, has_override: ov });
+        operations.push(OperationSecurity {
+            operation_id: ir_op.operation_id.clone(),
+            method: ir_op.method.as_str().to_string(),
+            path: ir_op.path.clone(),
+            requires_auth: req_auth,
+            scheme: sch,
+            has_override: ov,
+        });
     }
     let mut issues = Vec::new();
     analyze_common_issues(&schemes, &operations, &mut issues);
@@ -51,47 +58,198 @@ pub fn analyze_security_detailed(doc: &Document, spec: &OpenAPI) -> SecurityRepo
 }
 
 fn scheme_info_from_ir(s: &SecurityScheme) -> SecuritySchemeInfo {
-    match s { SecurityScheme::HttpBearer => SecuritySchemeInfo { name: "BearerAuth".into(), kind: "bearer".into(), header: Some("Authorization".into()), bearer_format: None },
-        SecurityScheme::ApiKey { header } => SecuritySchemeInfo { name: format!("ApiKey({})", header), kind: "apikey".into(), header: Some(header.clone()), bearer_format: None } }
+    match s {
+        SecurityScheme::HttpBearer => SecuritySchemeInfo {
+            name: "BearerAuth".into(),
+            kind: "bearer".into(),
+            header: Some("Authorization".into()),
+            bearer_format: None,
+        },
+        SecurityScheme::ApiKey { header } => SecuritySchemeInfo {
+            name: format!("ApiKey({})", header),
+            kind: "apikey".into(),
+            header: Some(header.clone()),
+            bearer_format: None,
+        },
+    }
 }
 fn scheme_info_from_raw(name: &str, s: &OApiSecurityScheme) -> SecuritySchemeInfo {
-    match s { OApiSecurityScheme::HTTP { scheme, bearer_format, .. } => SecuritySchemeInfo { name: name.into(), kind: scheme.to_lowercase(), header: if scheme.eq_ignore_ascii_case("bearer") { Some("Authorization".into()) } else { None }, bearer_format: bearer_format.clone() },
-        OApiSecurityScheme::APIKey { name: kn, .. } => SecuritySchemeInfo { name: name.into(), kind: "apikey".into(), header: Some(kn.clone()), bearer_format: None },
-        OApiSecurityScheme::OAuth2 { .. } => SecuritySchemeInfo { name: name.into(), kind: "oauth2".into(), header: None, bearer_format: None },
-        OApiSecurityScheme::OpenIDConnect { .. } => SecuritySchemeInfo { name: name.into(), kind: "openidconnect".into(), header: None, bearer_format: None } }
+    match s {
+        OApiSecurityScheme::HTTP { scheme, bearer_format, .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: scheme.to_lowercase(),
+            header: if scheme.eq_ignore_ascii_case("bearer") {
+                Some("Authorization".into())
+            } else {
+                None
+            },
+            bearer_format: bearer_format.clone(),
+        },
+        OApiSecurityScheme::APIKey { name: kn, .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "apikey".into(),
+            header: Some(kn.clone()),
+            bearer_format: None,
+        },
+        OApiSecurityScheme::OAuth2 { .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "oauth2".into(),
+            header: None,
+            bearer_format: None,
+        },
+        OApiSecurityScheme::OpenIDConnect { .. } => SecuritySchemeInfo {
+            name: name.into(),
+            kind: "openidconnect".into(),
+            header: None,
+            bearer_format: None,
+        },
+    }
 }
-fn scheme_label(s: &SecurityScheme) -> String { match s { SecurityScheme::HttpBearer => "bearer".into(), SecurityScheme::ApiKey { header } => format!("apikey ({})", header) } }
-fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> { let Some(reqs) = security else { return Vec::new() }; reqs.iter().flat_map(|r| r.keys().cloned()).collect() }
-fn op_key(method: &str, path: &str) -> String { format!("{} {}", method.to_uppercase(), path) }
+fn scheme_label(s: &SecurityScheme) -> String {
+    match s {
+        SecurityScheme::HttpBearer => "bearer".into(),
+        SecurityScheme::ApiKey { header } => format!("apikey ({})", header),
+    }
+}
+
+fn extract_scheme_names(security: &Option<Vec<SecurityRequirement>>) -> Vec<String> {
+    let Some(reqs) = security else { return Vec::new() };
+    reqs.iter().flat_map(|r| r.keys().cloned()).collect()
+}
+
+fn op_key(method: &str, path: &str) -> String {
+    format!("{} {}", method.to_uppercase(), path)
+}
+
 fn build_op_security_map(spec: &OpenAPI) -> BTreeMap<String, Option<Vec<SecurityRequirement>>> {
     let mut map = BTreeMap::new();
-    { let paths = &spec.paths;
+    let paths = &spec.paths;
     for (path, item_or) in &paths.paths {
-        let item = match item_or { openapiv3::ReferenceOr::Item(i) => i, _ => continue };
-        for (m, op_opt) in [("get", &item.get), ("post", &item.post), ("put", &item.put), ("patch", &item.patch), ("delete", &item.delete), ("head", &item.head), ("options", &item.options)] {
-            if let Some(op) = op_opt { map.insert(format!("{} {}", m.to_uppercase(), path), op.security.clone()); }
+        let item = match item_or {
+            openapiv3::ReferenceOr::Item(i) => i,
+            _ => continue,
+        };
+        for (m, op_opt) in [
+            ("get", &item.get),
+            ("post", &item.post),
+            ("put", &item.put),
+            ("patch", &item.patch),
+            ("delete", &item.delete),
+            ("head", &item.head),
+            ("options", &item.options),
+        ] {
+            if let Some(op) = op_opt {
+                map.insert(format!("{} {}", m.to_uppercase(), path), op.security.clone());
+            }
         }
-    } }
+    }
     map
 }
-fn analyze_common_issues(schemes: &[SecuritySchemeInfo], operations: &[OperationSecurity], issues: &mut Vec<SecurityIssue>) {
-    if schemes.is_empty() { issues.push(SecurityIssue { severity: "warning".into(), message: "No security schemes defined in the specification".into(), path: "/".into() }); }
-    for op in operations { if matches!(op.method.as_str(), "POST" | "PUT" | "PATCH" | "DELETE") && !op.requires_auth {
-        issues.push(SecurityIssue { severity: "warning".into(), message: format!("Write operation {} {} does not require authentication", op.method, op.path), path: op.path.clone() }); } }
-    let auth: Vec<Option<&str>> = operations.iter().filter(|o| o.requires_auth).map(|o| o.scheme.as_deref()).collect();
-    if auth.iter().collect::<std::collections::HashSet<_>>().len() > 1 { issues.push(SecurityIssue { severity: "info".into(), message: "Operations use mixed authentication schemes".into(), path: "/".into() }); }
+fn analyze_common_issues(
+    schemes: &[SecuritySchemeInfo],
+    operations: &[OperationSecurity],
+    issues: &mut Vec<SecurityIssue>,
+) {
+    if schemes.is_empty() {
+        issues.push(SecurityIssue {
+            severity: "warning".into(),
+            message: "No security schemes defined in the specification".into(),
+            path: "/".into(),
+        });
+    }
+    for op in operations {
+        if matches!(op.method.as_str(), "POST" | "PUT" | "PATCH" | "DELETE") && !op.requires_auth {
+            issues.push(SecurityIssue {
+                severity: "warning".into(),
+                message: format!(
+                    "Write operation {} {} does not require authentication",
+                    op.method, op.path
+                ),
+                path: op.path.clone(),
+            });
+        }
+    }
+    let auth: Vec<Option<&str>> = operations
+        .iter()
+        .filter(|o| o.requires_auth)
+        .map(|o| o.scheme.as_deref())
+        .collect();
+    if auth.iter().collect::<std::collections::HashSet<_>>().len() > 1 {
+        issues.push(SecurityIssue {
+            severity: "info".into(),
+            message: "Operations use mixed authentication schemes".into(),
+            path: "/".into(),
+        });
+    }
 }
-fn analyze_detailed_issues(spec: &OpenAPI, operations: &[OperationSecurity], global_names: &[String], issues: &mut Vec<SecurityIssue>) {
-    for op in operations { if op.has_override && !op.requires_auth {
-        issues.push(SecurityIssue { severity: "info".into(), message: format!("Operation {} {} explicitly disables authentication", op.method, op.path), path: op.path.clone() }); } }
-    let used: std::collections::HashSet<&str> = operations.iter().filter(|o| o.requires_auth).filter_map(|o| o.scheme.as_deref()).collect();
-    if let Some(components) = &spec.components { for (name, scheme_or) in &components.security_schemes {
-        if let openapiv3::ReferenceOr::Item(_s) = scheme_or { if !used.contains(name.as_str()) && !global_names.contains(name) {
-            issues.push(SecurityIssue { severity: "info".into(), message: format!("Security scheme '{}' is defined but not referenced by any operation", name), path: format!("/components/securitySchemes/{}", name) }); } }
-        if let openapiv3::ReferenceOr::Item(OApiSecurityScheme::OAuth2 { flows, .. }) = scheme_or { if !flows.implicit.is_some() && !flows.password.is_some() && !flows.client_credentials.is_some() && !flows.authorization_code.is_some() {
-            issues.push(SecurityIssue { severity: "warning".into(), message: format!("OAuth2 scheme '{}' has no configured flows", name), path: format!("/components/securitySchemes/{}", name) }); } } } }
-    for name in global_names { if let Some(components) = &spec.components { if !components.security_schemes.contains_key(name) {
-        issues.push(SecurityIssue { severity: "error".into(), message: format!("Global security references undefined scheme '{}'", name), path: "/security".into() }); } } }
+fn analyze_detailed_issues(
+    spec: &OpenAPI,
+    operations: &[OperationSecurity],
+    global_names: &[String],
+    issues: &mut Vec<SecurityIssue>,
+) {
+    // Operations that explicitly turn off auth.
+    for op in operations {
+        if op.has_override && !op.requires_auth {
+            issues.push(SecurityIssue {
+                severity: "info".into(),
+                message: format!(
+                    "Operation {} {} explicitly disables authentication",
+                    op.method, op.path
+                ),
+                path: op.path.clone(),
+            });
+        }
+    }
+    // Schemes referenced by at least one authenticated operation.
+    let used: std::collections::HashSet<&str> = operations
+        .iter()
+        .filter(|o| o.requires_auth)
+        .filter_map(|o| o.scheme.as_deref())
+        .collect();
+    if let Some(components) = &spec.components {
+        for (name, scheme_or) in &components.security_schemes {
+            // Defined-but-unreferenced schemes.
+            if let openapiv3::ReferenceOr::Item(_s) = scheme_or {
+                if !used.contains(name.as_str()) && !global_names.contains(name) {
+                    issues.push(SecurityIssue {
+                        severity: "info".into(),
+                        message: format!(
+                            "Security scheme '{}' is defined but not referenced by any operation",
+                            name
+                        ),
+                        path: format!("/components/securitySchemes/{}", name),
+                    });
+                }
+            }
+            // OAuth2 schemes with no configured flows.
+            if let openapiv3::ReferenceOr::Item(OApiSecurityScheme::OAuth2 { flows, .. }) = scheme_or {
+                if flows.implicit.is_none()
+                    && flows.password.is_none()
+                    && flows.client_credentials.is_none()
+                    && flows.authorization_code.is_none()
+                {
+                    issues.push(SecurityIssue {
+                        severity: "warning".into(),
+                        message: format!("OAuth2 scheme '{}' has no configured flows", name),
+                        path: format!("/components/securitySchemes/{}", name),
+                    });
+                }
+            }
+        }
+    }
+    // Global security referencing an undefined scheme.
+    for name in global_names {
+        if let Some(components) = &spec.components {
+            if !components.security_schemes.contains_key(name) {
+                issues.push(SecurityIssue {
+                    severity: "error".into(),
+                    message: format!("Global security references undefined scheme '{}'", name),
+                    path: "/security".into(),
+                });
+            }
+        }
+    }
 }
 
 #[cfg(test)]

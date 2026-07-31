@@ -132,7 +132,7 @@ fn verify_operation(
         Ok(v) => v,
         Err(_) => {
             // Non-JSON body – we cannot schema-validate but treat as info.
-            if expected_status_code >= 200 && expected_status_code < 300 {
+            if (200..300).contains(&expected_status_code) {
                 // Expected JSON but got something else.
                 issues.push("response body is not valid JSON".to_string());
                 schema_match = false;

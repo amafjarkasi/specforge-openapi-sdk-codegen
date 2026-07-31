@@ -33,11 +33,41 @@ impl Model { pub fn name(&self) -> &str { match self { Model::Object(o) => &o.na
 
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct SchemaRegistry { pub models: IndexMap<String, Model> }
-impl SchemaRegistry { pub fn get(&self, name: &str) -> Option<&Model> { self.models.get(name) } pub fn iter(&self) -> impl Iterator<Item = (&String, &Model)> { self.models.iter() } }
+impl SchemaRegistry {
+    pub fn get(&self, name: &str) -> Option<&Model> {
+        self.models.get(name)
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Model)> {
+        self.models.iter()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum HttpMethod { Get, Post, Put, Patch, Delete, Head, Options }
-impl HttpMethod { pub fn as_str(self) -> &'static str { match self { HttpMethod::Get => "get", HttpMethod::Post => "post", HttpMethod::Put => "put", HttpMethod::Patch => "patch", HttpMethod::Delete => "delete", HttpMethod::Head => "head", HttpMethod::Options => "options" } } pub fn upper(self) -> &'static str { match self { HttpMethod::Get => "GET", HttpMethod::Post => "POST", HttpMethod::Put => "PUT", HttpMethod::Patch => "PATCH", HttpMethod::Delete => "DELETE", HttpMethod::Head => "HEAD", HttpMethod::Options => "OPTIONS" } } }
+impl HttpMethod {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HttpMethod::Get => "get",
+            HttpMethod::Post => "post",
+            HttpMethod::Put => "put",
+            HttpMethod::Patch => "patch",
+            HttpMethod::Delete => "delete",
+            HttpMethod::Head => "head",
+            HttpMethod::Options => "options",
+        }
+    }
+    pub fn upper(self) -> &'static str {
+        match self {
+            HttpMethod::Get => "GET",
+            HttpMethod::Post => "POST",
+            HttpMethod::Put => "PUT",
+            HttpMethod::Patch => "PATCH",
+            HttpMethod::Delete => "DELETE",
+            HttpMethod::Head => "HEAD",
+            HttpMethod::Options => "OPTIONS",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ParamLocation { Path, Query, Header }

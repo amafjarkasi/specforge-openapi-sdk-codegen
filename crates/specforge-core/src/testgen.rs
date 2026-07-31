@@ -181,10 +181,12 @@ fn ts_assertion(ty: &Type) -> String {
             Scalar::Integer | Scalar::Integer64 | Scalar::Float => {
                 "console.assert(typeof result === 'number', 'expected number')".to_string()
             }
-            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => {
+            Scalar::Boolean | Scalar::Base64 => {
                 "console.assert(typeof result === 'boolean', 'expected boolean')".to_string()
             }
-            _ => "String".to_string(),
+            Scalar::Binary => {
+                "console.assert(result !== undefined, 'expected bytes')".to_string()
+            }
         },
         _ => "console.assert(result !== undefined, 'expected result')".to_string(),
     }
@@ -198,9 +200,8 @@ fn generate_ts_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>, i
             Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(),
-            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(),
+            Scalar::Boolean | Scalar::Base64 => "true".to_string(),
             Scalar::Binary => "new Uint8Array([1,2,3])".to_string(),
-            _ => "String".to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
@@ -349,9 +350,8 @@ fn generate_go_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>) -
             Scalar::Uuid => "\"550e8400-e29b-41d4-a716-446655440000\"".to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(),
-            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(),
+            Scalar::Boolean | Scalar::Base64 => "true".to_string(),
             Scalar::Binary => "new Uint8Array([1,2,3])".to_string(),
-            _ => "String".to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {
@@ -511,9 +511,8 @@ fn generate_rust_example(ty: &Type, schemas: &indexmap::IndexMap<String, Model>)
             Scalar::Uuid => r#""550e8400-e29b-41d4-a716-446655440000""#.to_string(),
             Scalar::Integer | Scalar::Integer64 => "1".to_string(),
             Scalar::Float => "1.0".to_string(),
-            Scalar::Boolean | Scalar::Base64 | Scalar::Binary => "true".to_string(),
+            Scalar::Boolean | Scalar::Base64 => "true".to_string(),
             Scalar::Binary => "new Uint8Array([1,2,3])".to_string(),
-            _ => "String".to_string(),
         },
         Type::StringEnum { variants, .. } => {
             if let Some(first) = variants.first() {

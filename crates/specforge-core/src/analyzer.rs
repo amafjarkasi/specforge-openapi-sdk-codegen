@@ -1,4 +1,5 @@
 use crate::ir::{Document, Model, Type};
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -55,7 +56,7 @@ pub fn analyze_spec(doc: &Document) -> AnalysisReport {
             if obj.properties.len() > 20 { report.large_schemas.push((name.clone(), obj.properties.len())); }
         }
     }
-    report.large_schemas.sort_by(|a, b| b.1.cmp(&a.1));
+    report.large_schemas.sort_by_key(|a| Reverse(a.1));
     let mut fps: HashMap<Vec<String>, Vec<String>> = HashMap::new();
     for (name, model) in doc.schemas.iter() {
         if let Model::Object(obj) = model {
@@ -78,7 +79,7 @@ pub fn analyze_spec(doc: &Document) -> AnalysisReport {
         let depth = ref_depth(name, &ref_graph, &mut memo);
         if depth > 2 { report.deep_refs.push((name.clone(), depth)); }
     }
-    report.deep_refs.sort_by(|a, b| b.1.cmp(&a.1));
+    report.deep_refs.sort_by_key(|a| Reverse(a.1));
     if !report.unused_schemas.is_empty() {
         report.recommendations.push(format!("Remove {} unused schema(s): {}", report.unused_schemas.len(), report.unused_schemas.join(", ")));
     }

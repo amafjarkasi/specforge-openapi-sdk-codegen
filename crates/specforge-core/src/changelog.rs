@@ -237,6 +237,7 @@ fn classify_finding(finding: &diff::DiffFinding) -> ChangeImpact {
 }
 
 /// Build per-operation changelog entries from the diff between old and new documents.
+#[cfg(test)]
 fn build_operation_entries(
     old_doc: &Document,
     new_doc: &Document,
@@ -590,7 +591,7 @@ fn render_markdown(result: &ChangelogResult, opts: &ChangelogOptions) -> String 
     let mut out = String::new();
 
     // Header
-    out.push_str(&format!("# Changelog\n\n"));
+    out.push_str("# Changelog\n\n");
     out.push_str(&format!("## [{version}] -- {today}\n\n"));
 
     // Suggested version bump
@@ -602,9 +603,7 @@ fn render_markdown(result: &ChangelogResult, opts: &ChangelogOptions) -> String 
     }
 
     // Summary
-    out.push_str(&format!(
-        "### Summary\n\n"
-    ));
+    out.push_str("### Summary\n\n");
     out.push_str(&format!(
         "- **{}** operation(s) changed\n",
         result.operation_entries.len()

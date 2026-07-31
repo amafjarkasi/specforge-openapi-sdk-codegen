@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Error {
+pub struct ErrorModel {
     pub code: i32,
     pub message: String,
 }

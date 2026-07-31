@@ -5,6 +5,7 @@
 
 use anyhow::{bail, Context as _};
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -40,6 +41,11 @@ impl MarketplaceIndex {
     }
 
     /// Return the built-in curated marketplace index bundled with this binary.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bundled `assets/marketplace-index.json` is malformed. This
+    /// is a compile-time-baked asset, so a panic here indicates a corrupt build.
     pub fn built_in() -> Self {
         let json = include_str!("../../../assets/marketplace-index.json");
         serde_json::from_str(json).expect("bundled marketplace-index.json is valid JSON")
@@ -56,7 +62,7 @@ impl MarketplaceIndex {
             map.insert(&entry.name, entry);
         }
         self.entries = map.into_values().cloned().collect();
-        self.entries.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        self.entries.sort_by_key(|a| Reverse(a.downloads));
     }
 
     /// Search entries by a free-text query (matches name, description, tags, author).
@@ -82,7 +88,7 @@ impl MarketplaceIndex {
     /// Return all entries sorted by downloads (descending).
     pub fn sorted_by_downloads(&self) -> Vec<&SpecEntry> {
         let mut v: Vec<&SpecEntry> = self.entries.iter().collect();
-        v.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        v.sort_by_key(|a| Reverse(a.downloads));
         v
     }
 
@@ -175,6 +181,11 @@ impl PluginIndex {
     }
 
     /// Return the built-in curated plugin index bundled with this binary.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the bundled `assets/plugin-index.json` is malformed. This
+    /// is a compile-time-baked asset, so a panic here indicates a corrupt build.
     pub fn built_in() -> Self {
         let json = include_str!("../../../assets/plugin-index.json");
         serde_json::from_str(json).expect("bundled plugin-index.json is valid JSON")
@@ -191,7 +202,7 @@ impl PluginIndex {
             map.insert(&entry.name, entry);
         }
         self.plugins = map.into_values().cloned().collect();
-        self.plugins.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        self.plugins.sort_by_key(|a| Reverse(a.downloads));
     }
 
     /// Search plugins by a free-text query (matches name, description, language, author).
@@ -217,7 +228,7 @@ impl PluginIndex {
     /// Return all plugins sorted by downloads (descending).
     pub fn sorted_by_downloads(&self) -> Vec<&PluginEntry> {
         let mut v: Vec<&PluginEntry> = self.plugins.iter().collect();
-        v.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        v.sort_by_key(|a| Reverse(a.downloads));
         v
     }
 
@@ -311,7 +322,7 @@ mod tests {
 
     #[test]
     fn search_matches_name() {
-        let mut index = MarketplaceIndex {
+        let index = MarketplaceIndex {
             entries: vec![sample_entry("github"), sample_entry("stripe")],
         };
         let results = index.search("github");
