@@ -74,6 +74,10 @@ jobs:
       - name: Clippy (warnings = errors)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Security audit
+        run: cargo audit
+        continue-on-error: true  # advisory-only; don't block CI
+
       - name: Unit tests (core + emitters)
         run: |
           cargo test -p specforge-core --all-targets
