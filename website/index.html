@@ -29,7 +29,7 @@
   "description": "Open-source OpenAPI 3.x to TypeScript, Go, Rust, and WASM SDK generator with a production runtime (auth, retry, idempotency, validation, SSE, middleware).",
   "url": "https://specforge.deepwhaleai.com/",
   "downloadUrl": "https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/releases/latest",
-  "softwareVersion": "1.6.0",
+  "softwareVersion": "1.6.1",
   "license": "https://opensource.org/licenses/MIT",
   "offers": {
     "@type": "Offer",
@@ -56,6 +56,7 @@
     --dim: #94a3b8;
     --accent: #f97316;
     --accent2: #fbbf24;
+    --cyan: #38bdf8;
     --red: #dc2626;
     --green: #22c55e;
     --border: rgba(249,115,22,0.1);
@@ -491,33 +492,71 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     RUNTIME CHECKLIST
+     RUNTIME CHECKLIST — grouped category cards
      ══════════════════════════════════════════════════════════════ */
   .runtime-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
   }
-  .runtime-item {
+  .runtime-card {
     background: var(--bg2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.1rem 1.4rem;
-    display: flex; align-items: center; gap: 1rem;
-    font-size: 1.05rem;
-    transition: border-color 0.2s;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: border-color 0.25s, box-shadow 0.25s;
   }
-  .runtime-item:hover { border-color: rgba(249,115,22,0.2); }
-  .runtime-item .dot {
-    width: 8px; height: 8px; border-radius: 50%;
+  .runtime-card:hover {
+    border-color: rgba(255,255,255,0.08);
+    box-shadow: 0 0 24px rgba(0,0,0,0.3);
+  }
+  .runtime-card-header {
+    display: flex; align-items: center; gap: 0.7rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .runtime-card-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
     flex-shrink: 0;
   }
-  .runtime-item .dot.orange { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
-  .runtime-item .dot.gold { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
-  .runtime-item .dot.green { background: var(--green); box-shadow: 0 0 10px var(--green); }
-  .runtime-item .dot.red { background: var(--red); box-shadow: 0 0 10px var(--red); }
-  .runtime-item .dot.blue { background: #3b82f6; box-shadow: 0 0 10px #3b82f6; }
-  .runtime-item .dot.purple { background: #a855f7; box-shadow: 0 0 10px #a855f7; }
+  .runtime-card-icon.cyan   { background: rgba(56,189,248,0.12); color: var(--cyan); }
+  .runtime-card-icon.green  { background: rgba(34,197,94,0.12);  color: var(--green); }
+  .runtime-card-icon.gold   { background: rgba(249,115,22,0.12);  color: var(--accent); }
+  .runtime-card-icon.purple { background: rgba(167,139,250,0.12); color: #a78bfa; }
+  .runtime-card-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .runtime-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+  .runtime-card li {
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    font-size: 0.92rem;
+    color: var(--dim);
+    line-height: 1.45;
+  }
+  .runtime-card li::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.45rem;
+  }
+  .runtime-card.cyan li::before   { background: var(--cyan);  box-shadow: 0 0 6px var(--cyan); }
+  .runtime-card.green li::before  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .runtime-card.gold li::before   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .runtime-card.purple li::before { background: #a78bfa; box-shadow: 0 0 6px #a78bfa; }
 
   /* ══════════════════════════════════════════════════════════════
      LANGUAGE CODE EXAMPLES
@@ -626,55 +665,87 @@
   .cli-item .desc { color: var(--muted); font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; margin-top: 0.3rem; }
 
   /* ══════════════════════════════════════════════════════════════
-     INSTALL CARDS
+     INSTALL STEPPER TIMELINE
      ══════════════════════════════════════════════════════════════ */
-  .install-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.5rem;
-    max-width: 100%;
-    overflow-x: hidden;
-    width: 100%;
+  .install-stepper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-left: 3.5rem;
   }
-  .install-card {
+  .install-stepper::before {
+    content: '';
+    position: absolute;
+    left: 1.25rem;
+    top: 1.25rem;
+    bottom: 1.25rem;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2), var(--green));
+    border-radius: 1px;
+    opacity: 0.4;
+  }
+  .install-step {
+    position: relative;
+    padding: 1.8rem 0;
+  }
+  .install-step + .install-step {
+    border-top: 1px solid rgba(249,115,22,0.06);
+  }
+  .install-step-marker {
+    position: absolute;
+    left: -3.5rem;
+    top: 1.8rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
     background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 2rem;
-    overflow: hidden;
-    min-width: 0;
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 1;
+    box-shadow: 0 0 12px rgba(249,115,22,0.15);
   }
-  .install-card h3 {
-    font-size: 1.2rem; font-weight: 700; margin-bottom: 0.3rem;
-    display: flex; align-items: center; gap: 0.6rem;
+  .install-step-header h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
     color: var(--text);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
   }
-  .install-card .install-label {
-    font-size: 0.85rem; color: var(--muted); text-transform: uppercase;
-    letter-spacing: 0.06em; font-weight: 600; margin-bottom: 1.2rem;
+  .install-step-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    margin-bottom: 1rem;
   }
   .install-code {
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 1.2rem 1.4rem;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: var(--green);
     font-family: 'JetBrains Mono', monospace;
-    overflow: hidden;
+    overflow-x: auto;
     position: relative;
-    line-height: 1.8;
+    line-height: 1.7;
     width: 100%;
     box-sizing: border-box;
   }
-  .install-code code { 
-    color: inherit; 
-    white-space: pre-wrap; 
+  .install-code code {
+    color: inherit;
+    white-space: pre;
     display: block;
-    word-break: break-all;
-    overflow-wrap: anywhere;
-    width: 100%;
-    box-sizing: border-box;
   }
   .install-code .cm { color: #475569; font-style: italic; }
   .copy-btn {
@@ -720,7 +791,8 @@
     section { padding: 4rem 1.2rem; }
     .features-grid { grid-template-columns: 1fr; }
     .runtime-grid { grid-template-columns: 1fr; }
-    .install-grid { grid-template-columns: 1fr; }
+    .install-stepper { padding-left: 2.8rem; }
+    .install-step-marker { left: -2.8rem; width: 2rem; height: 2rem; font-size: 0.75rem; }
     .benchmark-grid { grid-template-columns: repeat(2, 1fr); }
     .pricing-grid { grid-template-columns: 1fr; }
     .vs-grid { grid-template-columns: 1fr; }
@@ -1231,7 +1303,7 @@
       </svg>
     </div>
 
-    <div class="badge">v1.6.0 · MIT License</div>
+    <div class="badge">v1.6.1 · MIT License</div>
 
     <h1>Forge <span class="gradient">production-ready SDKs</span><br>from OpenAPI specs</h1>
 
@@ -1264,8 +1336,8 @@
     </div>
 
     <div class="stats">
-      <span><b>227</b> unit tests</span>
-      <span><b>3</b> language targets</span>
+      <span><b>259</b> unit tests</span>
+      <span><b>4</b> language targets</span>
       <span><b>4</b> platforms CI</span>
       <span><b>WASM</b> plugin system</span>
     </div>
@@ -1411,25 +1483,62 @@
     Every generated SDK is a complete, production-ready client — not just types. All capabilities available in TypeScript, Go, and Rust.
   </p>
   <div class="runtime-grid reveal">
-    <div class="runtime-item"><span class="dot orange"></span> Typed models + operations</div>
-    <div class="runtime-item"><span class="dot orange"></span> Auth providers (Bearer, API key, custom)</div>
-    <div class="runtime-item"><span class="dot green"></span> Retry — full-jitter exponential backoff</div>
-    <div class="runtime-item"><span class="dot green"></span> Per-attempt timeouts</div>
-    <div class="runtime-item"><span class="dot orange"></span> Pagination helpers (cursor &amp; offset)</div>
-    <div class="runtime-item"><span class="dot gold"></span> Concurrency semaphore (maxConcurrent)</div>
-    <div class="runtime-item"><span class="dot gold"></span> In-flight request deduplication</div>
-    <div class="runtime-item"><span class="dot gold"></span> Composable middleware chain</div>
-    <div class="runtime-item"><span class="dot gold"></span> Idempotency keys on unsafe methods</div>
-    <div class="runtime-item"><span class="dot green"></span> SSE streaming with error handling</div>
-    <div class="runtime-item"><span class="dot red"></span> Runtime request/response validation</div>
-    <div class="runtime-item"><span class="dot orange"></span> oneOf type guards (isX / narrowX)</div>
-    <div class="runtime-item"><span class="dot blue"></span> Rate limiting (token bucket + sliding window)</div>
-    <div class="runtime-item"><span class="dot purple"></span> Telemetry &amp; metrics collection</div>
-    <div class="runtime-item"><span class="dot green"></span> Response caching with ETag support</div>
-    <div class="runtime-item"><span class="dot gold"></span> HTTP client dependency injection</div>
-    <div class="runtime-item"><span class="dot orange"></span> Structured logging middleware</div>
-    <div class="runtime-item"><span class="dot blue"></span> i18n (internationalization) support</div>
-    <div class="runtime-item"><span class="dot purple"></span> Request/Response interceptors</div>
+
+    <div class="runtime-card cyan">
+      <div class="runtime-card-header">
+        <div class="runtime-card-icon cyan">⚡</div>
+        <div class="runtime-card-title">Client Core</div>
+      </div>
+      <ul>
+        <li>Typed models + operations</li>
+        <li>Auth providers (Bearer, API key, custom)</li>
+        <li>Pagination helpers (cursor &amp; offset)</li>
+        <li>oneOf type guards (isX / narrowX)</li>
+        <li>HTTP client dependency injection</li>
+      </ul>
+    </div>
+
+    <div class="runtime-card green">
+      <div class="runtime-card-header">
+        <div class="runtime-card-icon green">🛡</div>
+        <div class="runtime-card-title">Resilience</div>
+      </div>
+      <ul>
+        <li>Retry — full-jitter exponential backoff</li>
+        <li>Per-attempt timeouts</li>
+        <li>Idempotency keys on unsafe methods</li>
+        <li>Rate limiting (token bucket + sliding window)</li>
+        <li>Response caching with ETag support</li>
+      </ul>
+    </div>
+
+    <div class="runtime-card gold">
+      <div class="runtime-card-header">
+        <div class="runtime-card-icon gold">⚙</div>
+        <div class="runtime-card-title">Concurrency &amp; Middleware</div>
+      </div>
+      <ul>
+        <li>Concurrency semaphore (maxConcurrent)</li>
+        <li>In-flight request deduplication</li>
+        <li>Composable middleware chain</li>
+        <li>Request/Response interceptors</li>
+        <li>Structured logging middleware</li>
+      </ul>
+    </div>
+
+    <div class="runtime-card purple">
+      <div class="runtime-card-header">
+        <div class="runtime-card-icon purple">📊</div>
+        <div class="runtime-card-title">Streaming &amp; Observability</div>
+      </div>
+      <ul>
+        <li>SSE streaming with error handling</li>
+        <li>Runtime request/response validation</li>
+        <li>Telemetry &amp; metrics collection</li>
+        <li>i18n (internationalization) support</li>
+      </ul>
+    </div>
+
   </div>
 </section>
 
@@ -1581,7 +1690,7 @@
      ══════════════════════════════════════════════════════════════ -->
 <section id="cli">
   <h2 class="reveal">CLI Commands</h2>
-  <p class="section-desc reveal">One binary, twenty-two commands. Cross-compiled for Linux, macOS, and Windows.</p>
+  <p class="section-desc reveal">One binary, dozens of commands. Cross-compiled for Linux, macOS, and Windows.</p>
 
   <h3 class="cli-tier">Core — you'll use these daily</h3>
   <div class="cli-grid reveal">
@@ -1589,6 +1698,7 @@
     <div class="cli-item"><div class="cmd">specforge check</div><div class="desc">Lint and validate a spec with configurable rules</div></div>
     <div class="cli-item"><div class="cmd">specforge diff</div><div class="desc">Compare two specs and report breaking changes (exit code 1)</div></div>
     <div class="cli-item"><div class="cmd">specforge emit</div><div class="desc">Dump the resolved IR as JSON for external tools and plugins</div></div>
+    <div class="cli-item"><div class="cmd">specforge profile</div><div class="desc">Profile generation performance per pipeline stage</div></div>
   </div>
 
   <h3 class="cli-tier">Validation, security &amp; CI</h3>
@@ -1597,14 +1707,15 @@
     <div class="cli-item"><div class="cmd">specforge analyze</div><div class="desc">Deep analysis of spec structure and usage</div></div>
     <div class="cli-item"><div class="cmd">specforge graph</div><div class="desc">Generate dependency graphs (Mermaid/DOT)</div></div>
     <div class="cli-item"><div class="cmd">specforge migrate</div><div class="desc">Generate migration guides between API versions</div></div>
+    <div class="cli-item"><div class="cmd">specforge verify</div><div class="desc">Validate a running API against the spec</div></div>
   </div>
 
-  <h3 class="cli-tier">Docs, mock &amp; demo</h3>
+  <h3 class="cli-tier">Docs, mock &amp; test</h3>
   <div class="cli-grid reveal">
     <div class="cli-item"><div class="cmd">specforge docs</div><div class="desc">Generate a static HTML API documentation site</div></div>
     <div class="cli-item"><div class="cmd">specforge test</div><div class="desc">Generate mock server tests from spec example responses</div></div>
-    <div class="cli-item"><div class="cmd">specforge mock</div><div class="desc">Start a mock server with realistic data</div></div>
-    <div class="cli-item"><div class="cmd">specforge demo</div><div class="desc">Create interactive demo applications</div></div>
+    <div class="cli-item"><div class="cmd">specforge mock</div><div class="desc">Start a local mock server from spec examples</div></div>
+    <div class="cli-item"><div class="cmd">specforge demo</div><div class="desc">Generate a realistic demo Petstore spec</div></div>
   </div>
 
   <h3 class="cli-tier">Workspace &amp; spec plumbing</h3>
@@ -1615,10 +1726,13 @@
     <div class="cli-item"><div class="cmd">specforge versions</div><div class="desc">List API versions in a spec directory</div></div>
     <div class="cli-item"><div class="cmd">specforge workspace</div><div class="desc">Generate SDKs for all specs in a workspace config</div></div>
     <div class="cli-item"><div class="cmd">specforge workspace-init</div><div class="desc">Generate a workspace config from a directory of specs</div></div>
-    <div class="cli-item"><div class="cmd">specforge export</div><div class="desc">Export spec to various formats</div></div>
-    <div class="cli-item"><div class="cmd">specforge evolution</div><div class="desc">Track API evolution over time</div></div>
-    <div class="cli-item"><div class="cmd">specforge dashboard</div><div class="desc">Generate SDK telemetry dashboard</div></div>
-    <div class="cli-item"><div class="cmd">specforge infer</div><div class="desc">Infer OpenAPI spec from JSON examples</div></div>
+    <div class="cli-item"><div class="cmd">specforge export</div><div class="desc">Export Swagger Editor-compatible spec (inline $ref)</div></div>
+    <div class="cli-item"><div class="cmd">specforge evolution</div><div class="desc">Track schema changes over git commits</div></div>
+    <div class="cli-item"><div class="cmd">specforge dashboard</div><div class="desc">HTML metrics visualization with Chart.js</div></div>
+    <div class="cli-item"><div class="cmd">specforge infer</div><div class="desc">Generate an OpenAPI spec from sample JSON</div></div>
+    <div class="cli-item"><div class="cmd">specforge plugin</div><div class="desc">Manage WASM emitter plugins</div></div>
+    <div class="cli-item"><div class="cmd">specforge market</div><div class="desc">Browse, search, and manage specs in the marketplace</div></div>
+    <div class="cli-item"><div class="cmd">specforge changelog</div><div class="desc">Auto-generate CHANGELOG from spec changes</div></div>
   </div>
 </section>
 
@@ -1630,10 +1744,14 @@
 <section id="install">
   <h2 class="reveal">Installation</h2>
   <p class="section-desc reveal">Get specforge running on your machine in under a minute.</p>
-  <div class="install-grid">
-    <div class="install-card reveal">
-      <h3>💻 Prebuilt Binary</h3>
-      <div class="install-label">Fastest path — 60 seconds to first SDK</div>
+  <div class="install-stepper reveal">
+
+    <div class="install-step">
+      <div class="install-step-marker">1</div>
+      <div class="install-step-header">
+        <h3>💻 Prebuilt Binary</h3>
+        <div class="install-step-label">Fastest path — 60 seconds to first SDK</div>
+      </div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         <code><span class="cm"># Linux (x86_64) — also available for macOS &amp; Windows on Releases</span>
@@ -1646,9 +1764,12 @@ specforge generate petstore.yaml -o ./sdk-ts -l ts -n @acme/petstore-sdk</code>
       </div>
     </div>
 
-    <div class="install-card reveal">
-      <h3>📦 Cargo (from source)</h3>
-      <div class="install-label">If you prefer to build from source</div>
+    <div class="install-step">
+      <div class="install-step-marker">2</div>
+      <div class="install-step-header">
+        <h3>📦 Cargo (from source)</h3>
+        <div class="install-step-label">If you prefer to build from source</div>
+      </div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         <code><span class="cm"># Clone &amp; build (requires Rust 1.75+)</span>
@@ -1658,9 +1779,12 @@ cargo install --path crates/specforge-cli</code>
       </div>
     </div>
 
-    <div class="install-card reveal">
-      <h3>⚡ GitHub Action</h3>
-      <div class="install-label">CI/CD integration</div>
+    <div class="install-step">
+      <div class="install-step-marker">3</div>
+      <div class="install-step-header">
+        <h3>⚡ GitHub Action</h3>
+        <div class="install-step-label">CI/CD integration</div>
+      </div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         <code><span class="cm"># .github/workflows/sdk.yml</span>
@@ -1672,9 +1796,12 @@ cargo install --path crates/specforge-cli</code>
       </div>
     </div>
 
-    <div class="install-card reveal">
-      <h3>✅ Verify Installation</h3>
-      <div class="install-label">Check that everything works</div>
+    <div class="install-step">
+      <div class="install-step-marker">4</div>
+      <div class="install-step-header">
+        <h3>✅ Verify Installation</h3>
+        <div class="install-step-label">Check that everything works</div>
+      </div>
       <div class="install-code">
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         <code>specforge --version
@@ -1683,6 +1810,7 @@ cargo install --path crates/specforge-cli</code>
 specforge --help</code>
       </div>
     </div>
+
   </div>
 </section>
 
