@@ -226,6 +226,54 @@ fn pascal(input: &str) -> String {
     out
 }
 
+/// Whether `name` matches a type the Rust SDK emitter hardcodes into the
+/// generated crate (client.rs, error.rs, etc.). User models with these names
+/// are suffixed with `Model` to avoid redefinition errors. Only applied to
+/// generated model/enum names, not to all pascal-case identifiers.
+fn is_rust_sdk_builtin_type(name: &str) -> bool {
+    matches!(
+        name,
+        "Error"
+            | "Client"
+            | "ClientBuilder"
+            | "ServiceContainer"
+            | "Semaphore"
+            | "RetryOptions"
+            | "ResponseCache"
+            | "RequestDeduper"
+            | "ResponseTransformer"
+            | "RequestInterceptor"
+            | "ResponseInterceptor"
+            | "RateLimiter"
+            | "TokenBucket"
+            | "SlidingWindow"
+            | "MetricsCollector"
+            | "Metrics"
+            | "TelemetryHooks"
+            | "Middleware"
+            | "MiddlewareRequest"
+            | "MiddlewareResponse"
+            | "StreamMiddleware"
+            | "ServerSentEvent"
+            | "SseStream"
+            | "Auth"
+            | "CursorPage"
+            | "OffsetPage"
+            | "ConsoleLogger"
+            | "NoopLogger"
+    )
+}
+
+/// Wrap a generated model/enum name so it can't collide with a built-in SDK
+/// type. Returns `name` unchanged when safe, or `name + "Model"` when it would.
+fn safe_model_name(name: &str) -> String {
+    if is_rust_sdk_builtin_type(name) {
+        format!("{name}Model")
+    } else {
+        name.to_string()
+    }
+}
+
 fn snake(input: &str) -> String {
     // Expand punctuation first so "+1"/"-1" don't both collapse to "1".
     let mut expanded = String::new();
@@ -2764,7 +2812,7 @@ use serde::{Deserialize, Serialize};
 }
 
 fn emit_enum(e: &EnumModel) -> String {
-    let name = pascal(&e.name);
+    let name = safe_model_name(&pascal(&e.name));
     let mut out = String::new();
     if let Some(d) = &e.description {
         out.push_str(&rust_doc(d));
@@ -2822,7 +2870,7 @@ fn emit_enum(e: &EnumModel) -> String {
 }
 
 fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> String {
-    let name = pascal(&o.name);
+    let name = safe_model_name(&pascal(&o.name));
     let mut out = String::new();
     let is_deprecated = o.description.as_deref().is_some_and(|d| {
         d.to_lowercase().contains("deprecated")
