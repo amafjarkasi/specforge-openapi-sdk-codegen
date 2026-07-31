@@ -3722,3 +3722,25 @@ fn go_inline_collapses_newlines() {
     assert_eq!(go_inline("line1\nline2"), "line1 line2");
     assert_eq!(go_inline("a\nb\nc"), "a b c");
 }
+
+    // ── go_doc / go_doc_label ──────────────────────────────────────────
+
+    #[test]
+    fn go_doc_prefixes_every_line() {
+        let result = go_doc("line1\nline2\nline3", "");
+        assert!(result.contains("// line1"));
+        assert!(result.contains("// line2"));
+        assert!(result.contains("// line3"));
+    }
+
+    #[test]
+    fn go_doc_escapes_close_block_comment() {
+        let result = go_doc("use FooApi*/ instead", "");
+        assert!(result.contains("*&#47;"), "should escape */");
+    }
+
+    #[test]
+    fn go_doc_label_first_line_with_label() {
+        let result = go_doc_label("desc text", "name: ");
+        assert!(result.contains("// name: desc text"));
+    }
