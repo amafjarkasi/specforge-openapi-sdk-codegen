@@ -773,7 +773,7 @@ Large specs download on demand into `target/spec-cache/` and are **skipped (not 
 
 ### GitHub Actions
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push/PR:
+[`.github/workflows/ci.yml`](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/master/.github/workflows/ci.yml) runs on every push/PR:
 
 - **`test`** — full suite (Rust stable + Go 1.23 + Node 20, cached cargo + spec-cache)  
 - **`quick`** — build + unit + petstore-only regression for a fast signal  
@@ -782,7 +782,7 @@ Large specs download on demand into `target/spec-cache/` and are **skipped (not 
 
 ## Release
 
-See **[RELEASE.md](./RELEASE.md)** for the full checklist. Short version:
+See **[RELEASE.md](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/master/RELEASE.md)** for the full checklist. Short version:
 
 ```bash
 # 1. bump [workspace.package].version in Cargo.toml
@@ -923,7 +923,7 @@ Commands: `generate`, `check`, `diff`, `emit`
 
 ### VS Code Extension
 
-Install the [specforge VS Code extension](vscode-extension/) for:
+Install the [specforge VS Code extension](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/tree/master/vscode-extension) for:
 - One-click SDK generation
 - Spec validation
 - IR preview
@@ -942,7 +942,7 @@ specforge emit openapi.yaml --stream | while read -r line; do
 done
 ```
 
-See [assets/ir-schema.json](assets/ir-schema.json) for the IR JSON Schema.
+See [assets/ir-schema.json](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/master/assets/ir-schema.json) for the IR JSON Schema.
 
 ### Deterministic Output
 
@@ -951,7 +951,7 @@ specforge guarantees deterministic output — the same spec + version always pro
 - Reproducible builds
 - Diff-friendly generated code
 
-See [INCREMENTAL.md](INCREMENTAL.md) for CI caching strategies.
+See [INCREMENTAL.md](https://github.com/amafjarkasi/specforge-openapi-sdk-codegen/blob/master/INCREMENTAL.md) for CI caching strategies.
 
 ---
 
