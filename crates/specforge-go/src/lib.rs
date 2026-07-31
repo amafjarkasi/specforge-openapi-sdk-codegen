@@ -3652,3 +3652,18 @@ fn export_ident_safe_model_name_collision() {
     // Non-colliding names pass through.
     assert_eq!(export_ident("pet_store"), "PetStore");
 }
+
+    // ── go_inline ─────────────────────────────────────────────────────
+
+    #[test]
+    fn go_inline_escapes_closes_block_comment() {
+        assert_eq!(go_inline("use FooApi*/ instead"), "use FooApi*&#47; instead");
+        assert_eq!(go_inline("no issues"), "no issues");
+    }
+
+    #[test]
+    fn go_inline_collapses_newlines() {
+        // Each newline individually becomes a space.
+        assert_eq!(go_inline("line1\nline2"), "line1 line2");
+        assert_eq!(go_inline("a\nb\nc"), "a b c");
+    }
