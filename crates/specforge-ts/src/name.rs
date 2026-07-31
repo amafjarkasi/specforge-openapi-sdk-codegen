@@ -36,6 +36,67 @@ pub fn pascal(input: &str) -> String {
     out
 }
 
+/// Whether `name` matches a type the TypeScript SDK emitter hardcodes into the
+/// generated package (ApiClient, ResponseCache, ValidationError, etc.). User
+/// models with these names are suffixed with `Model` to avoid duplicate-export
+/// / redeclaration errors. Only applied to generated model/enum names, not to
+/// all pascal-case identifiers.
+pub fn is_ts_sdk_builtin_type(name: &str) -> bool {
+    matches!(
+        name,
+        "ApiClient"
+            | "ApiClientOptions"
+            | "ApiError"
+            | "AuthProvider"
+            | "AnonymousAuthProvider"
+            | "BearerAuthProvider"
+            | "ApiKeyAuthProvider"
+            | "CacheEntry"
+            | "ConfigurationError"
+            | "ConsoleLogger"
+            | "CursorPage"
+            | "EndpointSchema"
+            | "HttpError"
+            | "Logger"
+            | "Metrics"
+            | "MetricsCollector"
+            | "Middleware"
+            | "MiddlewareRequest"
+            | "MiddlewareResponse"
+            | "NetworkError"
+            | "OffsetPage"
+            | "RateLimiter"
+            | "RequestInterceptor"
+            | "RequestDeduper"
+            | "RequestOptions"
+            | "ResponseCache"
+            | "ResponseInterceptor"
+            | "ResponseTransformer"
+            | "RetryOptions"
+            | "RouteSchemaMap"
+            | "SchemaType"
+            | "Semaphore"
+            | "ServerSentEvent"
+            | "ServiceContainer"
+            | "SlidingWindow"
+            | "TelemetryHooks"
+            | "TimeoutError"
+            | "TokenBucket"
+            | "ValidationError"
+            | "QueryRecord"
+    )
+}
+
+/// Wrap a generated model/enum name so it can't collide with a built-in SDK
+/// type. Returns `name` unchanged when safe, or `name + "Model"` when it would.
+pub fn safe_model_name(name: &str) -> String {
+    if is_ts_sdk_builtin_type(name) {
+        format!("{name}Model")
+    } else {
+        name.to_string()
+    }
+}
+
 /// Sanitize a name into a valid TS *value* identifier (camelCase).
 pub fn camel(input: &str) -> String {
     let pascal = pascal(input);

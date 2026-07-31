@@ -48,7 +48,7 @@ pub fn emit_model_file_with_registry(model: &Model, registry: Option<&SchemaRegi
 
 /// (filename_stem, body, referenced-model-names)
 fn emit_object(o: &ObjectModel, registry: Option<&SchemaRegistry>) -> (String, String, BTreeSet<String>) {
-    let name = pascal(&o.name);
+    let name = crate::name::safe_model_name(&pascal(&o.name));
     let mut refs = BTreeSet::new();
     let mut body = String::new();
 
@@ -306,7 +306,7 @@ fn escape_str(s: &str) -> String {
 }
 
 fn emit_enum(e: &EnumModel) -> (String, String, BTreeSet<String>) {
-    let name = pascal(&e.name);
+    let name = crate::name::safe_model_name(&pascal(&e.name));
     let mut body = String::new();
     if let Some(desc) = &e.description {
         body.push_str(&format_doc_comment(desc, ""));

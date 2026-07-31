@@ -65,7 +65,7 @@ pub fn generate(doc: &Document, opts: &GeneratorOptions) -> std::io::Result<Vec<
     let models_dir = opts.out_dir.join("src").join("models");
     std::fs::create_dir_all(&models_dir)?;
     for (_, model) in doc.schemas.iter() {
-        let name = name::pascal(model.name());
+        let name = name::safe_model_name(&name::pascal(model.name()));
         let path = models_dir.join(format!("{name}.ts"));
         let rel = path_str(&path, &opts.out_dir);
         let content = models::emit_model_file_with_registry(model, Some(&doc.schemas));
@@ -292,7 +292,7 @@ fn collect_index(doc: &Document, out_dir: &Path, has_i18n: bool) -> std::io::Res
 
     // Models.
     for (_, model) in doc.schemas.iter() {
-        let name = name::pascal(model.name());
+        let name = name::safe_model_name(&name::pascal(model.name()));
         body.push_str(&format!("export * from \"./models/{name}\";\n"));
     }
     // Webhooks.
