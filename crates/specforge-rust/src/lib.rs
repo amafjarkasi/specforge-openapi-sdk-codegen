@@ -3858,6 +3858,34 @@ let client = Client::builder()
 println!("{{:?}}", metrics.get_metrics().await);
 ```
 
+## oneOf type guards
+
+For `oneOf`/`anyOf` compositions, the emitter generates runtime type guards on the enum:
+
+```rust
+use {crate_name}::models::{{PetEvent, PetEvent::{{PetCreated, PetUpdated}}}}
+
+// Discriminant: returns the variant tag as a string.
+let tag = PetEvent::PetCreated(pet.clone()).discriminant(); // "pet.created"
+
+// Union-scoped type guards (is{{Union}}{{Arm}}) — safe narrowing.
+let event = some_pet_event();
+if event.is_pet_event_created() {{
+    println!("created: {{:?}}", event);
+}}
+
+// Narrowing helper: returns the variant name or None.
+match event.narrow() {{
+    Some("PetCreated") => {{ /* … */ }}
+    Some("PetUpdated") => {{ /* … */ }}
+    _ => {{ /* not recognized */ }}
+}}
+```
+
+Guard names are union-scoped (`is_pet_event_created`, not `is_pet_created`) so two
+unions sharing an arm type don't collide. The `narrow()` helper is the ergonomic
+entry point for most use cases.
+
 _Do not edit generated files directly._
 "#,
         title = doc.title,
