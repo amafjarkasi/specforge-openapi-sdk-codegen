@@ -889,6 +889,20 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 
 ## Status & roadmap
 
+**v1.6.1** — codegen robustness + readability cleanup:
+
+- [x] Doc-comment escaping (Rust + Go emitters) — real-world specs (GitHub, Stripe) with backticks, `/*`/`*/`, and multi-paragraph descriptions no longer break generated code
+- [x] Reserved-name collision protection (Go + Rust) — spec models named like built-in SDK types (`ValidationError`, etc.) get a `Model` suffix
+- [x] Per-emitter compile gates — generated SDKs are regenerated into a temp crate and compiled (`cargo check` / `go build` / `tsc --noEmit`) in CI
+- [x] Regression tests now cover GitHub (~9MB) + Stripe (~7.6MB) specs in Rust + Go — 4 previously-failing tests now pass
+- [x] **259 tests** passing; clippy warnings 120 → 2
+
+**v1.6.0** — compile-gate tests + telemetry/validation middleware:
+
+- [x] `ServiceContainer` DI, `RequestInterceptor`/`ResponseInterceptor`, response transformers
+- [x] Validation middleware (`validation_middleware.rs`) wired into all emitters
+- [x] Telemetry hooks wired into the TypeScript client
+
 **v1.5.0** — web UI redesign, spec marketplace:
 
 - [x] Professional light theme — complete rewrite (1713 lines, design system)
@@ -1030,7 +1044,7 @@ Binary: `cargo build --release -p specforge-cli` → `target/release/specforge`.
 - [x] Multi-platform CI (Linux, macOS, Windows)  
 - [x] Richer generated READMEs (errors, pagination, concurrency, middleware, streaming)  
 
-**All roadmap items completed through v1.5.0. Production-ready with professional web UI and marketplace.**
+**All roadmap items completed through v1.6.1. Production-ready: real-world specs (GitHub, Stripe) generate + compile in all languages, with per-emitter compile gates in CI.**
 
 ---
 
