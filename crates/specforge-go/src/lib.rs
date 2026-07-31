@@ -385,7 +385,7 @@ fn emit_enum(e: &EnumModel) -> String {
         out.push_str(&go_doc(d, ""));
         if d.to_lowercase().contains("deprecated") {
             if let Some(alt) = go_schema_deprecation_alternative(d) {
-                out.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+                out.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
             } else {
                 out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
             }
@@ -411,7 +411,7 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
         out.push_str(&go_doc(d, ""));
         if d.to_lowercase().contains("deprecated") {
             if let Some(alt) = go_schema_deprecation_alternative(d) {
-                out.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+                out.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
             } else {
                 out.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
             }
@@ -2661,7 +2661,7 @@ fn emit_method(op: &Operation) -> String {
     if !error_responses.is_empty() {
         for r in &error_responses {
             if let Some(desc) = &r.description {
-                body.push_str(&format!("// Returns {} for {}.\n", desc, r.status));
+                body.push_str(&format!("// Returns {} for {}.\n", go_inline(desc), r.status));
             } else {
                 body.push_str(&format!("// Returns an error for {}.\n", r.status));
             }
@@ -2670,7 +2670,7 @@ fn emit_method(op: &Operation) -> String {
         // Deprecation notice.
     if is_operation_deprecated(op) {
         if let Some(alt) = go_deprecation_alternative(op) {
-            body.push_str(&format!("// Deprecated: Use {alt} instead.\n"));
+            body.push_str(&format!("// Deprecated: Use {} instead.\n", go_inline(&alt)));
         } else {
             body.push_str(&format!("// Deprecated: {name} is deprecated.\n"));
         }
@@ -3217,6 +3217,13 @@ fn go_doc_label(text: &str, label: &str) -> String {
         out.push_str(&format!("// {}\n", l.replace("*/", "*&#47;")));
     }
     out
+}
+
+/// Sanitize a spec-derived string for safe inlining into a single Go `//`
+/// comment line: escape `*/` (closes block comments) and collapse embedded
+/// newlines to spaces so the comment stays on one line.
+fn go_inline(text: &str) -> String {
+    text.replace("*/", "*&#47;").replace(['\n', '\r'], " ")
 }
 
 fn escape_go_string(s: &str) -> String {
