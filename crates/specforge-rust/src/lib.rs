@@ -2946,7 +2946,7 @@ fn emit_object(o: &ObjectModel, registry: &specforge_core::SchemaRegistry) -> St
             }
             // Property description doc comment.
             if let Some(desc) = &p.description {
-                out.push_str(&format!("    /// {desc}\n"));
+                out.push_str(&rust_doc_indented(desc, "    "));
             }
             let field = unique_field_name(&snake(&p.name), &mut used);
             let mut ty = render_type(&p.ty);
@@ -3411,7 +3411,23 @@ fn success_body(op: &Operation) -> Option<Type> {
 }
 
 fn rust_doc(text: &str) -> String {
-    text.lines().map(|l| format!("/// {l}\n")).collect()
+    rust_doc_indented(text, "")
+}
+
+/// Emit `text` as indented rustdoc (`///`) lines. Doc comments are still
+/// tokenized by rustc, so sequences from arbitrary spec descriptions can break
+/// the generated crate: `/*` and `*/` start/end block comments (causing
+/// "unterminated block comment" errors), and a bare backtick triggers a
+/// confusing "looks like a single quote" token error. Each line is prefixed
+/// (with `indent`) and both dangerous sequences are escaped so any prose
+/// survives verbatim into the rendered docs.
+fn rust_doc_indented(text: &str, indent: &str) -> String {
+    text.lines()
+        .map(|l| {
+            let escaped = l.replace("/*", "/&#42;").replace("*/", "&#42;/").replace('`', "\\`");
+            format!("{indent}/// {escaped}\n")
+        })
+        .collect()
 }
 
 fn escape_rust_string(s: &str) -> String {

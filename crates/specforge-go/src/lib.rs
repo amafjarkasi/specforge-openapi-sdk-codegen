@@ -437,7 +437,7 @@ fn emit_object(o: &ObjectModel, doc: &Document) -> String {
             }
             // Property description comment.
             if let Some(desc) = &p.description {
-                out.push_str(&format!("// {desc}\n"));
+                out.push_str(&go_doc(desc, "\t"));
             }
             let field = unique_field_name(&field_name(&p.name), &mut used_fields);
             let ty = render_type(&p.ty);
@@ -2589,14 +2589,14 @@ fn emit_method(op: &Operation) -> String {
         for p in &all_params {
             let pname = go_param_ident(&p.name);
             if let Some(desc) = &p.description {
-                body.push_str(&format!("// {pname}: {desc}\n"));
+                body.push_str(&go_doc_label(desc, &format!("{pname}: ")));
             }
         }
     }
     // Request body description.
     if let Some(rb) = &op.request_body {
         if let Some(desc) = &rb.description {
-            body.push_str(&format!("// body: {desc}\n"));
+            body.push_str(&go_doc_label(desc, "body: "));
         }
     }
     // Return description from success response.
@@ -2606,7 +2606,7 @@ fn emit_method(op: &Operation) -> String {
         .and_then(|r| r.description.clone());
     if let Some(desc) = &success_desc {
         body.push('\n');
-        body.push_str(&format!("// Returns {desc}.\n"));
+        body.push_str(&go_doc_label(desc, "Returns "));
     }
     // Error response descriptions.
     let error_responses: Vec<&specforge_core::Response> = op.responses.iter()
@@ -3146,9 +3146,31 @@ fn go_schema_deprecation_alternative(desc: &str) -> Option<String> {
 }
 
 fn go_doc(text: &str, pad: &str) -> String {
+    // Go `//` line comments are safe from `/* */` block-comment tokenizing, but
+    // a stray `*/` can still close an enclosing block comment in some tooling,
+    // and we want one `//` per line so multi-paragraph descriptions don't leak
+    // bare prose into the source (which breaks parsing). Escape `*/` and prefix
+    // every line.
     text.lines()
-        .map(|l| format!("{pad}// {l}\n"))
+        .map(|l| {
+            let escaped = l.replace("*/", "*&#47;");
+            format!("{pad}// {escaped}\n")
+        })
         .collect()
+}
+
+/// Like [`go_doc`], but prefixes the first line with `label` (e.g. `name: `)
+/// and `// ` on continuation lines. Used for per-field doc paragraphs.
+fn go_doc_label(text: &str, label: &str) -> String {
+    let mut lines = text.lines();
+    let mut out = String::new();
+    if let Some(first) = lines.next() {
+        out.push_str(&format!("// {label}{}\n", first.replace("*/", "*&#47;")));
+    }
+    for l in lines {
+        out.push_str(&format!("// {}\n", l.replace("*/", "*&#47;")));
+    }
+    out
 }
 
 fn escape_go_string(s: &str) -> String {
