@@ -353,4 +353,35 @@ mod tests {
         let r = analyze_security(&doc);
         assert_eq!(r.schemes[0].kind, "bearer");
     }
+
+    #[test]
+    fn detailed_detects_no_global_auth() {
+        // A spec with no security at all should warn.
+        let doc = Document {
+            ir_version: crate::ir::IR_VERSION.to_string(),
+            title: "T".into(),
+            version: "1".into(),
+            base_url: None,
+            security: vec![],
+            schemas: Default::default(),
+            operations: vec![],
+            webhooks: vec![],
+        };
+        // analyze_security_detailed needs an OpenAPI spec; build a minimal one.
+        let spec = openapiv3::OpenAPI {
+            openapi: "3.0.3".into(),
+            info: openapiv3::Info {
+                title: "T".into(),
+                version: "1".into(),
+                ..Default::default()
+            },
+            paths: Default::default(),
+            components: None,
+            security: None,
+            ..Default::default()
+        };
+        let r = analyze_security_detailed(&doc, &spec);
+        // Should have at least the "no security schemes" warning.
+        assert!(r.issues.iter().any(|i| i.message.contains("No security schemes")));
+    }
 }
