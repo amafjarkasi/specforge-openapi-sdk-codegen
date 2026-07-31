@@ -4112,3 +4112,13 @@ fn safe_model_name_all_builtins_suffixed() {
     assert_eq!(safe_model_name("Pet"), "Pet");
     assert_eq!(safe_model_name("MyCustomType"), "MyCustomType");
 }
+
+#[test]
+fn rust_doc_handles_crlf_input() {
+    // CRLF in spec descriptions should produce valid Rust doc comments.
+    let result = rust_doc("line1\r\nline2\r\n");
+    assert!(result.contains("/// line1"));
+    assert!(result.contains("/// line2"));
+    // No stray \r in output.
+    assert!(!result.contains('\r'), "rust_doc should strip \\r");
+}

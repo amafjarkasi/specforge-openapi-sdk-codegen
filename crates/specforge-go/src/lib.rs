@@ -3779,3 +3779,13 @@ fn export_ident_all_builtins_suffixed() {
         );
     }
 }
+
+#[test]
+fn go_doc_handles_crlf_input() {
+    // CRLF in spec descriptions should produce valid Go comments.
+    let result = go_doc("line1\r\nline2\r\n", "");
+    assert!(result.contains("// line1"));
+    assert!(result.contains("// line2"));
+    // No stray \r in output.
+    assert!(!result.contains('\r'), "go_doc should strip \\r");
+}
