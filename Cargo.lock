@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-cli"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1270,7 +1270,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-core"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "anyhow",
  "indexmap",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-go"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "rayon",
  "serde_json",
@@ -1298,7 +1298,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-plugin"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1314,7 +1314,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-rust"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "rayon",
  "serde_json",
@@ -1326,7 +1326,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-ts"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "indexmap",
  "rayon",
@@ -1339,7 +1339,7 @@ dependencies = [
 
 [[package]]
 name = "specforge-wasm"
-version = "0.8.0"
+version = "1.6.1"
 dependencies = [
  "serde",
  "serde_json",
