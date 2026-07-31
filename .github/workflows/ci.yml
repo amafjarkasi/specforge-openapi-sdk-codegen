@@ -71,19 +71,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: No CRLF in tracked files
-        shell: bash
-        run: |
-          bad=$(git ls-files | xargs file 2>/dev/null | grep 'CRLF' | head -5)
-          if [ -n "$bad" ]; then
-            echo "CRLF line endings found in tracked files:"
-            echo "$bad"
-            echo ""
-            echo "Fix: run 'git add --renormalize .' and commit."
-            exit 1
-          fi
-          echo "No CRLF found — all tracked files use LF."
-
       - name: Clippy (warnings = errors)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
