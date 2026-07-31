@@ -1338,4 +1338,22 @@ components:
         assert!(!f.uses_ref_siblings);
         assert!(!f.uses_dependent_required);
     }
+
+    #[test]
+    fn crlf_input_is_normalized_and_parses() {
+        // The GitHub spec fixture failed on Windows CI because git checkout
+        // converts to CRLF and serde_yaml rejects bare CR. Verify that
+        // parse_bytes normalizes \r\n → \n before parsing.
+        let yaml = "openapi: \"3.0.3\"\r\ninfo:\r\n  title: T\r\n  version: \"1.0\"\r\npaths: {}\r\n";
+        let result = parse_bytes(yaml.as_bytes());
+        assert!(result.is_ok(), "CRLF YAML should parse: {:?}", result.err());
+
+        // The same content with LF should also parse.
+        let yaml_lf = yaml.replace("\r\n", "\n");
+        let result_lf = parse_bytes(yaml_lf.as_bytes());
+        assert!(result_lf.is_ok(), "LF YAML should parse: {:?}", result_lf.err());
+
+        // Both should produce the same title.
+        assert_eq!(result.unwrap().info.title, result_lf.unwrap().info.title);
+    }
 }
